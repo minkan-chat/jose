@@ -1,0 +1,12 @@
+[hooks]
+pre-commit = """
+cargo fmt --all --quiet && 
+cargo clippy --all-features --quiet && 
+cargo doc --quiet && 
+cargo test --all-features --quiet && 
+cargo build --all-features --quiet
+
+"""
+prepare-commit-msg = "koji --hook"
+[logging]
+verbose = true

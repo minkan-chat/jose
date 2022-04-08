@@ -1,0 +1,38 @@
+# Audits dependencies
+name: rust-audit-deny
+on:
+    schedule:
+        # once a day
+        - cron: "0 0 * * *"
+    push:
+        branches:
+            - main
+            - staging
+            - trying
+        paths:
+            - "**/Cargo.toml"
+            - "**/Cargo.lock"
+
+jobs:
+    audit:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
+
+            - uses: actions-rs/audit-check@v1
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+    deny:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                checks:
+                    - advisories
+                    - bans licenses sources
+        continue-on-error: ${{ matrix.checks == 'advisories'}}
+        steps:
+            - uses: actions/checkout@v2
+
+            - uses: EmbarkStudios/cargo-deny-action@v1
+              with:
+                  command: check ${{ matrix.checks }}
