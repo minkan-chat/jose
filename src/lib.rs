@@ -20,3 +20,12 @@
 )]
 #![forbid(unsafe_code)]
 #![no_std]
+
+pub mod jwa;
+mod jwe;
+mod jwk;
+mod jws;
+mod jwt;
+
+#[doc(inline)]
+pub use jwt::JsonWebToken;

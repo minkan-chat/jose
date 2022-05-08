@@ -7,6 +7,8 @@ license = "MIT OR Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+serde = { version = "1", default-features = false, features = ["alloc"] }
+serde_json = { version = "1", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
 rusty-hook = "0.11"
