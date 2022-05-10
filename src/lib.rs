@@ -21,10 +21,12 @@
 #![forbid(unsafe_code)]
 #![no_std]
 
+extern crate alloc;
+
 pub mod jwa;
 mod jwe;
 mod jwk;
-mod jws;
+pub mod jws;
 mod jwt;
 
 #[doc(inline)]

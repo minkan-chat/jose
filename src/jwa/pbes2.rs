@@ -1,9 +1,9 @@
 use serde_json::Value;
 
-#[derive(Debug)]
 /// Key Encryption with PBES2 as defined in [section 4.8 of RFC 7518]
 ///
 /// [section 4.8 of RFC 7518]: <https://datatracker.ietf.org/doc/html/rfc7518#section-4.8>
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Pbes2 {
     /// The "p2s" (PBES2 Salt Input) Header Parameter as defined in [section
     /// 4.8.1.1]
@@ -18,11 +18,11 @@ pub struct Pbes2 {
     pub variant: Pbes2Variant,
 }
 
-#[derive(Debug)]
 /// A variant of Key Encryption with PBES2 as defined in the table of [section
 /// 4.8 of RFC 7518]
 ///
 /// [section 4.8 of RFC 7518]: <https://datatracker.ietf.org/doc/html/rfc7518#section-4.8>
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Pbes2Variant {
     /// PBES2 with HMAC SHA56 and "A128KW" wrapping
     Hs256Aes128,

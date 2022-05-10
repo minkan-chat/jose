@@ -1,7 +1,7 @@
 /// Digital Signature with ECDSA as defined in [section 3.4 of RFC 7518]
 ///
 /// [section 3.4 of RFC 7518]: <https://datatracker.ietf.org/doc/html/rfc7518#section-3.4>
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EcDSA {
     /// ECDSA using P-256 and SHA-256
     Es256,

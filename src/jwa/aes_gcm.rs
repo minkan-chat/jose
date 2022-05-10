@@ -3,7 +3,7 @@ use serde_json::Value;
 /// Key Encryption with AES GCM as defined in [section 4.7 of RFC 7518]
 ///
 /// [section 4.7 of RFC 7518]: <https://datatracker.ietf.org/doc/html/rfc7518#section-4.7>
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AesGcm {
     /// The "iv" (Initialization Vector) Header Parameter as defined in [section
     /// 4.7.1.1]
@@ -19,10 +19,10 @@ pub struct AesGcm {
     pub variant: AesGcmVariant,
 }
 
-#[derive(Debug)]
 /// Different variants of AES GCM as in the table in [section 4.7 of RFC 7518]
 ///
 /// [section 4.7 of RFC 7518]: <https://datatracker.ietf.org/doc/html/rfc7518#section-4.7>
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AesGcmVariant {
     /// Key wrapping with AES GCM using 128-bit key
     Aes128,

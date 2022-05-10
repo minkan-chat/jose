@@ -6,7 +6,7 @@ use super::AesKw;
 /// (ECDH-ES) as defined in [section 4.6 of RFC 7518]
 ///
 /// [section 4.6 of RFC 7518]: <https://datatracker.ietf.org/doc/html/rfc7518#section-4>
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EcDhES {
     /// The `epk` (Ephemeral Public Key) Header Parameter as defined in [section
     /// 4.6.1.1]
@@ -30,7 +30,7 @@ pub struct EcDhES {
 /// Different modes ECDH-ES can be used as defined in [section 4.6 of RFC 7518]
 ///
 /// [section 4.6 of RFC 7518]: <https://datatracker.ietf.org/doc/html/rfc7518#section-4.6>
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EcDhESMode {
     /// Using ECDH-ES directly without any wrapping
     Direct,

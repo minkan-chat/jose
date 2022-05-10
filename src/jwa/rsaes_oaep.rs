@@ -1,7 +1,7 @@
 /// Key Encryption with RSAES OAEP as defined in [section 4.3 of RFC 7518]
 ///
 /// [section 4.3 of RFC 7518]: <https://datatracker.ietf.org/doc/html/rfc7518#section-4.3>
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RsaesOaep {
     /// RSAES OAEP using default parameters
     RsaesOaep,
