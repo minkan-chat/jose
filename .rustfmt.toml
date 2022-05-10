@@ -7,8 +7,6 @@ newline_style = "Unix"
 normalize_comments = true
 reorder_impl_items = true
 group_imports = "StdExternalCrate"
-report_fixme = "Unnumbered"
-report_todo = "Unnumbered"
 wrap_comments = true
 
 unstable_features = true
