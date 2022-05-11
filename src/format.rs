@@ -3,15 +3,17 @@
 //!
 //! Currently, the only two formats are [`Compact`] and [`Json`].
 
-use alloc::{string::ToString, vec::Vec};
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 use core::{fmt, str::FromStr};
 
+use base64ct::{Base64UrlUnpadded, Encoding};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::Base64String;
-
-/// Used to convert any type into the specified format.
+/// Used to convert any type into either the [`Compact`] or [`Json`] format.
 pub trait Encode<F> {
     /// The type returned when an error occurred while
     /// encoding `self`.
@@ -39,26 +41,21 @@ pub trait Decode<F>: Sized {
 ///
 /// ```
 /// # use jose::format::Compact;
-/// # use jose::Base64String;
 /// # use std::string::ToString;
 /// # use std::str::FromStr;
 /// # fn main() {
 /// let mut c = Compact::new();
 ///
-/// c.push(Base64String::from_string("abc".to_string()).unwrap());
-/// c.push(Base64String::from_string("def".to_string()).unwrap());
-/// c.push(Base64String::from_string("ghi".to_string()).unwrap());
+/// c.push(b"abc");
+/// c.push(b"def");
 ///
 /// let s = c.to_string();
-/// assert_eq!(s.as_str(), "abc.def.ghi");
-///
-/// let c2 = Compact::from_str("abc.def.ghi").unwrap();
-/// assert_eq!(c, c2);
+/// assert_eq!(s.as_str(), "YWJj.ZGVm");
 /// # }
 /// ```
 #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Compact {
-    parts: Vec<Base64String>,
+    parts: Vec<String>,
 }
 
 impl Compact {
@@ -70,21 +67,40 @@ impl Compact {
         }
     }
 
-    /// Pushes the given part into this compact representation.
-    pub fn push(&mut self, part: Base64String) {
-        self.parts.push(part);
+    /// Pushes the given part into this compact representation,
+    /// by encoding the given bytes to Base64Url format.
+    pub fn push(&mut self, part: impl AsRef<[u8]>) {
+        let encoded = Base64UrlUnpadded::encode_string(part.as_ref());
+        self.parts.push(encoded);
     }
 }
 
-impl FromStr for Compact {
-    type Err = ();
+/// Error type indicating that one part of the compact
+/// representation was an invalid Base64Url string.
+#[derive(Debug, Clone, Copy)]
+pub struct NoBase64UrlString;
 
+impl FromStr for Compact {
+    type Err = NoBase64UrlString;
+
+    /// Verifies if every part of the string is valid base64url format
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts = s
             .split('.')
-            .map(|s| Base64String::from_string(s.to_string()))
-            .collect::<Option<Vec<_>>>()
-            .ok_or(())?;
+            .map(|s| {
+                if s.as_bytes().iter().all(|c| {
+                    (b'A'..b'Z').contains(&c)
+                        || (b'a'..b'z').contains(&c)
+                        || (b'0'..b'9').contains(&c)
+                        || *c == b'_'
+                        || *c == b'-'
+                }) {
+                    Ok(s.to_string())
+                } else {
+                    Err(NoBase64UrlString)
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         Ok(Self { parts })
     }
 }
@@ -141,6 +157,8 @@ impl Json {
 impl FromStr for Json {
     type Err = serde_json::Error;
 
+    /// The from_str implementation will parse the supplied
+    /// string as JSON.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let value = serde_json::from_str::<Value>(s)?;
         Ok(Self { value })

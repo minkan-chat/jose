@@ -1,3 +1,7 @@
+//! Implementation of JSON Web Signature (JWS) as defined in [RFC 7515]
+//!
+//! [RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515>
+
 use alloc::{string::String, vec::Vec};
 
 use serde::{Deserialize, Serialize};
@@ -8,8 +12,10 @@ use crate::jwa::JsonWebSigningAlgorithm;
 pub struct JsonWebSignature<T, H = ()> {
     header: JoseHeader<H>,
     payload: T,
-    signature: (),
+    signature: Vec<u8>,
 }
+
+// impl Encode<Compact> for JsonWebSignature<> {}
 
 /// (De-)serializable representation of a JOSE header
 /// as defined by [section 4] in the JWS specification.
