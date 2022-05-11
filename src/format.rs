@@ -37,6 +37,11 @@ pub trait Decode<F>: Sized {
 /// The compact representation is essentially a list of Base64
 /// strings that are separated by `.`.
 ///
+/// This type can only be instantiated by using the [`Encode`]
+/// trait implementations provided by this crate, or by using
+/// the [`FromStr`] implementation for this type to parse a compact
+/// serialized string.
+///
 /// # Examples
 ///
 /// ```
@@ -45,7 +50,6 @@ pub trait Decode<F>: Sized {
 /// # use std::str::FromStr;
 /// # fn main() {
 /// let mut c = Compact::new();
-///
 /// c.push(b"abc");
 /// c.push(b"def");
 ///
@@ -61,7 +65,7 @@ pub struct Compact {
 impl Compact {
     /// Creates an empty compact representation that can be filled
     /// with parts.
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Compact {
             parts: Vec::with_capacity(3),
         }
@@ -69,7 +73,7 @@ impl Compact {
 
     /// Pushes the given part into this compact representation,
     /// by encoding the given bytes to Base64Url format.
-    pub fn push(&mut self, part: impl AsRef<[u8]>) {
+    pub(crate) fn push(&mut self, part: impl AsRef<[u8]>) {
         let encoded = Base64UrlUnpadded::encode_string(part.as_ref());
         self.parts.push(encoded);
     }
