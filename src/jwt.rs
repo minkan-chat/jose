@@ -14,5 +14,5 @@ pub enum JsonWebToken {
     /// [RFC 7515]
     ///
     /// [RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515>
-    JsonWebSignature(JsonWebSignature),
+    JsonWebSignature(JsonWebSignature<()>),
 }

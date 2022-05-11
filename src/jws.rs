@@ -5,7 +5,11 @@ use serde::{Deserialize, Serialize};
 use crate::jwa::JsonWebSigningAlgorithm;
 
 #[derive(Debug)]
-pub struct JsonWebSignature {}
+pub struct JsonWebSignature<T, H = ()> {
+    header: JoseHeader<H>,
+    payload: T,
+    signature: (),
+}
 
 /// (De-)serializable representation of a JOSE header
 /// as defined by [section 4] in the JWS specification.

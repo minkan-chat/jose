@@ -23,6 +23,10 @@
 
 extern crate alloc;
 
+mod base64;
+pub use self::base64::Base64String;
+
+pub mod format;
 pub mod jwa;
 mod jwe;
 mod jwk;
