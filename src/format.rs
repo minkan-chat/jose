@@ -13,50 +13,8 @@ use base64ct::{Base64UrlUnpadded, Encoding};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-/// Used to convert any type into either the [`Compact`] or [`Json`] format.
-pub trait Encode<F> {
-    /// The type returned when an error occurred while
-    /// encoding `self`.
-    type Error;
-
-    /// Performs the encode operation.
-    fn encode(self) -> Result<F, Self::Error>;
-}
-
-/// Used to parse a [`Compact`] or [`Json`] representation
-/// into a concrete type.
-pub trait Decode<F>: Sized {
-    /// The type returned when an error occurred while
-    /// decoding the raw representation.
-    type Error;
-
-    /// Performs the decode operation.
-    fn decode(raw: F) -> Result<Self, Self::Error>;
-}
-
 /// The compact representation is essentially a list of Base64
 /// strings that are separated by `.`.
-///
-/// This type can only be instantiated by using the [`Encode`]
-/// trait implementations provided by this crate, or by using
-/// the [`FromStr`] implementation for this type to parse a compact
-/// serialized string.
-///
-/// # Examples
-///
-/// ```
-/// # use jose::format::Compact;
-/// # use std::string::ToString;
-/// # use std::str::FromStr;
-/// # fn main() {
-/// let mut c = Compact::new();
-/// c.push(b"abc");
-/// c.push(b"def");
-///
-/// let s = c.to_string();
-/// assert_eq!(s.as_str(), "YWJj.ZGVm");
-/// # }
-/// ```
 #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Compact {
     parts: Vec<String>,
@@ -93,9 +51,9 @@ impl FromStr for Compact {
             .split('.')
             .map(|s| {
                 if s.as_bytes().iter().all(|c| {
-                    (b'A'..b'Z').contains(&c)
-                        || (b'a'..b'z').contains(&c)
-                        || (b'0'..b'9').contains(&c)
+                    (b'A'..b'Z').contains(c)
+                        || (b'a'..b'z').contains(c)
+                        || (b'0'..b'9').contains(c)
                         || *c == b'_'
                         || *c == b'-'
                 }) {

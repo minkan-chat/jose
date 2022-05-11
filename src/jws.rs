@@ -6,10 +6,7 @@ use alloc::{string::String, vec::Vec};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    format::{Compact, Encode},
-    jwa::JsonWebSigningAlgorithm,
-};
+use crate::{format::Compact, jwa::JsonWebSigningAlgorithm};
 
 // FIXME: check section 5.3. (string comparison) and verify correctness
 
@@ -143,21 +140,21 @@ impl<T, H> JsonWebSignature<T, H> {
     }
 }
 
-impl<T: Payload, H: Serialize> Encode<Compact> for JsonWebSignature<T, H> {
-    type Error = serde_json::Error;
+// impl<T: Payload, H: Serialize> Encode<Compact> for JsonWebSignature<T, H> {
+//     type Error = serde_json::Error;
 
-    fn encode(self) -> Result<Compact, Self::Error> {
-        let mut out = Compact::new();
+//     fn encode(self) -> Result<Compact, Self::Error> {
+//         let mut out = Compact::new();
 
-        let header = serde_json::to_string(&self.header)?;
-        out.push(header);
-        out.push(self.payload.into_bytes());
+//         let header = serde_json::to_string(&self.header)?;
+//         out.push(header);
+//         out.push(self.payload.into_bytes());
 
-        // FIXME: compute signature
+//         // FIXME: compute signature
 
-        Ok(out)
-    }
-}
+//         Ok(out)
+//     }
+// }
 
 /// (De-)serializable representation of a JOSE header
 /// as defined by [section 4] in the JWS specification.
