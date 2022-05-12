@@ -6,7 +6,7 @@ use alloc::{string::String, vec::Vec};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{format::Compact, jwa::JsonWebSigningAlgorithm};
+use crate::{format::Compact, jwa::JsonWebSigningAlgorithm, Signed};
 
 // FIXME: check section 5.3. (string comparison) and verify correctness
 
@@ -46,97 +46,43 @@ impl Payload for Vec<u8> {
 /// The `T` type indicates the payload that will be put into this JWS.
 #[derive(Debug)]
 pub struct JsonWebSignature<T, H = ()> {
-    header: JoseHeader<H>,
     payload: T,
+    header: H,
 }
 
 impl<T> JsonWebSignature<T, ()> {
-    /// Create a new `JsonWebSignature` with the given signing algorithm and
-    /// payload.
+    /// Create a new `JsonWebSignature` with the given payload.
     ///
-    /// To customize the header of this JWS further, use the [`header_mut`]
-    /// method.
-    ///
-    /// Note that this method only works for signatures without additional
-    /// headers. Add your additional header parameters by using either
-    /// [`JsonWebSignature::new_with_additional_header`] or [`JsonWebSignature::
-    /// with_additional_header`] method.
-    ///
-    /// [`header_mut`]: Self::header_mut
-    pub fn new(alg: JsonWebSigningAlgorithm, payload: T) -> Self {
+    /// This method does not support to set the additional header (`H`).
+    /// Use [`new_with_additional_header`](Self::new_with_additional_header) to
+    /// create a JWS with additional header parameters.
+    pub fn new(payload: T) -> Self {
         Self {
-            header: JoseHeader::new_empty(alg, ()),
-            payload,
-        }
-    }
-
-    /// Converts this JWS without additional header entries, into a JWS that
-    /// contains your additional header parameters.
-    pub fn with_additional_header<H>(self, additional: H) -> JsonWebSignature<T, H> {
-        let Self {
-            header: old,
-            payload,
-        } = self;
-
-        let new_header = JoseHeader {
-            additional,
-            signing_algorithm: old.signing_algorithm,
-            jwk_set_url: old.jwk_set_url,
-            json_web_key: old.json_web_key,
-            key_id: old.key_id,
-            x509_url: old.x509_url,
-            x509_chain: old.x509_chain,
-            x509_fingerprint: old.x509_fingerprint,
-            x509_fingerprint_sha256: old.x509_fingerprint_sha256,
-            media_type: old.media_type,
-            content_type: old.content_type,
-            critical: old.critical,
-        };
-
-        JsonWebSignature {
-            header: new_header,
+            header: (),
             payload,
         }
     }
 }
 
 impl<T, H> JsonWebSignature<T, H> {
-    /// Create a new `JsonWebSignature` with the given signing algorithm and
-    /// payload.
-    ///
-    /// To customize the header of this JWS further, use the [`header_mut`]
-    /// method.
-    ///
-    /// [`header_mut`]: Self::header_mut
-    pub fn new_with_additional_header(
-        alg: JsonWebSigningAlgorithm,
-        payload: T,
-        additional_header: H,
-    ) -> Self {
-        Self {
-            header: JoseHeader::new_empty(alg, additional_header),
-            payload,
-        }
+    /// Create a new `JsonWebSignature` with the given payload and the
+    /// additional header parameters.
+    pub fn new_with_additional_header(payload: T, header: H) -> Self {
+        Self { payload, header }
     }
 
-    /// Returns a shared reference to the header of this JWS.
-    ///
-    /// This method can be used to read the header of a JWS.
-    pub fn header(&self) -> &JoseHeader<H> {
-        &self.header
+    /// Sign this JWS with the given algorithm and key.
+    pub fn sign<F>() -> Signed<Self, F> {
+        todo!()
     }
+}
 
-    /// Returns an exclusive reference to the header of this JWS.
+impl<T, H> Signed<JsonWebSignature<T, H>, Compact> {
     ///
-    /// This method can be used to customize optional entries
-    /// after creation of the JWS.
-    /// As an example this can be used to change the signing algorithm
-    /// after creation by chaning the [`signing_algorithm`] field on the
-    /// returned header.
-    ///
-    /// [`signing_algorithm`]: JoseHeader::signing_algorithm
-    pub fn header_mut(&mut self) -> &mut JoseHeader<H> {
-        &mut self.header
+    pub fn encode() -> Self {
+        todo!()
+        // value.push(signature);
+        // Self { value }
     }
 }
 
