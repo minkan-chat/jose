@@ -27,7 +27,6 @@ where
     key_type: JsonWebKeyType,
     /// `key_ops` parameter section 4.3
     key_operations: Option<HashSet<KeyOperations, S>>,
-    // this is replaced by the new JsonWebKeyType
     /// `alg` parameter section 4.4
     // the spec says this member is OPTIONAL but I think it should not appear
     // as Option<_> in our public api since we have to decide what algorithm
@@ -93,6 +92,7 @@ pub enum JsonWebKeyType {
 #[derive(Debug)]
 /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4>
 pub enum SymmetricJsonWebKey {
+    /// `oct` <<https://datatracker.ietf.org/doc/html/rfc7518#section-6.4>
     OctetSequence {
         /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4.1>
         k: Vec<u8>,
@@ -102,6 +102,7 @@ pub enum SymmetricJsonWebKey {
 #[derive(Debug)]
 pub enum AsymmetricJsonWebKey {
     /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.2>
+    // FIXME: this must match key type `EC` as well as `OKP` for RFC 8037
     EllipticCurve(EllipticCurveKey),
     /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.3>
     Rsa(RsaKey),
