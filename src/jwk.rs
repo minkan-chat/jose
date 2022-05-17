@@ -1,8 +1,12 @@
-use alloc::string::String;
+use alloc::{boxed::Box, string::String, vec::Vec};
 use core::hash::BuildHasher;
 
 use hashbrown::{hash_map::DefaultHashBuilder, HashSet};
 
+pub mod ec;
+pub mod rsa;
+
+use self::{ec::EllipticCurveKey, rsa::RsaKey};
 use crate::jwa::JsonWebSigningOrEnncryptionAlgorithm;
 
 /// <https://datatracker.ietf.org/doc/html/rfc7517>
@@ -13,19 +17,22 @@ use crate::jwa::JsonWebSigningOrEnncryptionAlgorithm;
 /// source of randomness to avoid [hash collision attacks][1].
 ///
 /// [1]: <https://en.wikipedia.org/wiki/Collision_attack>
+#[derive(Debug)]
 pub struct JsonWebKey<S = DefaultHashBuilder>
 where
     S: BuildHasher + Sync,
 {
     /// `kty` parameter section 4.1
-    key_type: KeyType<S>,
-    // `kty` parameter from section 4.2 left out because it's relevant to asymmetric keys only.
+    // this should also cover the `alg` header or try to guess it
+    key_type: JsonWebKeyType,
     /// `key_ops` parameter section 4.3
     key_operations: Option<HashSet<KeyOperations, S>>,
+    // this is replaced by the new JsonWebKeyType
     /// `alg` parameter section 4.4
     // the spec says this member is OPTIONAL but I think it should not appear
     // as Option<_> in our public api since we have to decide what algorithm
     // to use at some point (en/decryption, signing/verification) anyway.
+    // FIXME: consider removing this since it could be handled by `kty`
     algorithm: Option<JsonWebSigningOrEnncryptionAlgorithm>,
     /// `kid` parameter section 4.4
     // FIXME: Consider an enum if this value is a valid JWK Thumbprint,
@@ -49,28 +56,6 @@ where
     x509_certificate_sha256_thumbprint: Option<String>,
 }
 
-#[non_exhaustive]
-pub enum KeyType<S> {
-    Symmetric(SymmetricKeyType),
-    Asymmetric {
-        /// `use` parameter section 4.2
-        usage: Option<HashSet<KeyUsage, S>>,
-        typ: AsymmetricKeyType,
-    },
-}
-
-pub enum SymmetricKeyType {
-    /// `oct`
-    Octet,
-}
-
-pub enum AsymmetricKeyType {
-    /// `EC`
-    EllipticCurve,
-    /// `RSA`
-    Rsa,
-}
-
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub enum KeyUsage {
     Signing,
@@ -89,4 +74,35 @@ pub enum KeyOperations {
     DeriveKey,
     DeriveBits,
     Other(String),
+}
+
+/// A [`JsonWebKey`](crate::jwk::JsonWebKey) represents a cryptographic key. It
+/// can either be symmetric or asymmetric. In the latter case, it can store
+/// public or private information about the key. This enum represents the key
+/// types as defined in [RFC 7518 section 6].
+///
+/// [RFC 7518 section 6]: <https://datatracker.ietf.org/doc/html/rfc7518#section-6>
+#[derive(Debug)]
+pub enum JsonWebKeyType {
+    ///
+    Symmetric(SymmetricJsonWebKey),
+    ///
+    Asymmetric(Box<AsymmetricJsonWebKey>),
+}
+
+#[derive(Debug)]
+/// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4>
+pub enum SymmetricJsonWebKey {
+    OctetSequence {
+        /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4.1>
+        k: Vec<u8>,
+    },
+}
+
+#[derive(Debug)]
+pub enum AsymmetricJsonWebKey {
+    /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.2>
+    EllipticCurve(EllipticCurveKey),
+    /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.3>
+    Rsa(RsaKey),
 }

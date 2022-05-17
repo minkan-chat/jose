@@ -29,7 +29,7 @@ pub use signed::Signed;
 pub mod format;
 pub mod jwa;
 mod jwe;
-mod jwk;
+pub mod jwk;
 pub mod jws;
 mod jwt;
 

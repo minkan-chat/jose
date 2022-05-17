@@ -28,6 +28,7 @@ pub use self::{
 };
 
 // FIXME: find better name for this enum
+#[derive(Debug)]
 pub enum JsonWebSigningOrEnncryptionAlgorithm {
     Signing(JsonWebSigningAlgorithm),
     Encryption(JsonWebEncryptionAlgorithm),
