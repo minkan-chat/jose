@@ -12,7 +12,6 @@ use core::{fmt, str::FromStr};
 use base64ct::{Base64UrlUnpadded, Encoding};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use signature::Signature;
 
 pub(crate) mod sealed {
     pub trait Sealed {}
@@ -36,7 +35,7 @@ impl<T: AsRef<[u8]>> AppendToFormat<Compact> for T {
     }
 }
 
-impl<T: Signature> AppendToFormat<Json> for T {
+impl<T: AsRef<[u8]>> AppendToFormat<Json> for T {
     fn append_to(self, _f: &mut Json) {
         todo!()
     }

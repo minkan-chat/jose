@@ -1,7 +1,5 @@
 use alloc::string::String;
 
-use signature::Signature;
-
 use crate::{
     format::{AppendToFormat, IntoFormat},
     jwa::JsonWebSigningAlgorithm,
@@ -17,7 +15,7 @@ pub(crate) mod sealed {
 /// # Generic Arguments
 ///
 /// - `T` is the inner type that is signed
-/// - `S` is the signature using the [`Signature`] trait
+/// - `S` is the signature
 ///
 /// [signing algorithm]: crate::jwa::JsonWebSigningAlgorithm
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -64,7 +62,7 @@ pub trait Signable: Sized + sealed::Sealed {
 /// [specify the algorithm]: Signer::ALGORITHM
 pub trait Signer<S: AsRef<[u8]>> {
     /// Sign the given bytestring using this signer and return the signature.
-    fn sign(&self, msg: &[u8]) -> Result<S, signature::Error>;
+    fn sign(&self, msg: &[u8]) -> Result<S, ()>;
 
     /// Return the type of signing algorithm used by this signer.
     fn algorithm(&self) -> JsonWebSigningAlgorithm;

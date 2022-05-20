@@ -5,15 +5,27 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [features]
-# FIXME: maybe enable more `std` features from dependencies?
-# signature is only required for better errors
-std = ["signature/std"]
+std = []
 
 [dependencies]
 base64ct = { version = "1.5.0", default-features = false, features = ["alloc"] }
-serde = { version = "1", default-features = false, features = ["alloc", "derive"] }
+serde = { version = "1", default-features = false, features = [
+    "alloc",
+    "derive",
+] }
 serde_json = { version = "1", default-features = false, features = ["alloc"] }
-signature = { version = "1.5.0", default-features = false }
+hashbrown = { version = "0.12", default-features = true, features = ["serde"] }
+hmac = { version = "0.12", default-features = false }
+sha2 = { version = "0.10", default-features = false }
+ed25519 = { version = "1", default-features = false, features = ["alloc"] }
+ed25519-dalek = { version = "1", default-features = false, features = [
+    "alloc",
+    # FIXME: consider offering feature flags for other crypto backends
+    "u64_backend",
+] }
+
+rsa = { version = "0.6", default-features = false }
+digest = { version = "0.10", default-features = false, features = ["mac"] }
 
 [dev-dependencies]
 rusty-hook = "0.11"

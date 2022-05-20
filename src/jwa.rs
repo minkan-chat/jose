@@ -27,6 +27,13 @@ pub use self::{
     rsassa_pss::RsassaPss,
 };
 
+// FIXME: find better name for this enum
+#[derive(Debug)]
+pub enum JsonWebSigningOrEnncryptionAlgorithm {
+    Signing(JsonWebSigningAlgorithm),
+    Encryption(JsonWebEncryptionAlgorithm),
+}
+
 /// A JSON Web Algorithm (JWA) for singing operations (JWS) as defined in [RFC
 /// 7518 section 3]
 ///
@@ -115,8 +122,8 @@ impl_serde!(
     ]
 );
 
-/// A JSON Web Algorithm (JWA) for encryption and decryption of JWEs as defined
-/// in [RFC 7518 section 4]
+/// A JSON Web Algorithm (JWA) for encryption and decryption of Content
+/// Encryption Key (CEK) as defined in [RFC 7518 section 4]
 ///
 /// This enum covers the `alg` Header Parameter Values for JWE. It represents
 /// the table from [section 4.1].
