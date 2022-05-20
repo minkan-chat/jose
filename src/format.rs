@@ -12,6 +12,35 @@ use core::{fmt, str::FromStr};
 use base64ct::{Base64UrlUnpadded, Encoding};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use signature::Signature;
+
+pub(crate) mod sealed {
+    pub trait Sealed {}
+}
+
+/// Internal trait.
+#[doc(hidden)]
+pub trait IntoFormat<F>: sealed::Sealed {
+    fn into_format(self) -> F;
+}
+
+/// Internal trait.
+#[doc(hidden)]
+pub trait AppendToFormat<F> {
+    fn append_to(self, f: &mut F);
+}
+
+impl<T: AsRef<[u8]>> AppendToFormat<Compact> for T {
+    fn append_to(self, f: &mut Compact) {
+        f.push(self.as_ref());
+    }
+}
+
+impl<T: Signature> AppendToFormat<Json> for T {
+    fn append_to(self, _f: &mut Json) {
+        todo!()
+    }
+}
 
 /// The compact representation is essentially a list of Base64
 /// strings that are separated by `.`.
@@ -21,16 +50,12 @@ pub struct Compact {
 }
 
 impl Compact {
-    /// Creates an empty compact representation that can be filled
-    /// with parts.
-    pub(crate) fn new() -> Self {
+    pub(crate) fn with_capacity(cap: usize) -> Self {
         Compact {
-            parts: Vec::with_capacity(3),
+            parts: Vec::with_capacity(cap),
         }
     }
 
-    /// Pushes the given part into this compact representation,
-    /// by encoding the given bytes to Base64Url format.
     pub(crate) fn push(&mut self, part: impl AsRef<[u8]>) {
         let encoded = Base64UrlUnpadded::encode_string(part.as_ref());
         self.parts.push(encoded);

@@ -2,13 +2,22 @@
 //!
 //! [RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515>
 
-use alloc::{string::String, vec::Vec};
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{format::Compact, jwa::JsonWebSigningAlgorithm};
+use crate::{
+    format::{Compact, IntoFormat},
+    jwa::{self, Hmac, JsonWebSigningAlgorithm},
+    sign::{Signable, Signer},
+    Signed,
+};
 
 // FIXME: check section 5.3. (string comparison) and verify correctness
+// FIXME: Appendix F: Detached Content
 
 /// Everything that can be used as a payload for a [`JsonWebSignature`].
 pub trait Payload {
@@ -19,22 +28,22 @@ pub trait Payload {
 
     /// Turn `self` into it's raw byte representation that will
     /// be put into a [`JsonWebSignature`].
-    fn into_bytes(self) -> Self::Buf;
+    fn as_bytes(&self) -> Self::Buf;
 }
 
 impl Payload for &[u8] {
     type Buf = Self;
 
-    fn into_bytes(self) -> Self::Buf {
+    fn as_bytes(&self) -> Self::Buf {
         self
     }
 }
 
 impl Payload for Vec<u8> {
-    type Buf = Self;
+    type Buf = Vec<u8>;
 
-    fn into_bytes(self) -> Self::Buf {
-        self
+    fn as_bytes(&self) -> Self::Buf {
+        self.clone()
     }
 }
 
@@ -50,111 +59,88 @@ pub struct JsonWebSignature<T, H = ()> {
     payload: T,
 }
 
-impl<T> JsonWebSignature<T, ()> {
-    /// Create a new `JsonWebSignature` with the given signing algorithm and
-    /// payload.
-    ///
-    /// To customize the header of this JWS further, use the [`header_mut`]
-    /// method.
-    ///
-    /// Note that this method only works for signatures without additional
-    /// headers. Add your additional header parameters by using either
-    /// [`JsonWebSignature::new_with_additional_header`] or [`JsonWebSignature::
-    /// with_additional_header`] method.
-    ///
-    /// [`header_mut`]: Self::header_mut
-    pub fn new(alg: JsonWebSigningAlgorithm, payload: T) -> Self {
-        Self {
-            header: JoseHeader::new_empty(alg, ()),
-            payload,
-        }
+impl<T: Payload, H: Serialize> crate::sign::sealed::Sealed for JsonWebSignature<T, H> {}
+
+impl<T: Payload, H: Serialize> Signable for JsonWebSignature<T, H> {
+    type Error = ();
+
+    fn sign<S: AsRef<[u8]>>(
+        mut self,
+        signer: &dyn Signer<S>,
+    ) -> Result<Signed<Self, S>, Self::Error> {
+        let mut input = Compact::with_capacity(2);
+
+        self.header.signing_algorithm = signer.algorithm();
+        self.header.key_id = signer.key_id();
+
+        let header = serde_json::to_string(&self.header).unwrap();
+        input.push(header.as_bytes());
+        input.push(self.payload.as_bytes());
+
+        let msg = input.to_string();
+
+        let signature = signer.sign(msg.as_bytes()).unwrap();
+
+        Ok(Signed {
+            value: self,
+            signature,
+        })
     }
+}
 
-    /// Converts this JWS without additional header entries, into a JWS that
-    /// contains your additional header parameters.
-    pub fn with_additional_header<H>(self, additional: H) -> JsonWebSignature<T, H> {
-        let Self {
-            header: old,
-            payload,
-        } = self;
+#[cfg(test)]
+mod tests {
+    extern crate std;
 
-        let new_header = JoseHeader {
-            additional,
-            signing_algorithm: old.signing_algorithm,
-            jwk_set_url: old.jwk_set_url,
-            json_web_key: old.json_web_key,
-            key_id: old.key_id,
-            x509_url: old.x509_url,
-            x509_chain: old.x509_chain,
-            x509_fingerprint: old.x509_fingerprint,
-            x509_fingerprint_sha256: old.x509_fingerprint_sha256,
-            media_type: old.media_type,
-            content_type: old.content_type,
-            critical: old.critical,
+    use super::*;
+
+    #[test]
+    fn smoke() {
+        let jws = JsonWebSignature {
+            header: JoseHeader::new_empty(JsonWebSigningAlgorithm::Hmac(Hmac::Hs256), ()),
+            payload: String::from("abc"),
         };
 
-        JsonWebSignature {
-            header: new_header,
-            payload,
+        impl Payload for String {
+            type Buf = Vec<u8>;
+
+            fn as_bytes(&self) -> Self::Buf {
+                self.as_bytes().to_vec()
+            }
         }
+
+        struct NoneKey;
+
+        impl Signer<&'static [u8]> for NoneKey {
+            fn sign(&self, _: &[u8]) -> Result<&'static [u8], signature::Error> {
+                Ok(&[])
+            }
+
+            fn algorithm(&self) -> JsonWebSigningAlgorithm {
+                JsonWebSigningAlgorithm::None
+            }
+        }
+
+        let c = jws.sign(&NoneKey).unwrap().encode::<Compact>();
+
+        std::println!("{}", c);
     }
 }
 
-impl<T, H> JsonWebSignature<T, H> {
-    /// Create a new `JsonWebSignature` with the given signing algorithm and
-    /// payload.
-    ///
-    /// To customize the header of this JWS further, use the [`header_mut`]
-    /// method.
-    ///
-    /// [`header_mut`]: Self::header_mut
-    pub fn new_with_additional_header(
-        alg: JsonWebSigningAlgorithm,
-        payload: T,
-        additional_header: H,
-    ) -> Self {
-        Self {
-            header: JoseHeader::new_empty(alg, additional_header),
-            payload,
-        }
-    }
+impl<T: Payload, H: Serialize> crate::format::sealed::Sealed for JsonWebSignature<T, H> {}
 
-    /// Returns a shared reference to the header of this JWS.
-    ///
-    /// This method can be used to read the header of a JWS.
-    pub fn header(&self) -> &JoseHeader<H> {
-        &self.header
-    }
+impl<T: Payload, H: Serialize> IntoFormat<Compact> for JsonWebSignature<T, H> {
+    fn into_format(self) -> Compact {
+        let mut input = Compact::with_capacity(2);
 
-    /// Returns an exclusive reference to the header of this JWS.
-    ///
-    /// This method can be used to customize optional entries
-    /// after creation of the JWS.
-    /// As an example this can be used to change the signing algorithm
-    /// after creation by chaning the [`signing_algorithm`] field on the
-    /// returned header.
-    ///
-    /// [`signing_algorithm`]: JoseHeader::signing_algorithm
-    pub fn header_mut(&mut self) -> &mut JoseHeader<H> {
-        &mut self.header
+        // FIXME: can we unwrap here? is it 100% safe?
+        let header = serde_json::to_string(&self.header).unwrap();
+        input.push(header.as_bytes());
+        input.push(self.payload.as_bytes());
+
+        input
     }
 }
-
-// impl<T: Payload, H: Serialize> Encode<Compact> for JsonWebSignature<T, H> {
-//     type Error = serde_json::Error;
-
-//     fn encode(self) -> Result<Compact, Self::Error> {
-//         let mut out = Compact::new();
-
-//         let header = serde_json::to_string(&self.header)?;
-//         out.push(header);
-//         out.push(self.payload.into_bytes());
-
-//         // FIXME: compute signature
-
-//         Ok(out)
-//     }
-// }
 
 /// (De-)serializable representation of a JOSE header
 /// as defined by [section 4] in the JWS specification.

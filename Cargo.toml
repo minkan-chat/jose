@@ -4,10 +4,16 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 
+[features]
+# FIXME: maybe enable more `std` features from dependencies?
+# signature is only required for better errors
+std = ["signature/std"]
+
 [dependencies]
 base64ct = { version = "1.5.0", default-features = false, features = ["alloc"] }
 serde = { version = "1", default-features = false, features = ["alloc", "derive"] }
 serde_json = { version = "1", default-features = false, features = ["alloc"] }
+signature = { version = "1.5.0", default-features = false }
 
 [dev-dependencies]
 rusty-hook = "0.11"

@@ -23,13 +23,13 @@
 
 extern crate alloc;
 
-mod signed;
-pub use signed::Signed;
+mod sign;
+pub use sign::Signed;
 
 pub mod format;
 pub mod jwa;
 mod jwe;
-mod jwk;
+pub mod jwk;
 pub mod jws;
 mod jwt;
 
