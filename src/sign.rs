@@ -62,7 +62,7 @@ pub trait Signable: Sized + sealed::Sealed {
 /// [specify the algorithm]: Signer::ALGORITHM
 pub trait Signer<S: AsRef<[u8]>> {
     /// Sign the given bytestring using this signer and return the signature.
-    fn sign(&self, msg: &[u8]) -> Result<S, ()>;
+    fn sign(&self, msg: &[u8]) -> Result<S, signature::Error>;
 
     /// Return the type of signing algorithm used by this signer.
     fn algorithm(&self) -> JsonWebSigningAlgorithm;

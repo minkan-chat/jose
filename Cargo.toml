@@ -5,7 +5,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [features]
-std = []
+std = ["signature/std"]
 
 [dependencies]
 base64ct = { version = "1.5.0", default-features = false, features = ["alloc"] }
@@ -26,6 +26,7 @@ ed25519-dalek = { version = "1", default-features = false, features = [
 
 rsa = { version = "0.6", default-features = false }
 digest = { version = "0.10", default-features = false, features = ["mac"] }
+signature = { version = "1.5.0", default-features = false }
 
 [dev-dependencies]
 rusty-hook = "0.11"

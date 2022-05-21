@@ -112,7 +112,7 @@ mod tests {
         struct NoneKey;
 
         impl Signer<&'static [u8]> for NoneKey {
-            fn sign(&self, _: &[u8]) -> Result<&'static [u8], ()> {
+            fn sign(&self, _: &[u8]) -> Result<&'static [u8], signature::Error> {
                 Ok(&[])
             }
 
