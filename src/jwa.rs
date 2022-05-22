@@ -9,9 +9,7 @@ mod ecdh_es;
 mod ecdsa;
 mod hmac;
 mod pbes2;
-mod rsaes_oaep;
-mod rsassa_pkcs1_v1_5;
-mod rsassa_pss;
+mod rsa;
 
 #[doc(inline)]
 pub use self::{
@@ -22,9 +20,7 @@ pub use self::{
     ecdsa::EcDSA,
     hmac::Hmac,
     pbes2::{Pbes2, Pbes2Variant},
-    rsaes_oaep::RsaesOaep,
-    rsassa_pkcs1_v1_5::RsassaPkcs1V1_5,
-    rsassa_pss::RsassaPss,
+    rsa::{RsaSigning, RsaesOaep, RsassaPkcs1V1_5, RsassaPss},
 };
 
 // FIXME: find better name for this enum
@@ -48,11 +44,10 @@ pub enum JsonWebSigningAlgorithm {
     /// HMAC with SHA-2 Functions
     Hmac(Hmac),
     /// RSASSA-PKCS1-v1_5 using SHA-2 Functions
-    RsassaPkcs1V1_5(RsassaPkcs1V1_5),
+    /// Digital Signature with RSASSA-PSS
+    Rsa(RsaSigning),
     /// Digital Signature with ECDSA
     EcDSA(EcDSA),
-    /// Digital Signature with RSASSA-PSS
-    RsassaPss(RsassaPss),
     /// The "none" algorithm as defined in [section 3.6 of RFC 7518].
     ///
     /// Using this algorithm essentially means that there is
@@ -104,17 +99,20 @@ impl_serde!(
         "HS384" => Self::Hmac(Hmac::Hs384),
         "HS512" => Self::Hmac(Hmac::Hs512),
 
-        "RS256" => Self::RsassaPkcs1V1_5(RsassaPkcs1V1_5::Rs256),
-        "RS384" => Self::RsassaPkcs1V1_5(RsassaPkcs1V1_5::Rs384),
-        "RS512" => Self::RsassaPkcs1V1_5(RsassaPkcs1V1_5::Rs512),
+        // FIXME:
+        "RS256" => Self::Rsa(RsaSigning::RsPkcs1V1_5(RsassaPkcs1V1_5::Rs256)),
+        "RS384" => Self::Rsa(RsaSigning::RsPkcs1V1_5(RsassaPkcs1V1_5::Rs384)),
+        "RS512" => Self::Rsa(RsaSigning::RsPkcs1V1_5(RsassaPkcs1V1_5::Rs512)),
 
         "ES256" => Self::EcDSA(EcDSA::Es256),
         "ES384" => Self::EcDSA(EcDSA::Es384),
         "ES512" => Self::EcDSA(EcDSA::Es512),
 
-        "PS256" => Self::RsassaPss(RsassaPss::Ps256),
-        "PS384" => Self::RsassaPss(RsassaPss::Ps384),
-        "PS512" => Self::RsassaPss(RsassaPss::Ps512),
+        // FIXME:
+        "PS256" => Self::Rsa(RsaSigning::Pss(RsassaPss::Ps256)),
+        "PS384" => Self::Rsa(RsaSigning::Pss(RsassaPss::Ps384)),
+        "PS512" => Self::Rsa(RsaSigning::Pss(RsassaPss::Ps512)),
+
 
         "none" => Self::None,
 
