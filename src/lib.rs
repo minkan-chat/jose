@@ -24,7 +24,7 @@
 extern crate alloc;
 
 mod sign;
-pub use sign::Signed;
+pub use sign::*;
 
 pub mod format;
 pub mod jwa;

@@ -60,7 +60,7 @@ pub enum JsonWebSigningAlgorithm {
 // FIXME: move to extra file
 macro_rules! impl_serde {
     ($T:ty, [
-        $($name:literal => $val:tt::$val2:tt $(($i_val:path))?,)*
+        $($name:literal => $val:expr; $valp:pat,)*
         err: $err:ident => $get_err:expr, $(,)?
     ]) => {
         impl<'de> serde::Deserialize<'de> for $T {
@@ -71,7 +71,7 @@ macro_rules! impl_serde {
                 let name = <&str as serde::Deserialize>::deserialize(deserializer)?;
 
                 Ok(match name {
-                    $($name => $val::$val2$(($i_val))?,)*
+                    $($name => $val,)*
                     $err => return Err(<D::Error as serde::de::Error>::custom($get_err)),
                 })
             }
@@ -83,7 +83,7 @@ macro_rules! impl_serde {
                 S: serde::Serializer,
             {
                 let name = match self {
-                    $($val::$val2$(($i_val))? => $name,)*
+                    $($valp => $name,)*
                 };
                 <&str as serde::Serialize>::serialize(&name, serializer)
             }
@@ -92,29 +92,29 @@ macro_rules! impl_serde {
     };
 }
 
+// don't judge this macro please.
+// its ugly but it works
 impl_serde!(
     JsonWebSigningAlgorithm,
     [
-        "HS256" => Self::Hmac(Hmac::Hs256),
-        "HS384" => Self::Hmac(Hmac::Hs384),
-        "HS512" => Self::Hmac(Hmac::Hs512),
+        "HS256" => Self::Hmac(Hmac::Hs256); Self::Hmac(Hmac::Hs256),
+        "HS384" => Self::Hmac(Hmac::Hs384); Self::Hmac(Hmac::Hs384),
+        "HS512" => Self::Hmac(Hmac::Hs512); Self::Hmac(Hmac::Hs512),
 
-        // FIXME:
-        "RS256" => Self::Rsa(RsaSigning::RsPkcs1V1_5(RsassaPkcs1V1_5::Rs256)),
-        "RS384" => Self::Rsa(RsaSigning::RsPkcs1V1_5(RsassaPkcs1V1_5::Rs384)),
-        "RS512" => Self::Rsa(RsaSigning::RsPkcs1V1_5(RsassaPkcs1V1_5::Rs512)),
+        "RS256" => Self::Rsa(RsaSigning::RsPkcs1V1_5(RsassaPkcs1V1_5::Rs256)); Self::Rsa(RsaSigning::RsPkcs1V1_5(RsassaPkcs1V1_5::Rs256)),
+        "RS384" => Self::Rsa(RsaSigning::RsPkcs1V1_5(RsassaPkcs1V1_5::Rs384)); Self::Rsa(RsaSigning::RsPkcs1V1_5(RsassaPkcs1V1_5::Rs384)),
+        "RS512" => Self::Rsa(RsaSigning::RsPkcs1V1_5(RsassaPkcs1V1_5::Rs512)); Self::Rsa(RsaSigning::RsPkcs1V1_5(RsassaPkcs1V1_5::Rs512)),
 
-        "ES256" => Self::EcDSA(EcDSA::Es256),
-        "ES384" => Self::EcDSA(EcDSA::Es384),
-        "ES512" => Self::EcDSA(EcDSA::Es512),
+        "ES256" => Self::EcDSA(EcDSA::Es256); Self::EcDSA(EcDSA::Es256),
+        "ES384" => Self::EcDSA(EcDSA::Es384); Self::EcDSA(EcDSA::Es384),
+        "ES512" => Self::EcDSA(EcDSA::Es512); Self::EcDSA(EcDSA::Es512),
 
-        // FIXME:
-        "PS256" => Self::Rsa(RsaSigning::Pss(RsassaPss::Ps256)),
-        "PS384" => Self::Rsa(RsaSigning::Pss(RsassaPss::Ps384)),
-        "PS512" => Self::Rsa(RsaSigning::Pss(RsassaPss::Ps512)),
+        "PS256" => Self::Rsa(RsaSigning::Pss(RsassaPss::Ps256)); Self::Rsa(RsaSigning::Pss(RsassaPss::Ps256)),
+        "PS384" => Self::Rsa(RsaSigning::Pss(RsassaPss::Ps384)); Self::Rsa(RsaSigning::Pss(RsassaPss::Ps384)),
+        "PS512" => Self::Rsa(RsaSigning::Pss(RsassaPss::Ps512)); Self::Rsa(RsaSigning::Pss(RsassaPss::Ps512)),
 
 
-        "none" => Self::None,
+        "none" => Self::None; Self::None,
 
         err: name => alloc::format!("invalid JSON Web Signing Algorithm: {}", name),
     ]

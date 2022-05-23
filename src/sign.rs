@@ -55,11 +55,11 @@ pub trait Signable: Sized + sealed::Sealed {
 ///
 /// To be able to be used as a [`Signer`], one must provide the [sign operation]
 /// itself, and also needs to [specify the algorithm] used for signing. The
-/// algorithm will be used as the value for the [`alg`] field inside the
+/// algorithm will be used as the value for the `alg` field inside the
 /// [`JoseHeader`](crate::jws::JoseHeader) for the signed type.
 ///
 /// [sign operation]: Signer::sign
-/// [specify the algorithm]: Signer::ALGORITHM
+/// [specify the algorithm]: Signer::algorithm
 pub trait Signer<S: AsRef<[u8]>> {
     /// Sign the given bytestring using this signer and return the signature.
     fn sign(&self, msg: &[u8]) -> Result<S, signature::Error>;
