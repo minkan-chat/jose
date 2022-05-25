@@ -21,7 +21,7 @@ use crate::{
 // FIXME: Appendix F: Detached Content
 
 /// Everything that can be used as a payload for a [`JsonWebSignature`].
-pub trait Payload: Clone {
+pub trait Payload {
     /// The type that contains the raw bytes.
     type Buf: AsRef<[u8]>;
 
