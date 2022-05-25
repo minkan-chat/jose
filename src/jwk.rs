@@ -1,12 +1,16 @@
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{boxed::Box, string::String};
 
 use hashbrown::HashSet;
 
 use crate::jwa::JsonWebSigningOrEnncryptionAlgorithm;
 
+pub mod ec;
+pub mod okp;
+pub mod rsa;
+pub mod symmetric;
+use self::symmetric::SymmetricJsonWebKey;
 mod private;
 mod public;
-
 pub use self::{private::Private, public::Public};
 
 /// <https://datatracker.ietf.org/doc/html/rfc7517>
@@ -84,16 +88,6 @@ pub enum JsonWebKeyType {
     Symmetric(SymmetricJsonWebKey),
     ///
     Asymmetric(Box<AsymmetricJsonWebKey>),
-}
-
-#[derive(Debug)]
-/// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4>
-pub enum SymmetricJsonWebKey {
-    /// `oct` <<https://datatracker.ietf.org/doc/html/rfc7518#section-6.4>
-    OctetSequence {
-        /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4.1>
-        k: Vec<u8>,
-    },
 }
 
 #[derive(Debug)]
