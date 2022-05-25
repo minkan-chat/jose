@@ -117,7 +117,7 @@ impl fmt::Display for Compact {
     }
 }
 
-/// The json serialization format that is a wrapper around
+/// The flattened json serialization format that is a wrapper around
 /// a generic json value and that can be deserialized into
 /// any serilizable type.
 ///
