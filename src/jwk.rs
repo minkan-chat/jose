@@ -1,7 +1,6 @@
 use alloc::{boxed::Box, string::String, vec::Vec};
-use core::hash::BuildHasher;
 
-use hashbrown::{hash_map::DefaultHashBuilder, HashSet};
+use hashbrown::HashSet;
 
 use crate::jwa::JsonWebSigningOrEnncryptionAlgorithm;
 
@@ -19,15 +18,12 @@ pub use self::{private::Private, public::Public};
 ///
 /// [1]: <https://en.wikipedia.org/wiki/Collision_attack>
 #[derive(Debug)]
-pub struct JsonWebKey<S = DefaultHashBuilder>
-where
-    S: BuildHasher + Sync,
-{
+pub struct JsonWebKey {
     /// `kty` parameter section 4.1
     // this should also cover the `alg` header or try to guess it
     key_type: JsonWebKeyType,
     /// `key_ops` parameter section 4.3
-    key_operations: Option<HashSet<KeyOperations, S>>,
+    key_operations: Option<HashSet<KeyOperations>>,
     /// `alg` parameter section 4.4
     // the spec says this member is OPTIONAL but I think it should not appear
     // as Option<_> in our public api since we have to decide what algorithm
