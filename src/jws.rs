@@ -8,10 +8,12 @@ use alloc::{
 };
 use core::convert::Infallible;
 
+use base64ct::{Base64UrlUnpadded, Encoding};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::{
-    format::{Compact, IntoFormat},
+    format::{Compact, IntoFormat, Json},
     jwa::JsonWebSigningAlgorithm,
     sign::{Signable, Signer},
     Signed,
@@ -19,6 +21,7 @@ use crate::{
 
 // FIXME: check section 5.3. (string comparison) and verify correctness
 // FIXME: Appendix F: Detached Content
+// FIXME: protected headers
 
 /// Everything that can be used as a payload for a [`JsonWebSignature`].
 pub trait Payload {
@@ -152,8 +155,19 @@ impl<T, H> JsonWebSignature<T, H> {
     }
 }
 
+/// Internal use.
+///
+/// Cached value of the header and payload both
+/// stores as Base64Url strings.
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct JsonWebSignatureValue {
+    header: String,
+    payload: String,
+}
+
 impl<T: Payload, H: Serialize> crate::sign::sealed::Sealed for JsonWebSignature<T, H> {
-    type Value = Compact;
+    type Value = JsonWebSignatureValue;
 }
 
 impl<T: Payload, H: Serialize> Signable for JsonWebSignature<T, H>
@@ -168,33 +182,47 @@ where
         mut self,
         signer: &dyn Signer<S>,
     ) -> Result<Signed<Self, S>, Self::Error> {
-        let mut input = Compact::with_capacity(2);
-
         self.header.signing_algorithm = signer.algorithm();
         self.header.key_id = signer.key_id();
 
-        let header = serde_json::to_string(&self.header).unwrap();
+        // FIXME: do not unwrap here
+        let header = serde_json::to_value(&self.header).unwrap();
+        let header = Base64UrlUnpadded::encode_string(header.to_string().as_bytes());
+
         let payload = self.payload.into_bytes()?;
+        let payload = Base64UrlUnpadded::encode_string(payload.as_ref());
 
-        input.push(header.as_bytes());
-        input.push(&payload);
-
-        let msg = input.to_string();
-
+        let msg = alloc::format!("{}.{}", header, payload);
         let signature = signer.sign(msg.as_bytes()).unwrap();
 
         Ok(Signed {
-            value: input,
+            value: JsonWebSignatureValue { header, payload },
             signature,
         })
     }
 }
 
-impl crate::format::sealed::Sealed for Compact {}
+impl crate::format::sealed::Sealed for JsonWebSignatureValue {}
 
-impl IntoFormat<Compact> for Compact {
+impl IntoFormat<Compact> for JsonWebSignatureValue {
     fn into_format(self) -> Compact {
-        self
+        let mut fmt = Compact::with_capacity(3);
+
+        let header = Base64UrlUnpadded::encode_string(self.header.to_string().as_bytes());
+        fmt.push_base64url(header);
+        fmt.push_base64url(self.payload);
+        fmt
+    }
+}
+
+impl IntoFormat<Json> for JsonWebSignatureValue {
+    fn into_format(self) -> Json {
+        let mut value = Value::Object(serde_json::Map::new());
+
+        value["protected"] = Value::String(self.header);
+        value["payload"] = Value::String(self.payload);
+
+        Json { value }
     }
 }
 

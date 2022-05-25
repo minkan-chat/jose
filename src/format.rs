@@ -25,23 +25,28 @@ pub trait IntoFormat<F>: sealed::Sealed {
 
 /// Internal trait.
 #[doc(hidden)]
-pub trait AppendToFormat<F> {
+pub trait AppendSignatureTo<F>: sealed::Sealed {
     fn append_to(self, f: &mut F);
 }
 
-impl<T: AsRef<[u8]>> AppendToFormat<Compact> for T {
+impl<T: AsRef<[u8]>> sealed::Sealed for T {}
+
+impl<T: AsRef<[u8]> + sealed::Sealed> AppendSignatureTo<Compact> for T {
     fn append_to(self, f: &mut Compact) {
         f.push(self.as_ref());
     }
 }
 
-impl<T: AsRef<[u8]>> AppendToFormat<Json> for T {
-    fn append_to(self, _f: &mut Json) {
-        todo!()
+impl<T: AsRef<[u8]> + sealed::Sealed> AppendSignatureTo<Json> for T {
+    fn append_to(self, f: &mut Json) {
+        let sig = Base64UrlUnpadded::encode_string(self.as_ref());
+        if !sig.is_empty() {
+            f.value["signature"] = Value::String(sig);
+        }
     }
 }
 
-/// The compact representation is essentially a list of Base64
+/// The compact representation is essentially a list of Base64Url
 /// strings that are separated by `.`.
 #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Compact {
@@ -58,6 +63,11 @@ impl Compact {
     pub(crate) fn push(&mut self, part: impl AsRef<[u8]>) {
         let encoded = Base64UrlUnpadded::encode_string(part.as_ref());
         self.parts.push(encoded);
+    }
+
+    /// WARNING: DO NOT PUSH A STRING THAT IS NOT VALID BASE64URL
+    pub(crate) fn push_base64url(&mut self, raw: String) {
+        self.parts.push(raw);
     }
 }
 
@@ -130,7 +140,7 @@ impl fmt::Display for Compact {
 #[repr(transparent)]
 #[serde(transparent)]
 pub struct Json {
-    value: Value,
+    pub(crate) value: Value,
 }
 
 impl Json {

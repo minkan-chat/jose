@@ -5,7 +5,10 @@
 // - checking critical property
 
 use jose::{
-    format::Compact, jwa::JsonWebSigningAlgorithm, jws::JsonWebSignature, Signable, Signer,
+    format::{Compact, Json},
+    jwa::JsonWebSigningAlgorithm,
+    jws::JsonWebSignature,
+    Signable, Signer,
 };
 
 #[test]
@@ -24,7 +27,7 @@ fn smoke() {
         }
     }
 
-    let c = jws.sign(&NoneKey).unwrap().encode::<Compact>();
+    let c = jws.sign(&NoneKey).unwrap().encode::<Json>();
 
     std::println!("{}", c);
 }
