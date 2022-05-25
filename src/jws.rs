@@ -6,6 +6,7 @@ use alloc::{
     string::{String, ToString},
     vec::Vec,
 };
+use core::convert::Infallible;
 
 use serde::{Deserialize, Serialize};
 
@@ -20,30 +21,52 @@ use crate::{
 // FIXME: Appendix F: Detached Content
 
 /// Everything that can be used as a payload for a [`JsonWebSignature`].
-pub trait Payload {
+pub trait Payload: Clone {
     /// The type that contains the raw bytes.
-    ///
-    /// Exists to avoid allocations if possible.
     type Buf: AsRef<[u8]>;
+
+    /// The error that can occurr while converting
+    /// this payload into it's byte representation.
+    type Error;
 
     /// Turn `self` into it's raw byte representation that will
     /// be put into a [`JsonWebSignature`].
-    fn as_bytes(&self) -> Self::Buf;
+    fn into_bytes(self) -> Result<Self::Buf, Self::Error>;
 }
 
 impl Payload for &[u8] {
     type Buf = Self;
+    type Error = Infallible;
 
-    fn as_bytes(&self) -> Self::Buf {
-        self
+    fn into_bytes(self) -> Result<Self::Buf, Self::Error> {
+        todo!()
     }
 }
 
 impl Payload for Vec<u8> {
     type Buf = Vec<u8>;
+    type Error = Infallible;
 
-    fn as_bytes(&self) -> Self::Buf {
-        self.clone()
+    fn into_bytes(self) -> Result<Self::Buf, Self::Error> {
+        Ok(self)
+    }
+}
+
+impl Payload for String {
+    type Buf = Vec<u8>;
+    type Error = Infallible;
+
+    fn into_bytes(self) -> Result<Self::Buf, Self::Error> {
+        Ok(self.into_bytes())
+    }
+}
+
+#[derive(Debug)]
+pub enum SignError {}
+
+impl From<Infallible> for SignError {
+    fn from(x: Infallible) -> Self {
+        match x {}
     }
 }
 
@@ -129,10 +152,17 @@ impl<T, H> JsonWebSignature<T, H> {
     }
 }
 
-impl<T: Payload, H: Serialize> crate::sign::sealed::Sealed for JsonWebSignature<T, H> {}
+impl<T: Payload, H: Serialize> crate::sign::sealed::Sealed for JsonWebSignature<T, H> {
+    type Value = Compact;
+}
 
-impl<T: Payload, H: Serialize> Signable for JsonWebSignature<T, H> {
-    type Error = ();
+impl<T: Payload, H: Serialize> Signable for JsonWebSignature<T, H>
+where
+    T: Payload,
+    H: Serialize,
+    SignError: From<T::Error>,
+{
+    type Error = SignError;
 
     fn sign<S: AsRef<[u8]>>(
         mut self,
@@ -144,68 +174,27 @@ impl<T: Payload, H: Serialize> Signable for JsonWebSignature<T, H> {
         self.header.key_id = signer.key_id();
 
         let header = serde_json::to_string(&self.header).unwrap();
+        let payload = self.payload.into_bytes()?;
+
         input.push(header.as_bytes());
-        input.push(self.payload.as_bytes());
+        input.push(&payload);
 
         let msg = input.to_string();
 
         let signature = signer.sign(msg.as_bytes()).unwrap();
 
         Ok(Signed {
-            value: self,
+            value: input,
             signature,
         })
     }
 }
 
-#[cfg(test)]
-mod tests {
-    extern crate std;
+impl crate::format::sealed::Sealed for Compact {}
 
-    use super::*;
-
-    #[test]
-    fn smoke() {
-        let jws = JsonWebSignature::builder().build(String::from("abc"));
-
-        impl Payload for String {
-            type Buf = Vec<u8>;
-
-            fn as_bytes(&self) -> Self::Buf {
-                self.as_bytes().to_vec()
-            }
-        }
-
-        struct NoneKey;
-
-        impl Signer<&'static [u8]> for NoneKey {
-            fn sign(&self, _: &[u8]) -> Result<&'static [u8], signature::Error> {
-                Ok(&[])
-            }
-
-            fn algorithm(&self) -> JsonWebSigningAlgorithm {
-                JsonWebSigningAlgorithm::None
-            }
-        }
-
-        let c = jws.sign(&NoneKey).unwrap().encode::<Compact>();
-
-        std::println!("{}", c);
-    }
-}
-
-impl<T: Payload, H: Serialize> crate::format::sealed::Sealed for JsonWebSignature<T, H> {}
-
-impl<T: Payload, H: Serialize> IntoFormat<Compact> for JsonWebSignature<T, H> {
+impl IntoFormat<Compact> for Compact {
     fn into_format(self) -> Compact {
-        let mut input = Compact::with_capacity(2);
-
-        // FIXME: can we unwrap here? is it 100% safe?
-        let header = serde_json::to_string(&self.header).unwrap();
-        input.push(header.as_bytes());
-        input.push(self.payload.as_bytes());
-
-        input
+        self
     }
 }
 

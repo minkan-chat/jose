@@ -6,7 +6,9 @@ use crate::{
 };
 
 pub(crate) mod sealed {
-    pub trait Sealed {}
+    pub trait Sealed {
+        type Value;
+    }
 }
 
 /// This type indicates that the inner value is signed using a [signing
@@ -19,19 +21,19 @@ pub(crate) mod sealed {
 ///
 /// [signing algorithm]: crate::jwa::JsonWebSigningAlgorithm
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub struct Signed<T, S> {
-    pub(crate) value: T,
+pub struct Signed<T: sealed::Sealed, S> {
+    pub(crate) value: T::Value,
     pub(crate) signature: S,
 }
 
-impl<T, S> Signed<T, S> {
+impl<T: sealed::Sealed, S> Signed<T, S> {
     /// Encodes this signed value into the given format (`F`).
     ///
     /// Available formats are [`Json`](crate::format::Json) and
     /// [`Compact`](crate::format::Compact).
     pub fn encode<F>(self) -> F
     where
-        T: IntoFormat<F>,
+        T::Value: IntoFormat<F>,
         S: AppendToFormat<F>,
     {
         let mut format = self.value.into_format();

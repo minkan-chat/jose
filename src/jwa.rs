@@ -51,7 +51,7 @@ pub enum JsonWebSigningAlgorithm {
     /// Digital Signature with Edwards-curve Digital Signature Algorithm (EdDSA)
     /// as defined in [section 3.1 of RFC 8037]
     ///
-    /// Note: [`EdDSA`] should not be confused with
+    /// Note: `EdDSA` should not be confused with
     /// [`EcDSA`](crate::jwa::EcDSA).
     /// Also note that an EdDSA signature can either be made using `Ed25519` or
     /// `Ed448` but this information is not included.
