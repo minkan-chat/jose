@@ -52,7 +52,7 @@ pub enum JsonWebSigningAlgorithm {
     /// as defined in [section 3.1 of RFC 8037]
     ///
     /// Note: `EdDSA` should not be confused with
-    /// [`EcDSA`](crate::jwa::EcDSA).
+    /// [`EcDSA`](crate::jwa::JsonWebSigningAlgorithm::EcDSA).
     /// Also note that an EdDSA signature can either be made using `Ed25519` or
     /// `Ed448` but this information is not included.
     ///
