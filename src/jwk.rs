@@ -3,11 +3,12 @@ use core::hash::BuildHasher;
 
 use hashbrown::{hash_map::DefaultHashBuilder, HashSet};
 
-pub mod ec;
-pub mod rsa;
-
-use self::{ec::EllipticCurveKey, rsa::RsaKey};
 use crate::jwa::JsonWebSigningOrEnncryptionAlgorithm;
+
+mod private;
+mod public;
+
+pub use self::{private::Private, public::Public};
 
 /// <https://datatracker.ietf.org/doc/html/rfc7517>
 ///
@@ -101,9 +102,8 @@ pub enum SymmetricJsonWebKey {
 
 #[derive(Debug)]
 pub enum AsymmetricJsonWebKey {
-    /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.2>
-    // FIXME: this must match key type `EC` as well as `OKP` for RFC 8037
-    EllipticCurve(EllipticCurveKey),
-    /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.3>
-    Rsa(RsaKey),
+    /// The public part of an asymmetric key
+    Public(Public),
+    /// The private part of an asymmetric key
+    Private(Private),
 }

@@ -48,6 +48,16 @@ pub enum JsonWebSigningAlgorithm {
     Rsa(RsaSigning),
     /// Digital Signature with ECDSA
     EcDSA(EcDSA),
+    /// Digital Signature with Edwards-curve Digital Signature Algorithm (EdDSA)
+    /// as defined in [section 3.1 of RFC 8037]
+    ///
+    /// Note: [`EdDSA`] should not be confused with
+    /// [`EcDSA`](crate::jwa::EcDSA).
+    /// Also note that an EdDSA signature can either be made using `Ed25519` or
+    /// `Ed448` but this information is not included.
+    ///
+    /// [section 3.1 of RFC 8037]: <https://datatracker.ietf.org/doc/html/rfc8037#section-3.1>
+    EdDSA,
     /// The "none" algorithm as defined in [section 3.6 of RFC 7518].
     ///
     /// Using this algorithm essentially means that there is
@@ -108,6 +118,8 @@ impl_serde!(
         "ES256" => Self::EcDSA(EcDSA::Es256); Self::EcDSA(EcDSA::Es256),
         "ES384" => Self::EcDSA(EcDSA::Es384); Self::EcDSA(EcDSA::Es384),
         "ES512" => Self::EcDSA(EcDSA::Es512); Self::EcDSA(EcDSA::Es512),
+
+        "EdDSA" => Self::EdDSA; Self::EdDSA,
 
         "PS256" => Self::Rsa(RsaSigning::Pss(RsassaPss::Ps256)); Self::Rsa(RsaSigning::Pss(RsassaPss::Ps256)),
         "PS384" => Self::Rsa(RsaSigning::Pss(RsassaPss::Ps384)); Self::Rsa(RsaSigning::Pss(RsassaPss::Ps384)),
