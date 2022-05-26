@@ -4,14 +4,18 @@ use hashbrown::HashSet;
 
 use crate::jwa::JsonWebSigningOrEnncryptionAlgorithm;
 
+mod asymmetric;
 pub mod ec;
 pub mod okp;
-pub mod rsa;
-pub mod symmetric;
-use self::symmetric::SymmetricJsonWebKey;
 mod private;
 mod public;
-pub use self::{private::Private, public::Public};
+pub mod rsa;
+mod symmetric;
+#[doc(inline)]
+pub use self::{
+    asymmetric::AsymmetricJsonWebKey, private::Private, public::Public,
+    symmetric::SymmetricJsonWebKey,
+};
 
 /// <https://datatracker.ietf.org/doc/html/rfc7517>
 ///
@@ -88,12 +92,4 @@ pub enum JsonWebKeyType {
     Symmetric(SymmetricJsonWebKey),
     ///
     Asymmetric(Box<AsymmetricJsonWebKey>),
-}
-
-#[derive(Debug)]
-pub enum AsymmetricJsonWebKey {
-    /// The public part of an asymmetric key
-    Public(Public),
-    /// The private part of an asymmetric key
-    Private(Private),
 }
