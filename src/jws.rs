@@ -11,6 +11,7 @@ use core::convert::Infallible;
 use base64ct::{Base64UrlUnpadded, Encoding};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use thiserror_no_std::Error;
 
 use crate::{
     format::{Compact, IntoFormat, Json},
@@ -64,10 +65,21 @@ impl Payload for String {
     }
 }
 
-#[derive(Debug)]
-pub enum SignError {}
+/// Different kinds of errors that can occurr while signing a JWS.
+#[derive(Debug, Error)]
+pub enum SignError<P> {
+    /// Failed to serialize the [`JoseHeader`].
+    #[error("failed to serialize header: {0}")]
+    SerializeHeader(#[source] serde_json::Error),
+    /// The underlying signing operation of the given signer failed.
+    #[error(transparent)]
+    Sign(signature::Error),
+    /// Failed to convert payload into it's raw byte representation.
+    #[error(transparent)]
+    Payload(P),
+}
 
-impl From<Infallible> for SignError {
+impl<P> From<Infallible> for SignError<P> {
     fn from(x: Infallible) -> Self {
         match x {}
     }
@@ -174,9 +186,8 @@ impl<T: Payload, H: Serialize> Signable for JsonWebSignature<T, H>
 where
     T: Payload,
     H: Serialize,
-    SignError: From<T::Error>,
 {
-    type Error = SignError;
+    type Error = SignError<T::Error>;
 
     fn sign<S: AsRef<[u8]>>(
         mut self,
@@ -185,15 +196,14 @@ where
         self.header.signing_algorithm = signer.algorithm();
         self.header.key_id = signer.key_id();
 
-        // FIXME: do not unwrap here
-        let header = serde_json::to_value(&self.header).unwrap();
+        let header = serde_json::to_value(&self.header).map_err(SignError::SerializeHeader)?;
         let header = Base64UrlUnpadded::encode_string(header.to_string().as_bytes());
 
-        let payload = self.payload.into_bytes()?;
+        let payload = self.payload.into_bytes().map_err(SignError::Payload)?;
         let payload = Base64UrlUnpadded::encode_string(payload.as_ref());
 
         let msg = alloc::format!("{}.{}", header, payload);
-        let signature = signer.sign(msg.as_bytes()).unwrap();
+        let signature = signer.sign(msg.as_bytes()).map_err(SignError::Sign)?;
 
         Ok(Signed {
             value: JsonWebSignatureValue { header, payload },

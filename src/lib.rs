@@ -32,6 +32,3 @@ mod jwe;
 pub mod jwk;
 pub mod jws;
 mod jwt;
-
-#[doc(inline)]
-pub use jwt::JsonWebToken;

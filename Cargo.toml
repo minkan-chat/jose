@@ -5,9 +5,10 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [features]
-std = ["signature/std"]
+std = ["signature/std", "thiserror-no-std/std"]
 
 [dependencies]
+thiserror-no-std = "2.0.2"
 base64ct = { version = "1.5.0", default-features = false, features = ["alloc"] }
 serde = { version = "1", default-features = false, features = [
     "alloc",
