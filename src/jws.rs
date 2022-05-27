@@ -79,12 +79,6 @@ pub enum SignError<P> {
     Payload(P),
 }
 
-impl<P> From<Infallible> for SignError<P> {
-    fn from(x: Infallible) -> Self {
-        match x {}
-    }
-}
-
 /// Representation of a JSON Web Signature (JWS).
 ///
 /// Consists of a header, that can have additional fields by using
