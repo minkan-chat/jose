@@ -252,7 +252,6 @@ where
         mut self,
         signer: &dyn Signer<S>,
     ) -> Result<Signed<Self, S>, Self::Error> {
-        extern crate std;
         self.header.signing_algorithm = signer.algorithm();
         self.header.key_id = signer.key_id();
 
