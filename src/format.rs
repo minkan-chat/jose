@@ -10,7 +10,7 @@ use alloc::{
 use core::{fmt, str::FromStr};
 
 use base64ct::{Base64UrlUnpadded, Encoding};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::Unverified;
@@ -159,7 +159,7 @@ impl fmt::Display for Compact {
 /// assert_eq!(value.to_string(), json.to_string());
 /// # }
 /// ```
-#[derive(Default, Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(transparent)]
 #[serde(transparent)]
 pub struct Json {
