@@ -1,3 +1,5 @@
+//! Key types for Curve25519 and Curve448 (`crv` parameter = `OKP`)
+
 use self::{
     curve25519::{Curve25519Private, Curve25519Public},
     curve448::{Curve448Private, Curve448Public},

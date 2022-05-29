@@ -1,3 +1,5 @@
+//! Rsa key types
+
 /// A public Rsa key used for signature verification and/or encryption
 #[derive(Debug)]
 pub struct RsaPublicKey(rsa::RsaPublicKey);

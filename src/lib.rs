@@ -29,6 +29,8 @@ pub use sign::*;
 mod verify;
 pub use verify::*;
 
+pub(crate) mod base64_url;
+
 pub mod format;
 pub mod jwa;
 mod jwe;

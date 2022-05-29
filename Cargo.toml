@@ -24,7 +24,10 @@ ed25519-dalek = { version = "1", default-features = false, features = [
     # FIXME: consider offering feature flags for other crypto backends
     "u64_backend",
 ] }
-p256 = { version = "0.11", default-features = false, features = ["arithmetic"] }
+p256 = { version = "0.11", default-features = false, features = [
+    "arithmetic",
+    "ecdsa",
+] }
 # not useful yet
 p384 = { version = "0.10", default-features = false }
 k256 = { version = "0.11.2", default-features = false, features = [
@@ -32,8 +35,26 @@ k256 = { version = "0.11.2", default-features = false, features = [
 ] }
 elliptic-curve = { version = "0.12", default-features = false, features = [
     "arithmetic",
+    "jwk",
+    "serde",
+    "sec1",
+    "pkcs8",
+    "pem",
 ] }
 
 rsa = { version = "0.6", default-features = false }
 digest = { version = "0.10", default-features = false, features = ["mac"] }
+ecdsa = { version = "0.14", default-features = false, features = [
+    "digest",
+    "sign",
+    "verify",
+] }
 signature = { version = "1.5.0", default-features = false }
+
+# FIXME: remove this when we can use const generics
+generic-array = { version = "0.14", default-features = false, features = [
+    "serde",
+] }
+
+sec1 = { version = "0.3", default-features = false }
+typenum = { version = "1.15", default-features = false, features = ["no_std"] }
