@@ -175,4 +175,4 @@ macro_rules! impl_serde_ec {
 }
 
 impl_serde_ec!(P256PublicKey, P256PrivateKey, "P-256", "EC");
-impl_serde_ec!(Secp256k1PublicKey, Secp256k1PrivateKey, "P-256", "EC");
+impl_serde_ec!(Secp256k1PublicKey, Secp256k1PrivateKey, "secp256k1", "EC");
