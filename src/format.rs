@@ -25,6 +25,7 @@ pub trait FromFormat<F>: Sized + sealed::Sealed {
     type Error;
 
     /// Parse the input into a new instance of `Self`.
+    #[doc(hidden)]
     fn from_format(input: F) -> Result<Unverified<Self>, Self::Error>;
 }
 
