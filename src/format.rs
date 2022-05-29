@@ -10,11 +10,22 @@ use alloc::{
 use core::{fmt, str::FromStr};
 
 use base64ct::{Base64UrlUnpadded, Encoding};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
+
+use crate::Unverified;
 
 pub(crate) mod sealed {
     pub trait Sealed {}
+}
+
+/// Internal trait.
+pub trait FromFormat<F>: Sized + sealed::Sealed {
+    /// The error that can occurr while parsing `Self` from the input.
+    type Error;
+
+    /// Parse the input into a new instance of `Self`.
+    fn from_format(input: F) -> Result<Unverified<Self>, Self::Error>;
 }
 
 /// Internal trait.
@@ -60,6 +71,18 @@ impl Compact {
         }
     }
 
+    pub(crate) fn part(&self, idx: usize) -> Option<Vec<u8>> {
+        let part = self.parts.get(idx)?;
+        Some(
+            Base64UrlUnpadded::decode_vec(&part)
+                .expect("`Compact` type can only contain valid Base64Url strings"),
+        )
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.parts.len()
+    }
+
     pub(crate) fn push(&mut self, part: impl AsRef<[u8]>) {
         let encoded = Base64UrlUnpadded::encode_string(part.as_ref());
         self.parts.push(encoded);
@@ -85,9 +108,9 @@ impl FromStr for Compact {
             .split('.')
             .map(|s| {
                 if s.as_bytes().iter().all(|c| {
-                    (b'A'..b'Z').contains(c)
-                        || (b'a'..b'z').contains(c)
-                        || (b'0'..b'9').contains(c)
+                    (b'A'..=b'Z').contains(c)
+                        || (b'a'..=b'z').contains(c)
+                        || (b'0'..=b'9').contains(c)
                         || *c == b'_'
                         || *c == b'-'
                 }) {
@@ -136,7 +159,7 @@ impl fmt::Display for Compact {
 /// assert_eq!(value.to_string(), json.to_string());
 /// # }
 /// ```
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Deserialize)]
 #[repr(transparent)]
 #[serde(transparent)]
 pub struct Json {

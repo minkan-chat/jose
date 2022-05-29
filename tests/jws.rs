@@ -4,11 +4,13 @@
 // - for supporting all MUST BE UNDERSTOOD params
 // - checking critical property
 
+use std::str::FromStr;
+
 use jose::{
     format::{Compact, Json},
     jwa::JsonWebSigningAlgorithm,
     jws::JsonWebSignature,
-    Signable, Signer,
+    Signable, Signer, Unverified, Verified, Verifier,
 };
 
 #[test]
@@ -27,7 +29,26 @@ fn smoke() {
         }
     }
 
-    let c = jws.sign(&NoneKey).unwrap().encode::<Json>();
+    let c = jws.sign(&NoneKey).unwrap().encode::<Compact>();
 
     std::println!("{}", c);
+}
+
+#[test]
+fn verify() {
+    let raw = "eyJhbGciOiJub25lIn0.YWJj.";
+    let input = Compact::from_str(raw).unwrap();
+
+    struct NoneVerifier;
+    impl Verifier for NoneVerifier {
+        fn verify(&self, _: &[u8], _: &[u8]) -> Result<(), jose::VerifyError> {
+            Ok(())
+        }
+    }
+
+    let jws = Unverified::<JsonWebSignature<String, ()>>::parse(input)
+        .unwrap()
+        .verify(&NoneVerifier)
+        .unwrap();
+    dbg!(jws);
 }

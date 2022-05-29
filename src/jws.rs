@@ -9,15 +9,15 @@ use alloc::{
 use core::convert::Infallible;
 
 use base64ct::{Base64UrlUnpadded, Encoding};
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
 use thiserror_no_std::Error;
 
 use crate::{
-    format::{Compact, IntoFormat, Json},
+    format::{Compact, FromFormat, IntoFormat, Json},
     jwa::JsonWebSigningAlgorithm,
     sign::{Signable, Signer},
-    Signed,
+    Signed, Unverified,
 };
 
 // FIXME: check section 5.3. (string comparison) and verify correctness
@@ -25,43 +25,51 @@ use crate::{
 // FIXME: protected headers
 
 /// Everything that can be used as a payload for a [`JsonWebSignature`].
-pub trait Payload {
+pub trait Payload: Sized {
     /// The type that contains the raw bytes.
     type Buf: AsRef<[u8]>;
 
     /// The error that can occurr while converting
     /// this payload into it's byte representation.
-    type Error;
+    type IntoError;
+
+    /// The error that can occurr while converting
+    /// a raw byte sequence into this payload type.
+    type FromError;
 
     /// Turn `self` into it's raw byte representation that will
     /// be put into a [`JsonWebSignature`].
-    fn into_bytes(self) -> Result<Self::Buf, Self::Error>;
-}
+    fn into_bytes(self) -> Result<Self::Buf, Self::IntoError>;
 
-impl Payload for &[u8] {
-    type Buf = Self;
-    type Error = Infallible;
-
-    fn into_bytes(self) -> Result<Self::Buf, Self::Error> {
-        todo!()
-    }
+    /// Convert a raw byte sequence into this payload.
+    fn from_bytes(input: Vec<u8>) -> Result<Self, Self::FromError>;
 }
 
 impl Payload for Vec<u8> {
     type Buf = Vec<u8>;
-    type Error = Infallible;
+    type FromError = Infallible;
+    type IntoError = Infallible;
 
-    fn into_bytes(self) -> Result<Self::Buf, Self::Error> {
+    fn into_bytes(self) -> Result<Self::Buf, Self::IntoError> {
         Ok(self)
+    }
+
+    fn from_bytes(input: Vec<u8>) -> Result<Self, Self::FromError> {
+        Ok(input)
     }
 }
 
 impl Payload for String {
     type Buf = Vec<u8>;
-    type Error = Infallible;
+    type FromError = alloc::string::FromUtf8Error;
+    type IntoError = Infallible;
 
-    fn into_bytes(self) -> Result<Self::Buf, Self::Error> {
+    fn into_bytes(self) -> Result<Self::Buf, Self::IntoError> {
         Ok(self.into_bytes())
+    }
+
+    fn from_bytes(input: Vec<u8>) -> Result<Self, Self::FromError> {
+        String::from_utf8(input)
     }
 }
 
@@ -161,6 +169,63 @@ impl<T, H> JsonWebSignature<T, H> {
     }
 }
 
+/// Different kinds of errors that can occurr while parsing a JWS from it's
+/// compact format.
+#[derive(Debug, Error)]
+pub enum ParseCompactError<P> {
+    /// One of the parts was invalid UTF8
+    #[error("one of the parts was an invalid UTF-8 byte sequence")]
+    InvalidUtf8Encoding,
+    /// One of the parts was an invalid Json string
+    #[error("one of the parts was an invalid json string")]
+    InvalidJson,
+    /// Got a `Compact` with less or more than three elements.
+    #[error("got compact representation that didn't have 3 parts")]
+    InvalidLength,
+    /// Failed to parse the payload.
+    #[error(transparent)]
+    Payload(P),
+}
+
+impl<T: Payload, H: DeserializeOwned> crate::format::sealed::Sealed for JsonWebSignature<T, H> {}
+impl<T: Payload, H: DeserializeOwned> FromFormat<Compact> for JsonWebSignature<T, H> {
+    type Error = ParseCompactError<T::FromError>;
+
+    fn from_format(input: Compact) -> Result<Unverified<Self>, Self::Error> {
+        if input.len() != 3 {
+            return Err(ParseCompactError::InvalidLength);
+        }
+
+        let (header, raw_header) = {
+            let raw = input.part(0).expect("`len()` is checked above to be 3");
+            let json =
+                String::from_utf8(raw).map_err(|_| ParseCompactError::InvalidUtf8Encoding)?;
+            let header = serde_json::from_str::<JoseHeader<H>>(&json)
+                .map_err(|_| ParseCompactError::InvalidJson)?;
+            (header, json)
+        };
+
+        let (payload, raw_payload) = {
+            let raw = input.part(1).expect("`len()` is checked above to be 3");
+            let payload = T::from_bytes(raw.clone()).map_err(ParseCompactError::Payload)?;
+            (payload, raw)
+        };
+
+        let signature = input.part(2).expect("`len()` is checked above to be 3");
+
+        let raw_header = Base64UrlUnpadded::encode_string(raw_header.as_bytes());
+        let raw_payload = Base64UrlUnpadded::encode_string(&raw_payload);
+
+        let msg = alloc::format!("{}.{}", raw_header, raw_payload);
+
+        Ok(Unverified {
+            value: JsonWebSignature { header, payload },
+            signature,
+            msg: msg.into_bytes(),
+        })
+    }
+}
+
 /// Internal use.
 ///
 /// Cached value of the header and payload both
@@ -181,12 +246,13 @@ where
     T: Payload,
     H: Serialize,
 {
-    type Error = SignError<T::Error>;
+    type Error = SignError<T::IntoError>;
 
     fn sign<S: AsRef<[u8]>>(
         mut self,
         signer: &dyn Signer<S>,
     ) -> Result<Signed<Self, S>, Self::Error> {
+        extern crate std;
         self.header.signing_algorithm = signer.algorithm();
         self.header.key_id = signer.key_id();
 
@@ -211,9 +277,7 @@ impl crate::format::sealed::Sealed for JsonWebSignatureValue {}
 impl IntoFormat<Compact> for JsonWebSignatureValue {
     fn into_format(self) -> Compact {
         let mut fmt = Compact::with_capacity(3);
-
-        let header = Base64UrlUnpadded::encode_string(self.header.to_string().as_bytes());
-        fmt.push_base64url(header);
+        fmt.push_base64url(self.header);
         fmt.push_base64url(self.payload);
         fmt
     }

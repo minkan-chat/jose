@@ -26,6 +26,9 @@ extern crate alloc;
 mod sign;
 pub use sign::*;
 
+mod verify;
+pub use verify::*;
+
 pub mod format;
 pub mod jwa;
 mod jwe;
