@@ -7,15 +7,12 @@
 use std::str::FromStr;
 
 use jose::{
-    format::{Compact, Json},
-    jwa::JsonWebSigningAlgorithm,
-    jws::JsonWebSignature,
-    Signable, Signer, Unverified, Verified, Verifier,
+    format::Compact, jwa::JsonWebSigningAlgorithm, Signable, Signer, Unverified, Verifier, JWS,
 };
 
 #[test]
 fn smoke() {
-    let jws = JsonWebSignature::builder().build(String::from("abc"));
+    let jws = JWS::builder().build(String::from("abc"));
 
     struct NoneKey;
 
@@ -46,7 +43,7 @@ fn verify() {
         }
     }
 
-    let jws = Unverified::<JsonWebSignature<String, ()>>::decode(input)
+    let jws = Unverified::<JWS<String>>::decode(input)
         .unwrap()
         .verify(&NoneVerifier)
         .unwrap();

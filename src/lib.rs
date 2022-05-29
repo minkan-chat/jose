@@ -35,3 +35,12 @@ mod jwe;
 pub mod jwk;
 pub mod jws;
 mod jwt;
+
+pub use jws::JsonWebSignature;
+pub use jwt::JsonWebToken;
+
+/// Type alias to make `JsonWebSignature` easier to access.
+pub type JWS<T, H = ()> = JsonWebSignature<T, H>;
+
+/// Type alias to make `JsonWebToken` easier to access.
+pub type JWT = JsonWebToken;
