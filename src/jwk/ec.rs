@@ -5,13 +5,16 @@ pub mod p384;
 pub mod p521;
 pub mod secp256k1;
 
+use alloc::format;
+use core::fmt::Display;
+
 use elliptic_curve::{
     bigint::ArrayEncoding,
     sec1::{FromEncodedPoint, ModulusSize, ToEncodedPoint, ValidatePublicKey},
-    AffinePoint, Curve, Field, FieldSize, ProjectiveArithmetic, PublicKey, SecretKey,
+    AffinePoint, Curve, FieldSize, ProjectiveArithmetic, PublicKey, SecretKey,
 };
 use sec1::EncodedPoint;
-use serde::Deserialize;
+use serde::{de::Error as SerdeError, Deserialize};
 
 use self::{
     p256::{P256PrivateKey, P256PublicKey},
@@ -56,26 +59,29 @@ pub enum EcPrivate {
     Secp256k1(Secp256k1PrivateKey),
 }
 
+/// Generic type for serde for public elliptic curve keys
 #[derive(Deserialize)]
 #[serde(bound = "")]
-pub(self) struct EcPublicKey<C>
+pub(self) struct EcPublicKey<'a, C>
 where
     C: Curve,
 {
+    pub(crate) crv: &'a str,
+    pub(crate) kty: &'a str,
     x: Base64UrlEncodedField<C>,
     y: Base64UrlEncodedField<C>,
 }
 
-impl<C> EcPublicKey<C>
+impl<'a, C> EcPublicKey<'a, C>
 where
     C: Curve + ProjectiveArithmetic,
     AffinePoint<C>: FromEncodedPoint<C> + ToEncodedPoint<C>,
     FieldSize<C>: ModulusSize,
 {
     // FIXME: map correct errors
-    pub fn to_public_key(&self) -> Result<PublicKey<C>, &'static str> {
+    pub fn to_public_key(&self) -> Result<PublicKey<C>, impl Display> {
         let point = &self.as_encoded_point();
-        Ok(PublicKey::<C>::from_sec1_bytes(point.as_bytes()).unwrap())
+        PublicKey::<C>::from_sec1_bytes(point.as_bytes())
     }
 
     pub fn as_encoded_point(&self) -> EncodedPoint<<<C>::UInt as ArrayEncoding>::ByteSize> {
@@ -83,27 +89,90 @@ where
     }
 }
 
+/// Generic type for serde for private elliptic curve keys
 #[derive(Deserialize)]
 #[serde(bound = "")]
-pub(self) struct EcPrivateKey<C>
+pub(self) struct EcPrivateKey<'a, C>
 where
     C: Curve,
 {
     #[serde(flatten)]
-    public_part: EcPublicKey<C>,
+    #[serde(borrow)]
+    pub(crate) public_part: EcPublicKey<'a, C>,
     d: Base64UrlEncodedField<C>,
 }
 
-impl<C> EcPrivateKey<C>
+impl<'a, C> EcPrivateKey<'a, C>
 where
     C: Curve + ProjectiveArithmetic + ValidatePublicKey,
     AffinePoint<C>: FromEncodedPoint<C> + ToEncodedPoint<C>,
     FieldSize<C>: ModulusSize,
 {
-    pub fn to_secret_key(&self) -> Result<SecretKey<C>, &'static str> {
+    pub fn to_secret_key(&self) -> Result<SecretKey<C>, impl Display> {
         let public = self.public_part.as_encoded_point();
-        let secret = SecretKey::<C>::from_be_bytes(&self.d.0).unwrap();
-        C::validate_public_key(&secret, &public).unwrap();
-        Ok(secret)
+        let secret = SecretKey::<C>::from_be_bytes(&self.d.0)
+            .map_err(|e| format!("failed to parse secret key from big endian bytes: {}", e))?;
+        C::validate_public_key(&secret, &public)
+            .map_err(|e| format!("public key validation failed: {}", e))
+            .map(|_| secret)
     }
 }
+
+macro_rules! impl_serde_ec {
+    ($public:ty, $private:ty, $curve:literal, $key_type:literal) => {
+        impl<'de> Deserialize<'de> for $public {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                let key = crate::jwk::ec::EcPublicKey::deserialize(deserializer)?;
+                if key.crv != $curve {
+                    return Err(<D::Error as SerdeError>::custom(format!(
+                        "Invalid curve type `{}`. Expected: `{}`",
+                        key.crv, $curve,
+                    )));
+                }
+                if key.kty != $key_type {
+                    return Err(<D::Error as SerdeError>::custom(format!(
+                        "Invalid key type `{}`. Expected: `{}`",
+                        key.kty, $key_type,
+                    )));
+                }
+
+                Ok(Self(
+                    key.to_public_key()
+                        .map_err(<D::Error as SerdeError>::custom)?,
+                ))
+            }
+        }
+
+        impl<'de> Deserialize<'de> for $private {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                let key = crate::jwk::ec::EcPrivateKey::deserialize(deserializer)?;
+                if key.public_part.crv != $curve {
+                    return Err(<D::Error as SerdeError>::custom(format!(
+                        "Invalid curve type `{}`. Expected: `{}`",
+                        key.public_part.crv, $curve,
+                    )));
+                }
+                if key.public_part.kty != $key_type {
+                    return Err(<D::Error as SerdeError>::custom(format!(
+                        "Invalid key type `{}`. Expected: `{}`",
+                        key.public_part.kty, $key_type,
+                    )));
+                }
+
+                Ok(Self(
+                    key.to_secret_key()
+                        .map_err(<D::Error as SerdeError>::custom)?,
+                ))
+            }
+        }
+    };
+}
+
+impl_serde_ec!(P256PublicKey, P256PrivateKey, "P-256", "EC");
+impl_serde_ec!(Secp256k1PublicKey, Secp256k1PrivateKey, "P-256", "EC");

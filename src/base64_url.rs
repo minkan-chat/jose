@@ -1,9 +1,6 @@
 //! Helpers for base64 urlsafe encoded stuff
 
-use alloc::format;
-
 use base64ct::{Base64UrlUnpadded, Encoding};
-use digest::typenum::Unsigned;
 use elliptic_curve::{bigint::ArrayEncoding, Curve, FieldBytes};
 use generic_array::{ArrayLength, GenericArray};
 use serde::{de::Error, Deserialize};
@@ -23,6 +20,10 @@ where
 
         // let len = s.len();
         // FIXME: this check fails but shouldn't?
+        // According to the JWA RFC (6.2.1.2):
+        // > The length of this octet string MUST
+        // > be the full size of a coordinate for the curve specified in the "crv"
+        // > parameter.
         // if len != <N as Unsigned>::to_usize() {
         // return Err(Error::custom(format!(
         // "Expected a base64url encoded string with a length of {}, found a string with
@@ -55,5 +56,7 @@ where
         Ok(Self(field.0))
     }
 }
+
+// TODO: test for correct length check and base64url parsing
 #[cfg(test)]
 mod tests {}

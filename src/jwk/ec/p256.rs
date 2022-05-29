@@ -1,41 +1,13 @@
 //! Key types for the P-256 curve
 use elliptic_curve::{PublicKey, SecretKey};
 use p256::NistP256;
-use serde::Deserialize;
 
 /// A P-256 public key used to verify signatures and/or encrypt
 #[derive(Debug)]
-pub struct P256PublicKey(PublicKey<NistP256>);
+pub struct P256PublicKey(pub(super) PublicKey<NistP256>);
 /// A P-256 private key used to create signatures and/or decrypt
 #[derive(Debug)]
-pub struct P256PrivateKey(SecretKey<NistP256>);
-
-impl<'de> Deserialize<'de> for P256PublicKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        // FIXME: correct errors
-        Ok(Self(
-            super::EcPublicKey::deserialize(deserializer)?
-                .to_public_key()
-                .unwrap(),
-        ))
-    }
-}
-
-impl<'de> Deserialize<'de> for P256PrivateKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        Ok(Self(
-            super::EcPrivateKey::deserialize(deserializer)?
-                .to_secret_key()
-                .unwrap(),
-        ))
-    }
-}
+pub struct P256PrivateKey(pub(super) SecretKey<NistP256>);
 
 #[cfg(test)]
 mod tests {
@@ -61,7 +33,7 @@ mod tests {
   "kid": "UYa89vgc4u_lpcbbmDQfYJQRAUD4AED8H8FUNjk5KyQ",
   "crv": "P-256",
   "x": "hFc6OfbgRsYFOWyhGbWH0sS5DZBjJLGABJvPttVZfA4",
-  "y": "tnXB8ks0-AZJKOgbMWJrE5Jm3nTFy0UiqQugmx9jku4",
+  "y": "tnXB8ks0-AZJKOgbMWJrE5Jm3nTFy0UiqQugmx9jku4"
 } "#;
     use super::{P256PrivateKey, P256PublicKey};
 
@@ -76,7 +48,7 @@ mod tests {
     }
 
     #[test]
-    fn sign_verify() {
+    fn sign_and_verify() {
         let private: P256PrivateKey = serde_json::from_str(VALID_PRIVATE_KEY).unwrap();
         let message = "hello world";
         let signer: SigningKey = private.0.into();
