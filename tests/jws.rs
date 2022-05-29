@@ -46,7 +46,7 @@ fn verify() {
         }
     }
 
-    let jws = Unverified::<JsonWebSignature<String, ()>>::parse(input)
+    let jws = Unverified::<JsonWebSignature<String, ()>>::decode(input)
         .unwrap()
         .verify(&NoneVerifier)
         .unwrap();

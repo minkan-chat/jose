@@ -40,7 +40,7 @@ pub struct Unverified<T> {
 }
 
 impl<T> Unverified<T> {
-    pub fn parse<F>(input: F) -> Result<Self, <T as FromFormat<F>>::Error>
+    pub fn decode<F>(input: F) -> Result<Self, <T as FromFormat<F>>::Error>
     where
         T: FromFormat<F>,
     {
