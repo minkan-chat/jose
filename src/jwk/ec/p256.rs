@@ -11,50 +11,39 @@ pub struct P256PrivateKey(pub(super) SecretKey<NistP256>);
 
 #[cfg(test)]
 mod tests {
+
     use p256::ecdsa::{
         signature::{Signer, Verifier},
         Signature, SigningKey, VerifyingKey,
     };
-    const VALID_PRIVATE_KEY: &str = r#"
-{
-  "use": "enc",
-  "kty": "EC",
-  "kid": "UYa89vgc4u_lpcbbmDQfYJQRAUD4AED8H8FUNjk5KyQ",
-  "crv": "P-256",
-  "x": "hFc6OfbgRsYFOWyhGbWH0sS5DZBjJLGABJvPttVZfA4",
-  "y": "tnXB8ks0-AZJKOgbMWJrE5Jm3nTFy0UiqQugmx9jku4",
-  "d": "U7b2FqvDSIMFUF0FTea7Z-K8Fk0Xyb2qJlw62USEm04"
-} "#;
 
-    const VALID_PUBLIC_KEY: &str = r#"
-           {
-  "use": "enc",
-  "kty": "EC",
-  "kid": "UYa89vgc4u_lpcbbmDQfYJQRAUD4AED8H8FUNjk5KyQ",
-  "crv": "P-256",
-  "x": "hFc6OfbgRsYFOWyhGbWH0sS5DZBjJLGABJvPttVZfA4",
-  "y": "tnXB8ks0-AZJKOgbMWJrE5Jm3nTFy0UiqQugmx9jku4"
-} "#;
     use super::{P256PrivateKey, P256PublicKey};
+
+    const ENC_PUB: &str = include_str!("../../../tests/keys/p256.enc.pub.json");
+    const ENC: &str = include_str!("../../../tests/keys/p256.enc.json");
+    const SIG_PUB: &str = include_str!("../../../tests/keys/p256.sig.pub.json");
+    const SIG: &str = include_str!("../../../tests/keys/p256.sig.json");
 
     #[test]
     fn deserialize_public() {
-        let _: P256PublicKey = serde_json::from_str(VALID_PUBLIC_KEY).unwrap();
+        let _: P256PublicKey = serde_json::from_str(ENC_PUB).unwrap();
+        let _: P256PublicKey = serde_json::from_str(SIG_PUB).unwrap();
     }
 
     #[test]
     fn deserialize_private() {
-        let _: P256PrivateKey = serde_json::from_str(VALID_PRIVATE_KEY).unwrap();
+        let _: P256PrivateKey = serde_json::from_str(ENC).unwrap();
+        let _: P256PrivateKey = serde_json::from_str(SIG).unwrap();
     }
 
     #[test]
     fn sign_and_verify() {
-        let private: P256PrivateKey = serde_json::from_str(VALID_PRIVATE_KEY).unwrap();
+        let private: P256PrivateKey = serde_json::from_str(SIG).unwrap();
         let message = "hello world";
         let signer: SigningKey = private.0.into();
         let signature: Signature = Signer::sign(&signer, message.as_bytes());
 
-        let public: P256PublicKey = serde_json::from_str(VALID_PUBLIC_KEY).unwrap();
+        let public: P256PublicKey = serde_json::from_str(SIG_PUB).unwrap();
         let verifier: VerifyingKey = public.0.into();
         Verifier::verify(&verifier, message.as_bytes(), &signature).unwrap();
     }
