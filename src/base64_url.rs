@@ -3,7 +3,7 @@
 use base64ct::{Base64UrlUnpadded, Encoding};
 use elliptic_curve::{bigint::ArrayEncoding, Curve, FieldBytes};
 use generic_array::{ArrayLength, GenericArray};
-use serde::{de::Error, Deserialize};
+use serde::{de::Error, Deserialize, Serialize};
 
 #[derive(Debug)]
 pub(crate) struct Base64UrlOctet<N: ArrayLength<u8>>(GenericArray<u8, N>);
@@ -54,6 +54,28 @@ where
         let field: Base64UrlOctet<<C::UInt as ArrayEncoding>::ByteSize> =
             Base64UrlOctet::deserialize(deserializer)?;
         Ok(Self(field.0))
+    }
+}
+
+impl<C> Serialize for Base64UrlEncodedField<C>
+where
+    C: Curve,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let encoded = Base64UrlUnpadded::encode_string(&self.0);
+        serializer.serialize_str(&encoded)
+    }
+}
+
+impl<C> From<FieldBytes<C>> for Base64UrlEncodedField<C>
+where
+    C: Curve,
+{
+    fn from(v: FieldBytes<C>) -> Self {
+        Self(v)
     }
 }
 

@@ -8,13 +8,16 @@ pub mod secp256k1;
 use alloc::format;
 use core::fmt::Display;
 
+use ::p256::NistP256;
 use elliptic_curve::{
     bigint::ArrayEncoding,
     sec1::{FromEncodedPoint, ModulusSize, ToEncodedPoint, ValidatePublicKey},
     AffinePoint, Curve, FieldSize, ProjectiveArithmetic, PublicKey, SecretKey,
 };
+use generic_array::GenericArray;
+use k256::Secp256k1;
 use sec1::EncodedPoint;
-use serde::{de::Error as SerdeError, Deserialize};
+use serde::{de::Error as SerdeError, Deserialize, Serialize};
 
 use self::{
     p256::{P256PrivateKey, P256PublicKey},
@@ -119,7 +122,7 @@ where
 }
 
 macro_rules! impl_serde_ec {
-    ($public:ty, $private:ty, $curve:literal, $key_type:literal) => {
+    ($public:ty, $private:ty, $curve:literal, $key_type:literal, $inner:ty) => {
         impl<'de> Deserialize<'de> for $public {
             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
             where
@@ -171,8 +174,78 @@ macro_rules! impl_serde_ec {
                 ))
             }
         }
+
+        impl Serialize for $public {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                let key = &self.0;
+
+                #[derive(Serialize)]
+                struct Repr<'a> {
+                    crv: &'a str,
+                    kty: &'a str,
+                    x: Base64UrlEncodedField<$inner>,
+                    y: Base64UrlEncodedField<$inner>,
+                }
+
+                use elliptic_curve::sec1::ToEncodedPoint;
+                let point = key.to_encoded_point(false);
+                let x = point.x().map(AsRef::as_ref).unwrap_or(&[0u8][..]);
+                let y = point.y().map(AsRef::as_ref).unwrap_or(&[0u8][..]);
+
+                let repr = Repr {
+                    crv: $curve,
+                    kty: $key_type,
+                    x: Base64UrlEncodedField(*GenericArray::from_slice(x)),
+                    y: Base64UrlEncodedField(*GenericArray::from_slice(y)),
+                };
+
+                repr.serialize(serializer)
+            }
+        }
+
+        impl Serialize for $private {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                let key = &self.0;
+
+                #[derive(Serialize)]
+                struct Repr<'a> {
+                    crv: &'a str,
+                    kty: &'a str,
+                    x: Base64UrlEncodedField<$inner>,
+                    y: Base64UrlEncodedField<$inner>,
+                    d: Base64UrlEncodedField<$inner>,
+                }
+
+                use elliptic_curve::sec1::ToEncodedPoint;
+                let point = key.public_key().to_encoded_point(false);
+                let x = point.x().map(AsRef::as_ref).unwrap_or(&[0u8][..]);
+                let y = point.y().map(AsRef::as_ref).unwrap_or(&[0u8][..]);
+
+                let repr = Repr {
+                    crv: $curve,
+                    kty: $key_type,
+                    x: Base64UrlEncodedField(*GenericArray::from_slice(x)),
+                    y: Base64UrlEncodedField(*GenericArray::from_slice(y)),
+                    d: Base64UrlEncodedField(key.to_be_bytes()),
+                };
+
+                repr.serialize(serializer)
+            }
+        }
     };
 }
 
-impl_serde_ec!(P256PublicKey, P256PrivateKey, "P-256", "EC");
-impl_serde_ec!(Secp256k1PublicKey, Secp256k1PrivateKey, "secp256k1", "EC");
+impl_serde_ec!(P256PublicKey, P256PrivateKey, "P-256", "EC", NistP256);
+impl_serde_ec!(
+    Secp256k1PublicKey,
+    Secp256k1PrivateKey,
+    "secp256k1",
+    "EC",
+    Secp256k1
+);
