@@ -1,7 +1,12 @@
-//! TODO: unsupported, see <https://github.com/RustCrypto/elliptic-curves/issues/240>
-//! and <https://github.com/RustCrypto/elliptic-curves/issues/566>
-#![allow(missing_docs)]
-#[derive(Debug)]
-pub struct P384PublicKey();
-#[derive(Debug)]
-pub struct P384PrivateKey();
+//! Key types for the P-384 curve
+
+use elliptic_curve::{PublicKey, SecretKey};
+use p384::NistP384;
+
+/// A P-384 public key used to verify signatures and/or encrypt
+#[derive(Debug, PartialEq, Eq)]
+pub struct P384PublicKey(pub(super) PublicKey<NistP384>);
+
+/// A P-384 private key used to create signatures and/or decrypt
+#[derive(Debug, PartialEq, Eq)]
+pub struct P384PrivateKey(pub(super) SecretKey<NistP384>);

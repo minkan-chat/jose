@@ -29,7 +29,10 @@ p256 = { version = "0.11", default-features = false, features = [
     "ecdsa",
 ] }
 # not useful yet
-p384 = { version = "0.10", default-features = false }
+p384 = { version = "0.11", default-features = false, features = [
+    "arithmetic",
+    #"ecdsa",
+] }
 k256 = { version = "0.11.2", default-features = false, features = [
     "arithmetic",
 ] }
@@ -42,7 +45,7 @@ elliptic-curve = { version = "0.12", default-features = false, features = [
     "pem",
 ] }
 
-rsa = { version = "0.6", default-features = false }
+rsa = { version = "0.7.0-pre", default-features = false }
 digest = { version = "0.10", default-features = false, features = ["mac"] }
 ecdsa = { version = "0.14", default-features = false, features = [
     "digest",

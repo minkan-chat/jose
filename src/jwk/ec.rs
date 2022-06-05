@@ -9,6 +9,7 @@ use alloc::format;
 use core::fmt::Display;
 
 use ::p256::NistP256;
+use ::p384::NistP384;
 use elliptic_curve::{
     bigint::ArrayEncoding,
     sec1::{FromEncodedPoint, ModulusSize, ToEncodedPoint, ValidatePublicKey},
@@ -22,24 +23,26 @@ use serde::{de::Error as SerdeError, Deserialize, Serialize};
 use self::{
     p256::{P256PrivateKey, P256PublicKey},
     p384::{P384PrivateKey, P384PublicKey},
-    p521::{P521PrivateKey, P521PublicKey},
     secp256k1::{Secp256k1PrivateKey, Secp256k1PublicKey},
 };
 use crate::{base64_url::Base64UrlEncodedField, borrowable::Borrowable};
+
+// FIXME: support all curves specified in IANA "JWK Elliptic Curve"
 
 /// The public part of some elliptic curve
 ///
 /// Note: This does not include Curve25519 and Curve448. For these, see the
 /// [`Okp`](super::Public::Okp) variant of the [`Public`](super::Public) enum.
 #[non_exhaustive]
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum EcPublic {
     /// Public part of the P-256 curve
     P256(P256PublicKey),
     /// Public part of the P-384 curve
     P384(P384PublicKey),
-    /// Public part of the P-521 curve
-    P521(P521PublicKey),
+    // /// Public part of the P-521 curve
+    // P521(P521PublicKey),
     /// Public part of the secp251k1 curve
     Secp256k1(Secp256k1PublicKey),
 }
@@ -50,14 +53,15 @@ pub enum EcPublic {
 /// [`Okp`](super::Private::Okp) variant of the [`Private`](super::Private)
 /// enum.
 #[non_exhaustive]
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum EcPrivate {
     /// Private part of the P-256 curve
     P256(P256PrivateKey),
     /// Private part of the P-384 curve
     P384(P384PrivateKey),
-    /// Private part of the P-521 curve
-    P521(P521PrivateKey),
+    // /// Private part of the P-521 curve
+    // P521(P521PrivateKey),
     /// Private part of the secp251k1 curve
     Secp256k1(Secp256k1PrivateKey),
 }
@@ -246,6 +250,7 @@ macro_rules! impl_serde_ec {
 }
 
 impl_serde_ec!(P256PublicKey, P256PrivateKey, "P-256", "EC", NistP256);
+impl_serde_ec!(P384PublicKey, P384PrivateKey, "P-384", "EC", NistP384);
 impl_serde_ec!(
     Secp256k1PublicKey,
     Secp256k1PrivateKey,
