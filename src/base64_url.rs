@@ -7,6 +7,8 @@ use elliptic_curve::{bigint::ArrayEncoding, Curve, FieldBytes};
 use generic_array::{ArrayLength, GenericArray};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 
+use crate::borrowable::Borrowable;
+
 #[derive(Debug)]
 pub(crate) struct Base64UrlBytes(pub(crate) Vec<u8>);
 
@@ -43,9 +45,9 @@ where
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de>,
+        D: Deserializer<'de>,
     {
-        let s = <&str as Deserialize>::deserialize(deserializer)?;
+        let s = <Borrowable<'_, str> as Deserialize>::deserialize(deserializer)?;
 
         // let len = s.len();
         // FIXME: this check fails but shouldn't?
@@ -62,7 +64,7 @@ where
         // )));
         // }
         let mut buf = GenericArray::<u8, N>::default();
-        Base64UrlUnpadded::decode(&s, &mut buf).map_err(<D::Error as Error>::custom)?;
+        Base64UrlUnpadded::decode(&*s, &mut buf).map_err(<D::Error as Error>::custom)?;
         Ok(Self(buf))
     }
 }
@@ -78,7 +80,7 @@ where
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de>,
+        D: Deserializer<'de>,
     {
         let field: Base64UrlOctet<<C::UInt as ArrayEncoding>::ByteSize> =
             Base64UrlOctet::deserialize(deserializer)?;

@@ -30,6 +30,7 @@ mod verify;
 pub use verify::*;
 
 pub(crate) mod base64_url;
+pub(crate) mod borrowable;
 
 pub mod format;
 pub mod jwa;

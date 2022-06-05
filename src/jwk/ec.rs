@@ -25,7 +25,7 @@ use self::{
     p521::{P521PrivateKey, P521PublicKey},
     secp256k1::{Secp256k1PrivateKey, Secp256k1PublicKey},
 };
-use crate::base64_url::Base64UrlEncodedField;
+use crate::{base64_url::Base64UrlEncodedField, borrowable::Borrowable};
 
 /// The public part of some elliptic curve
 ///
@@ -65,12 +65,14 @@ pub enum EcPrivate {
 /// Generic type for serde for public elliptic curve keys
 #[derive(Deserialize)]
 #[serde(bound = "")]
-pub(self) struct EcPublicKey<'a, C>
+struct EcPublicKey<'a, C>
 where
     C: Curve,
 {
-    pub(crate) crv: &'a str,
-    pub(crate) kty: &'a str,
+    #[serde(borrow)]
+    pub(crate) crv: Borrowable<'a, str>,
+    #[serde(borrow)]
+    pub(crate) kty: Borrowable<'a, str>,
     x: Base64UrlEncodedField<C>,
     y: Base64UrlEncodedField<C>,
 }
@@ -95,7 +97,7 @@ where
 /// Generic type for serde for private elliptic curve keys
 #[derive(Deserialize)]
 #[serde(bound = "")]
-pub(self) struct EcPrivateKey<'a, C>
+struct EcPrivateKey<'a, C>
 where
     C: Curve,
 {
@@ -129,16 +131,18 @@ macro_rules! impl_serde_ec {
                 D: serde::Deserializer<'de>,
             {
                 let key = crate::jwk::ec::EcPublicKey::deserialize(deserializer)?;
-                if key.crv != $curve {
+
+                if &*key.crv != $curve {
                     return Err(<D::Error as SerdeError>::custom(format!(
                         "Invalid curve type `{}`. Expected: `{}`",
-                        key.crv, $curve,
+                        &*key.crv, $curve,
                     )));
                 }
-                if key.kty != $key_type {
+
+                if &*key.kty != $key_type {
                     return Err(<D::Error as SerdeError>::custom(format!(
                         "Invalid key type `{}`. Expected: `{}`",
-                        key.kty, $key_type,
+                        &*key.kty, $key_type,
                     )));
                 }
 
@@ -155,16 +159,16 @@ macro_rules! impl_serde_ec {
                 D: serde::Deserializer<'de>,
             {
                 let key = crate::jwk::ec::EcPrivateKey::deserialize(deserializer)?;
-                if key.public_part.crv != $curve {
+                if &*key.public_part.crv != $curve {
                     return Err(<D::Error as SerdeError>::custom(format!(
                         "Invalid curve type `{}`. Expected: `{}`",
-                        key.public_part.crv, $curve,
+                        &*key.public_part.crv, $curve,
                     )));
                 }
-                if key.public_part.kty != $key_type {
+                if &*key.public_part.kty != $key_type {
                     return Err(<D::Error as SerdeError>::custom(format!(
                         "Invalid key type `{}`. Expected: `{}`",
-                        key.public_part.kty, $key_type,
+                        &*key.public_part.kty, $key_type,
                     )));
                 }
 
