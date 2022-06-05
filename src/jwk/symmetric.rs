@@ -13,7 +13,7 @@ pub enum SymmetricJsonWebKey {
     OctetSequence(OctetSequence),
 }
 
-impl serde::Serialize for SymmetricJsonWebKey {
+impl Serialize for SymmetricJsonWebKey {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,

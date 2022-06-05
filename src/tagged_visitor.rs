@@ -1,11 +1,11 @@
-use alloc::{collections::BTreeMap, fmt, vec::Vec};
+use alloc::{collections::BTreeMap, fmt};
 use core::marker::PhantomData;
 
 use serde::{
-    de::{self, DeserializeSeed, Error as _, MapAccess, Visitor},
+    de::{self, DeserializeSeed, MapAccess, Visitor},
     Deserialize, Deserializer,
 };
-use serde_value::{DeserializerError, Value, ValueVisitor};
+use serde_value::Value;
 
 macro_rules! impl_internally_tagged_deserialize {
     ($T:ty, $tag:literal, $expecting:literal, [$($name:literal => $i:ident),* $(,)?]) => {

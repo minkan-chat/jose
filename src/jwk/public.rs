@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{ec::EcPublic, okp::OkpPublic, rsa::RsaPublicKey};
+use super::{ec::EcPublic, rsa::RsaPublicKey};
 
 /// The `public` part of some asymmetric cryptographic key
 #[non_exhaustive]

@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 
 use serde::{Deserialize, Serialize};
 
-use super::{ec::EcPrivate, okp::OkpPrivate, rsa::RsaPrivateKey};
+use super::{ec::EcPrivate, rsa::RsaPrivateKey};
 
 /// The `private` part of some asymmetric cryptographic key
 #[non_exhaustive]
