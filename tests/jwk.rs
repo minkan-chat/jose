@@ -1,3 +1,8 @@
+use jose::jwk::{
+    ec::{EcPrivate, EcPublic},
+    Private, Public,
+};
+
 fn read_key_file(name: &str) -> String {
     std::fs::read_to_string(format!(
         "{}/tests/keys/{}.json",
@@ -94,4 +99,30 @@ pub mod ec {
         let key: EcPrivate = serde_json::from_str(&json).unwrap();
         assert!(matches!(key, EcPrivate::P256(..)));
     }
+}
+
+#[test]
+fn generic_public_key_roundtrip() {
+    let json = read_key_file("p256.pub");
+
+    let key: Public = serde_json::from_str(&json).unwrap();
+    assert!(matches!(key, Public::Ec(EcPublic::P256(..))));
+
+    let json2 = serde_json::to_string(&key).unwrap();
+    let key2: Public = serde_json::from_str(&json2).unwrap();
+
+    assert_eq!(key, key2);
+}
+
+#[test]
+fn generic_private_key_roundtrip() {
+    let json = read_key_file("p256");
+
+    let key: Private = serde_json::from_str(&json).unwrap();
+    assert!(matches!(key, Private::Ec(EcPrivate::P256(..))));
+
+    let json2 = serde_json::to_string(&key).unwrap();
+    let key2: Private = serde_json::from_str(&json2).unwrap();
+
+    assert_eq!(key, key2);
 }

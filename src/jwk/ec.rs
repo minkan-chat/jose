@@ -34,7 +34,7 @@ use crate::{base64_url::Base64UrlEncodedField, borrowable::Borrowable};
 /// Note: This does not include Curve25519 and Curve448. For these, see the
 /// [`Okp`](super::Public::Okp) variant of the [`Public`](super::Public) enum.
 #[non_exhaustive]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum EcPublic {
     /// Public part of the P-256 curve
@@ -53,7 +53,7 @@ pub enum EcPublic {
 /// [`Okp`](super::Private::Okp) variant of the [`Private`](super::Private)
 /// enum.
 #[non_exhaustive]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum EcPrivate {
     /// Private part of the P-256 curve
