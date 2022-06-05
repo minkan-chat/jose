@@ -1,6 +1,7 @@
 use alloc::{boxed::Box, string::String};
 
 use hashbrown::HashSet;
+use serde::{Deserialize, Serialize};
 
 use crate::jwa::JsonWebSigningOrEnncryptionAlgorithm;
 
@@ -86,7 +87,8 @@ pub enum KeyOperations {
 /// types as defined in [RFC 7518 section 6].
 ///
 /// [RFC 7518 section 6]: <https://datatracker.ietf.org/doc/html/rfc7518#section-6>
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum JsonWebKeyType {
     ///
     Symmetric(SymmetricJsonWebKey),

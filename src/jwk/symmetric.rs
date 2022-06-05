@@ -7,7 +7,7 @@ use crate::base64_url::Base64UrlBytes;
 
 /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4>
 #[non_exhaustive]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum SymmetricJsonWebKey {
     /// `oct` <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4>
     OctetSequence(OctetSequence),
@@ -60,5 +60,5 @@ impl<'de> Deserialize<'de> for SymmetricJsonWebKey {
 }
 
 /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4.1>
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct OctetSequence(Vec<u8>);

@@ -1,6 +1,6 @@
 use jose::jwk::{
     ec::{EcPrivate, EcPublic},
-    Private, Public,
+    AsymmetricJsonWebKey, JsonWebKeyType, Private, Public,
 };
 
 fn read_key_file(name: &str) -> String {
@@ -105,11 +105,20 @@ pub mod ec {
 fn generic_public_key_roundtrip() {
     let json = read_key_file("p256.pub");
 
-    let key: Public = serde_json::from_str(&json).unwrap();
-    assert!(matches!(key, Public::Ec(EcPublic::P256(..))));
+    let key: JsonWebKeyType = serde_json::from_str(&json).unwrap();
+
+    let inner = match key {
+        JsonWebKeyType::Asymmetric(ref inner) => &**inner,
+        _ => unreachable!(),
+    };
+
+    assert!(matches!(
+        inner,
+        AsymmetricJsonWebKey::Public(Public::Ec(EcPublic::P256(..)))
+    ));
 
     let json2 = serde_json::to_string(&key).unwrap();
-    let key2: Public = serde_json::from_str(&json2).unwrap();
+    let key2: JsonWebKeyType = serde_json::from_str(&json2).unwrap();
 
     assert_eq!(key, key2);
 }
@@ -118,11 +127,20 @@ fn generic_public_key_roundtrip() {
 fn generic_private_key_roundtrip() {
     let json = read_key_file("p256");
 
-    let key: Private = serde_json::from_str(&json).unwrap();
-    assert!(matches!(key, Private::Ec(EcPrivate::P256(..))));
+    let key: JsonWebKeyType = serde_json::from_str(&json).unwrap();
+
+    let inner = match key {
+        JsonWebKeyType::Asymmetric(ref inner) => &**inner,
+        _ => unreachable!(),
+    };
+
+    assert!(matches!(
+        inner,
+        AsymmetricJsonWebKey::Private(Private::Ec(EcPrivate::P256(..)))
+    ));
 
     let json2 = serde_json::to_string(&key).unwrap();
-    let key2: Private = serde_json::from_str(&json2).unwrap();
+    let key2: JsonWebKeyType = serde_json::from_str(&json2).unwrap();
 
     assert_eq!(key, key2);
 }
