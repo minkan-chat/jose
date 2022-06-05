@@ -25,7 +25,9 @@ use self::{
     p384::{P384PrivateKey, P384PublicKey},
     secp256k1::{Secp256k1PrivateKey, Secp256k1PublicKey},
 };
-use crate::{base64_url::Base64UrlEncodedField, borrowable::Borrowable};
+use crate::{
+    base64_url::Base64UrlEncodedField, borrowable::Borrowable, tagged_visitor::TaggedContentVisitor,
+};
 
 // FIXME: support all curves specified in IANA "JWK Elliptic Curve"
 
@@ -34,7 +36,7 @@ use crate::{base64_url::Base64UrlEncodedField, borrowable::Borrowable};
 /// Note: This does not include Curve25519 and Curve448. For these, see the
 /// [`Okp`](super::Public::Okp) variant of the [`Public`](super::Public) enum.
 #[non_exhaustive]
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum EcPublic {
     /// Public part of the P-256 curve
@@ -47,13 +49,19 @@ pub enum EcPublic {
     Secp256k1(Secp256k1PublicKey),
 }
 
+impl_internally_tagged_deserialize!(EcPublic, "crv", "EcCurve", [
+    "P-256" => P256,
+    "P-384" => P384,
+    "secp256k1" => Secp256k1,
+]);
+
 /// The private part of some elliptic curve
 ///
 /// Note: This does not include Curve25519 and Curve448. For these, see the
 /// [`Okp`](super::Private::Okp) variant of the [`Private`](super::Private)
 /// enum.
 #[non_exhaustive]
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum EcPrivate {
     /// Private part of the P-256 curve
@@ -65,6 +73,12 @@ pub enum EcPrivate {
     /// Private part of the secp251k1 curve
     Secp256k1(Secp256k1PrivateKey),
 }
+
+impl_internally_tagged_deserialize!(EcPrivate, "crv", "EcCurve", [
+    "P-256" => P256,
+    "P-384" => P384,
+    "secp256k1" => Secp256k1,
+]);
 
 /// Generic type for serde for public elliptic curve keys
 #[derive(Deserialize)]

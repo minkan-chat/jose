@@ -31,6 +31,8 @@ pub use verify::*;
 
 pub(crate) mod base64_url;
 pub(crate) mod borrowable;
+#[macro_use]
+pub(crate) mod tagged_visitor;
 
 pub mod format;
 pub mod jwa;
