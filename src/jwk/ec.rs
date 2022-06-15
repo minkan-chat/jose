@@ -34,7 +34,7 @@ use crate::{
 /// The public part of some elliptic curve
 ///
 /// Note: This does not include Curve25519 and Curve448. For these, see the
-/// [`Okp`](super::Public::Okp) variant of the [`Public`](super::Public) enum.
+/// `Okp` variant of the [`Public`](super::Public) enum.
 #[non_exhaustive]
 #[derive(Debug, Serialize, PartialEq, Eq)]
 #[serde(untagged)]
@@ -58,7 +58,7 @@ impl_internally_tagged_deserialize!(EcPublic, "crv", "EcCurve", [
 /// The private part of some elliptic curve
 ///
 /// Note: This does not include Curve25519 and Curve448. For these, see the
-/// [`Okp`](super::Private::Okp) variant of the [`Private`](super::Private)
+/// `Okp` variant of the [`Private`](super::Private)
 /// enum.
 #[non_exhaustive]
 #[derive(Debug, Serialize, PartialEq, Eq)]

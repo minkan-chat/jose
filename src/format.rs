@@ -19,28 +19,35 @@ pub(crate) mod sealed {
     pub trait Sealed {}
 }
 
-/// Internal trait.
+/// Conversion of a raw input format (e.g., [`Compact`], [`Json`], etc)
+/// to this type.
 pub trait FromFormat<F>: Sized + sealed::Sealed {
     /// The error that can occurr while parsing `Self` from the input.
     type Error;
 
-    /// Parse the input into a new instance of `Self`.
-    #[doc(hidden)]
+    /// Parse the input into a new [unverified](Unverified) instance of `Self`.
     fn from_format(input: F) -> Result<Unverified<Self>, Self::Error>;
 }
 
-/// Internal trait.
-#[doc(hidden)]
+/// Turns `self` into a format.
+///
+/// This trait can be ignored for any user of the crate as it is
+/// only used for internal workings of the crate.
 pub trait IntoFormat<F>: sealed::Sealed {
+    #[doc(hidden)]
     fn into_format(self) -> F;
 }
 
-/// Internal trait.
-#[doc(hidden)]
+/// Used to append `self`, which is a signature, to a given format.
+///
+/// This trait can be ignored for any user of the crate as it is
+/// only used for internal workings of the crate.
 pub trait AppendSignatureTo<F>: sealed::Sealed {
+    #[doc(hidden)]
     fn append_to(self, f: &mut F);
 }
 
+// FIXME: do not use `impl AsRef<[u8]>` as signature type.
 impl<T: AsRef<[u8]>> sealed::Sealed for T {}
 
 impl<T: AsRef<[u8]> + sealed::Sealed> AppendSignatureTo<Compact> for T {
