@@ -8,7 +8,6 @@
     unused_import_braces,
     unused_qualifications,
     explicit_outlives_requirements,
-    clippy::missing_const_for_fn,
     clippy::missing_errors_doc
 )]
 #![deny(
