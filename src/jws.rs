@@ -125,13 +125,15 @@ impl<T> JsonWebSignature<T, ()> {
 /// [`JsonWebSignature::new`] method.
 #[derive(Debug, Clone)]
 pub struct JsonWebSignatureBuilder<H> {
-    additional: H,
+    header: JoseHeader<H>,
 }
 
 impl<H> JsonWebSignatureBuilder<H> {
     /// Creates a new builder ready to be configured into a JWS.
     pub const fn new() -> JsonWebSignatureBuilder<()> {
-        JsonWebSignatureBuilder { additional: () }
+        JsonWebSignatureBuilder {
+            header: JoseHeader::new_empty(JsonWebSigningAlgorithm::None, ()),
+        }
     }
 
     /// Configures the additional header parameters used for the final JWS.
@@ -139,7 +141,33 @@ impl<H> JsonWebSignatureBuilder<H> {
     /// Note that this method takes `self` and not `&mut self` because
     /// it requires changing the generic parameter of a builder.
     pub fn additional_header<NH>(self, additional: NH) -> JsonWebSignatureBuilder<NH> {
-        JsonWebSignatureBuilder { additional }
+        JsonWebSignatureBuilder {
+            header: JoseHeader::new_empty(JsonWebSigningAlgorithm::None, additional),
+        }
+    }
+
+    /// Sets the media type parameter of the JWS header to the given string.
+    ///
+    /// Defined in [section 4.1.9] of the JWS RFC.
+    /// Note that it's your responsibility to supply a valid media type as
+    /// there's no checking of the validity of the supplied type.
+    ///
+    /// [section 4.1.9]: https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.9
+    pub fn media_type(self, typ: String) -> Self {
+        self.header.media_type = typ;
+        self
+    }
+
+    /// Sets the content type parameter of the JWS header to the given string.
+    ///
+    /// Defined in [section 4.1.10] of the JWS RFC.
+    /// Note that it's your responsibility to supply a valid media type as
+    /// there's no checking of the validity of the supplied type.
+    ///
+    /// [section 4.1.10]: https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.10
+    pub fn content_type(self, typ: String) -> Self {
+        self.header.content_type = typ;
+        self
     }
 
     /// Creates the configures [`JsonWebSignature`] with the given payload.
@@ -154,7 +182,7 @@ impl<H> JsonWebSignatureBuilder<H> {
 impl JsonWebSignature<(), ()> {
     /// Returns a new builder to construct a JWS.
     pub const fn builder() -> JsonWebSignatureBuilder<()> {
-        JsonWebSignatureBuilder { additional: () }
+        JsonWebSignatureBuilder::new()
     }
 }
 
@@ -333,7 +361,7 @@ pub struct JoseHeader<T = ()> {
     ///
     /// This is serialized as `alg`.
     #[serde(rename = "alg")]
-    pub signing_algorithm: JsonWebSigningAlgorithm,
+    signing_algorithm: JsonWebSigningAlgorithm,
     /// Refers to a resource for a
     /// set of JSON-encoded public keys, one of which corresponds
     /// to the key used to digitally sign the JWS.
@@ -341,60 +369,60 @@ pub struct JoseHeader<T = ()> {
     /// This is serialized as `jku`.
     #[serde(rename = "jku", skip_serializing_if = "Option::is_none")]
     // FIXME: replace `String` with `Url`
-    pub jwk_set_url: Option<String>,
+    jwk_set_url: Option<String>,
     /// The public key that corresponds to
     /// the key used to digitally sign the JWS.
     ///
     /// This is serialized as `jwk`.
     #[serde(rename = "jwk", skip_serializing_if = "Option::is_none")]
     // FIXME: replace `String` with `JsonWebKey`
-    pub json_web_key: Option<String>,
+    json_web_key: Option<String>,
     /// Hint indicating which key was used to secure the JWS.
     ///
     /// This is serialized as `kid`.
     #[serde(rename = "kid", skip_serializing_if = "Option::is_none")]
     // FIXME: figure out what type to use instead of String
-    pub key_id: Option<String>,
+    key_id: Option<String>,
     /// A URI refering to a X.509 public key certificate or
     /// certificate chain corresponding to the used key.
     ///
     /// This is serialized as `x5u`.
     #[serde(rename = "x5u", skip_serializing_if = "Option::is_none")]
     // FIXME: replace `String` with `Url`
-    pub x509_url: Option<String>,
+    x509_url: Option<String>,
     /// The public key certificate or certificate chain
     /// corresponding to the key used to sign the JWS.
     ///
     /// This is serialized as `x5c`.
     #[serde(rename = "x5c", skip_serializing_if = "Option::is_none")]
     // FIXME: replace `String` with certificate type
-    pub x509_chain: Option<String>,
+    x509_chain: Option<String>,
     /// Base64url-encoded SHA-1 digest of the DER
     /// encoding of the X.509 certificate
     ///
     /// This is serialized as `x5t`.
     #[serde(rename = "x5t", skip_serializing_if = "Option::is_none")]
     // FIXME: replace `String` with some `Base64String` type
-    pub x509_fingerprint: Option<String>,
+    x509_fingerprint: Option<String>,
     /// Base64url-encoded SHA-256 digest of the DER
     /// encoding of the X.509 certificate
     ///
     /// This is serialized as `x5t#S256`.
     #[serde(rename = "x5t#S256", skip_serializing_if = "Option::is_none")]
     // FIXME: replace `String` with some `Base64String` type
-    pub x509_fingerprint_sha256: Option<String>,
+    x509_fingerprint_sha256: Option<String>,
     /// This is used by the application to determine the type
     /// of the JWS.
     ///
     /// This is serialized as `typ`.
     #[serde(rename = "typ", skip_serializing_if = "Option::is_none")]
-    pub media_type: Option<String>,
+    media_type: Option<String>,
     /// This is used by the application to determine the type
     /// of content in the payload of this JWS.
     ///
     /// This is serialized as `cty`.
     #[serde(rename = "cty", skip_serializing_if = "Option::is_none")]
-    pub content_type: Option<String>,
+    content_type: Option<String>,
     /// List of critical extended headers.
     ///
     /// This is serialized as `crit`.
@@ -402,12 +430,12 @@ pub struct JoseHeader<T = ()> {
     // FIXME: figure out if we can replace Vec<String>
     // with a dedicated type
     // FIXME: check critical list when decoding JWS
-    pub critical: Option<Vec<String>>,
+    critical: Option<Vec<String>>,
     /// Additional (private or public) headers.
     ///
     /// This is attributed with `#[serde(flatten)]`.
     #[serde(flatten)]
-    pub additional: T,
+    additional: T,
 }
 
 impl<T> JoseHeader<T> {
