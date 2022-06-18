@@ -128,14 +128,16 @@ pub struct JsonWebSignatureBuilder<H> {
     header: JoseHeader<H>,
 }
 
-impl<H> JsonWebSignatureBuilder<H> {
+impl JsonWebSignatureBuilder<()> {
     /// Creates a new builder ready to be configured into a JWS.
     pub const fn new() -> JsonWebSignatureBuilder<()> {
         JsonWebSignatureBuilder {
             header: JoseHeader::new_empty(JsonWebSigningAlgorithm::None, ()),
         }
     }
+}
 
+impl<H> JsonWebSignatureBuilder<H> {
     /// Configures the additional header parameters used for the final JWS.
     ///
     /// Note that this method takes `self` and not `&mut self` because
@@ -146,6 +148,29 @@ impl<H> JsonWebSignatureBuilder<H> {
         }
     }
 
+    /// Sets the list of critical header parameters inside this JWS header.
+    ///
+    /// Defined in [section 4.1.11] of the JWS RFC.
+    ///
+    /// [section 4.1.11]: https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.11
+    pub fn critical(mut self, crit: impl Into<Vec<String>>) -> Self {
+        self.header.critical = Some(crit.into());
+        self
+    }
+
+    /// Sets the JWK Set url parameter of the JWS header.
+    ///
+    /// Defined in [section 4.1.2] of the JWS RFC.
+    /// Note that it's your responsibility to pass a valid URI as defined by the
+    /// RFC. Providing an invalid URI will lead to an spec-incompatible JWS.
+    ///
+    ///
+    /// [section 4.1.2]: https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.2
+    pub fn jwk_set_url(mut self, url: String) -> Self {
+        self.header.jwk_set_url = Some(url);
+        self
+    }
+
     /// Sets the media type parameter of the JWS header to the given string.
     ///
     /// Defined in [section 4.1.9] of the JWS RFC.
@@ -153,8 +178,8 @@ impl<H> JsonWebSignatureBuilder<H> {
     /// there's no checking of the validity of the supplied type.
     ///
     /// [section 4.1.9]: https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.9
-    pub fn media_type(self, typ: String) -> Self {
-        self.header.media_type = typ;
+    pub fn media_type(mut self, typ: String) -> Self {
+        self.header.media_type = Some(typ);
         self
     }
 
@@ -165,15 +190,15 @@ impl<H> JsonWebSignatureBuilder<H> {
     /// there's no checking of the validity of the supplied type.
     ///
     /// [section 4.1.10]: https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.10
-    pub fn content_type(self, typ: String) -> Self {
-        self.header.content_type = typ;
+    pub fn content_type(mut self, typ: String) -> Self {
+        self.header.content_type = Some(typ);
         self
     }
 
     /// Creates the configures [`JsonWebSignature`] with the given payload.
     pub fn build<T>(self, payload: T) -> JsonWebSignature<T, H> {
         JsonWebSignature {
-            header: JoseHeader::new_empty(JsonWebSigningAlgorithm::None, self.additional),
+            header: self.header,
             payload,
         }
     }
@@ -354,7 +379,7 @@ impl IntoFormat<Json> for JsonWebSignatureValue {
 /// [section 4]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4>
 /// [public]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.2>
 /// [private]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.3>
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JoseHeader<T = ()> {
     /// Identifies the cryptographic algorithm
     /// used to secure the JWS.
