@@ -144,7 +144,20 @@ impl<H> JsonWebSignatureBuilder<H> {
     /// it requires changing the generic parameter of a builder.
     pub fn additional_header<NH>(self, additional: NH) -> JsonWebSignatureBuilder<NH> {
         JsonWebSignatureBuilder {
-            header: JoseHeader::new_empty(JsonWebSigningAlgorithm::None, additional),
+            header: JoseHeader {
+                signing_algorithm: self.header.signing_algorithm,
+                jwk_set_url: self.header.jwk_set_url,
+                json_web_key: self.header.json_web_key,
+                key_id: self.header.key_id,
+                x509_url: self.header.x509_url,
+                x509_chain: self.header.x509_chain,
+                x509_fingerprint: self.header.x509_fingerprint,
+                x509_fingerprint_sha256: self.header.x509_fingerprint_sha256,
+                media_type: self.header.media_type,
+                content_type: self.header.content_type,
+                critical: self.header.critical,
+                additional,
+            },
         }
     }
 
