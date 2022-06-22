@@ -1,7 +1,7 @@
 /// Digital Signature with RSASSA-PSS as defined in [section 3.5 of RFC 7518]
 ///
 /// [section 3.5 of RFC 7518]: <https://datatracker.ietf.org/doc/html/rfc7518#section-3.5>
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RsassaPss {
     /// RSASSA-PSS using SHA-256 and MGF1 with SHA-256
     Ps256,

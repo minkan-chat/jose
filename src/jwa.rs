@@ -24,10 +24,13 @@ pub use self::{
 };
 
 // FIXME: find better name for this enum
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum JsonWebSigningOrEnncryptionAlgorithm {
     Signing(JsonWebSigningAlgorithm),
-    Encryption(JsonWebEncryptionAlgorithm),
+    // FIXME: uncomment after encryption is implemented
+    Encryption(
+        // JsonWebEncryptionAlgorithm
+    ),
 }
 
 /// A JSON Web Algorithm (JWA) for singing operations (JWS) as defined in [RFC
@@ -39,7 +42,7 @@ pub enum JsonWebSigningOrEnncryptionAlgorithm {
 /// [RFC 7518 section 3]: <https://datatracker.ietf.org/doc/html/rfc7518#section-3>
 /// [section 3.1]: <https://datatracker.ietf.org/doc/html/rfc7518#section-3.1>
 // FIXME: `alg` header supports custom algorithms
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum JsonWebSigningAlgorithm {
     /// HMAC with SHA-2 Functions
     Hmac(Hmac),

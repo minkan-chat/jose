@@ -272,3 +272,57 @@ impl_serde_ec!(
     "EC",
     Secp256k1
 );
+
+use ecdsa::{Signature, SigningKey};
+use signature::Signer;
+
+use crate::{
+    jwa::{EcDSA, JsonWebSigningAlgorithm},
+    sign::{FromKey, InvalidSigningAlgorithmError, Signer as JwsSigner},
+};
+
+macro_rules! ec_signer {
+    ($(#[$meta:meta])* $name:ident, $priv:ty, $crv:ty, $alg:stmt, $($pattern:pat_param)+) => {
+        $(#[$meta])*
+        #[derive(Debug)]
+        pub struct $name(SigningKey<$crv>);
+        impl JwsSigner<Signature<$crv>> for $name {
+            fn sign(&self, msg: &[u8]) -> Result<Signature<$crv>, signature::Error> {
+                Signer::try_sign(&self.0, msg)
+            }
+
+            fn algorithm(&self) -> JsonWebSigningAlgorithm {
+                $alg
+            }
+        }
+
+        impl FromKey<$priv, $name, Signature<$crv>> for $name {
+            type Error = InvalidSigningAlgorithmError;
+            fn from_key(key: $priv, alg: JsonWebSigningAlgorithm) -> Result<$name, InvalidSigningAlgorithmError> {
+                let key: SigningKey<$crv> = key.0.into();
+                match alg {
+                    $($pattern)+ => Ok(Self(key)),
+                    _ => Err(InvalidSigningAlgorithmError),
+                }
+            }
+        }
+    };
+}
+
+ec_signer!(
+    /// A [`Signer`](crate::sign::Signer) using a [`P256PrivateKey`]
+    P256Signer,
+    P256PrivateKey,
+    NistP256,
+    JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256),
+    JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256)
+);
+
+ec_signer!(
+    /// A [`Signer`](crate::sign::Signer) using a [`P384PrivateKey`]
+    P384Signer,
+    P384PrivateKey,
+    NistP384,
+    JsonWebSigningAlgorithm::EcDSA(EcDSA::Es384),
+    JsonWebSigningAlgorithm::EcDSA(EcDSA::Es384)
+);

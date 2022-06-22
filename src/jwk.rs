@@ -11,10 +11,11 @@ pub mod okp;
 mod private;
 mod public;
 pub mod rsa;
+mod signer;
 mod symmetric;
 #[doc(inline)]
 pub use self::{
-    asymmetric::AsymmetricJsonWebKey, private::Private, public::Public,
+    asymmetric::AsymmetricJsonWebKey, private::Private, public::Public, signer::JwkSigner,
     symmetric::SymmetricJsonWebKey,
 };
 
@@ -90,8 +91,8 @@ pub enum KeyOperations {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum JsonWebKeyType {
-    ///
+    /// A symmetric cryptographic key
     Symmetric(SymmetricJsonWebKey),
-    ///
+    /// An asymmetric cryptographic key
     Asymmetric(Box<AsymmetricJsonWebKey>),
 }

@@ -1,5 +1,7 @@
 use alloc::string::String;
 
+use hashbrown::HashSet;
+
 use crate::{
     format::{AppendSignatureTo, IntoFormat},
     jwa::JsonWebSigningAlgorithm,
@@ -73,5 +75,59 @@ pub trait Signer<S: AsRef<[u8]>> {
     /// by this method.
     fn key_id(&self) -> Option<String> {
         None
+    }
+}
+
+/// An error used if [`FromKey`] or [`IntoSigner`] expected a different
+/// algorithm
+#[derive(Debug, thiserror_no_std::Error)]
+#[error("Invalid algorithm")]
+pub struct InvalidSigningAlgorithmError;
+
+/// A trait for a [`Signer`] to implement if it can be created from key material
+/// as long as the algorithm is known
+pub trait FromKey<K, T, S>
+where
+    T: Signer<S>,
+    S: AsRef<[u8]>,
+{
+    /// The error returned if the conversion failed
+    type Error;
+    /// Turn `K` into the [`Signer`] `T`
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the conversion failed
+    fn from_key(value: K, alg: JsonWebSigningAlgorithm) -> Result<T, Self::Error>;
+}
+
+/// A trait to turn something into a [`Signer`]. Some key types like the
+/// [`Rsa`](crate::jwk::rsa::RsaPrivateKey) key type need to know which
+/// [algorithm](JsonWebSigningAlgorithm) to use.
+pub trait IntoSigner<T, S>
+where
+    T: Signer<S>,
+    S: AsRef<[u8]>,
+{
+    /// The error returned if the version failed
+    type Error;
+
+    /// Turn `self` into the [`Signer`] `T`
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the conversion failed
+    fn into_signer(self, alg: JsonWebSigningAlgorithm) -> Result<T, Self::Error>;
+}
+
+impl<A, T, S> IntoSigner<T, S> for A
+where
+    T: Signer<S> + FromKey<A, T, S>,
+    S: AsRef<[u8]>,
+{
+    type Error = <T as FromKey<A, T, S>>::Error;
+
+    fn into_signer(self, alg: JsonWebSigningAlgorithm) -> Result<T, Self::Error> {
+        T::from_key(self, alg)
     }
 }

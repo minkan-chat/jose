@@ -6,7 +6,7 @@ pub use self::{rsaes_oaep::RsaesOaep, rsassa_pkcs1_v1_5::RsassaPkcs1V1_5, rsassa
 
 /// Some signing algorithm using a RSA key under the hood
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RsaSigning {
     /// Digital Signature with RSASSA-PSS
     Pss(RsassaPss),
