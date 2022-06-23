@@ -85,6 +85,7 @@ pub enum FromOctetSequenceError {
 
 macro_rules! hs_signer {
     ($(#[$meta:meta])* $name:ident, $hash:ty, $alg:expr, $expected:pat_param) => {
+        $(#[$meta])*
         #[derive(Debug)]
         pub struct $name {
             key: Hmac<$hash>,
