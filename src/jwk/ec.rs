@@ -285,7 +285,7 @@ macro_rules! ec_signer {
         #[derive(Debug)]
         pub struct $name(SigningKey<$crv>);
         impl JwsSigner<Signature<$crv>> for $name {
-            fn sign(&self, msg: &[u8]) -> Result<Signature<$crv>, signature::Error> {
+            fn sign(&mut self, msg: &[u8]) -> Result<Signature<$crv>, signature::Error> {
                 Signer::try_sign(&self.0, msg)
             }
 

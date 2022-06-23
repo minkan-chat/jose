@@ -53,7 +53,10 @@ pub trait Signable: Sized + sealed::Sealed {
     /// # Errors
     ///
     /// Returns an error if the signing operation fails.
-    fn sign<S: AsRef<[u8]>>(self, signer: &dyn Signer<S>) -> Result<Signed<Self, S>, Self::Error>;
+    fn sign<S: AsRef<[u8]>>(
+        self,
+        signer: &mut dyn Signer<S>,
+    ) -> Result<Signed<Self, S>, Self::Error>;
 }
 
 /// This trait represents anything that can be used to sign a JWS, JWE, or
@@ -73,7 +76,7 @@ pub trait Signer<S: AsRef<[u8]>> {
     ///
     /// Returns an error if the signing operation fails.
     /// An error usually only appears when communicating with external signers.
-    fn sign(&self, msg: &[u8]) -> Result<S, signature::Error>;
+    fn sign(&mut self, msg: &[u8]) -> Result<S, signature::Error>;
 
     /// Return the type of signing algorithm used by this signer.
     fn algorithm(&self) -> JsonWebSigningAlgorithm;

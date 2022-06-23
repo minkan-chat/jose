@@ -334,7 +334,7 @@ where
 
     fn sign<S: AsRef<[u8]>>(
         mut self,
-        signer: &dyn Signer<S>,
+        signer: &mut dyn Signer<S>,
     ) -> Result<Signed<Self, S>, Self::Error> {
         self.header.signing_algorithm = signer.algorithm();
         self.header.key_id = signer.key_id();

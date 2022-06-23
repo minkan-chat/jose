@@ -61,4 +61,64 @@ impl<'de> Deserialize<'de> for SymmetricJsonWebKey {
 
 /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4.1>
 #[derive(Debug, PartialEq, Eq)]
-pub struct OctetSequence(Vec<u8>);
+pub struct OctetSequence(pub(self) Vec<u8>);
+
+use digest::{InvalidLength, Mac, Output};
+use hmac::Hmac;
+use sha2::{Sha256, Sha384, Sha512};
+
+use crate::{
+    jwa::{Hmac as Hs, JsonWebSigningAlgorithm},
+    sign::{FromKey, InvalidSigningAlgorithmError},
+    Signer,
+};
+
+/// An error that can occur then creating [`Hs256Signer`], [`Hs384Signer`] or
+/// [`Hs512Signer`] from an [`OctetSequence`]
+#[derive(Debug, thiserror_no_std::Error)]
+pub enum FromOctetSequenceError {
+    #[error(transparent)]
+    InvalidSigning(#[from] InvalidSigningAlgorithmError),
+    #[error(transparent)]
+    InvalidLength(#[from] InvalidLength),
+}
+
+macro_rules! hs_signer {
+    ($hash:ty, $name:ident, $alg:expr, $expected:pat_param) => {
+        pub struct $name {
+            key: Hmac<$hash>,
+        }
+
+        impl Signer<Output<Hmac<$hash>>> for $name {
+            fn sign(&mut self, msg: &[u8]) -> Result<Output<Hmac<$hash>>, signature::Error> {
+                self.key.update(msg);
+                Ok(self.key.finalize_reset().into_bytes())
+            }
+
+            fn algorithm(&self) -> JsonWebSigningAlgorithm {
+                JsonWebSigningAlgorithm::Hmac($alg)
+            }
+        }
+
+        impl FromKey<OctetSequence, Output<Hmac<$hash>>> for $name {
+            type Error = FromOctetSequenceError;
+
+            fn from_key(
+                key: OctetSequence,
+                alg: JsonWebSigningAlgorithm,
+            ) -> Result<$name, FromOctetSequenceError> {
+                match alg {
+                    JsonWebSigningAlgorithm::Hmac($expected) => {
+                        let key: Hmac<$hash> = Hmac::new_from_slice(&key.0)?;
+                        Ok(Self { key })
+                    }
+                    _ => Err(InvalidSigningAlgorithmError.into()),
+                }
+            }
+        }
+    };
+}
+
+hs_signer!(Sha256, Hs256Signer, Hs::Hs256, Hs::Hs256);
+hs_signer!(Sha384, Hs384Signer, Hs::Hs384, Hs::Hs384);
+hs_signer!(Sha512, Hs512Signer, Hs::Hs512, Hs::Hs512);
