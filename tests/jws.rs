@@ -7,7 +7,10 @@
 use std::str::FromStr;
 
 use jose::{
-    format::Compact, jwa::JsonWebSigningAlgorithm, Signable, Signer, Unverified, Verifier, JWS,
+    format::Compact,
+    jwa::{EcDSA, JsonWebSigningAlgorithm},
+    jwk::ec::{p256::P256PrivateKey, P256Signer},
+    IntoSigner, Signable, Signer, Unverified, Verifier, JWS,
 };
 
 #[test]
@@ -48,4 +51,26 @@ fn verify() {
         .verify(&NoneVerifier)
         .unwrap();
     dbg!(jws);
+}
+
+#[test]
+fn sign_jws_using_p256() {
+    let key = std::fs::read_to_string(format!(
+        "{}/tests/keys/p256.json",
+        env!("CARGO_MANIFEST_DIR"),
+    ))
+    .unwrap();
+
+    let key: P256PrivateKey = serde_json::from_str(&key).unwrap();
+    let signer: P256Signer = key
+        .into_signer(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
+        .unwrap();
+
+    let jws = JWS::builder()
+        .critical(vec![String::from("foo")])
+        .build(String::from("abc"))
+        .sign(&signer)
+        .unwrap();
+
+    println!("{}", jws.encode::<Compact>());
 }

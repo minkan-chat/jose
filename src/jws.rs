@@ -176,8 +176,8 @@ impl<H> JsonWebSignatureBuilder<H> {
     /// Defined in [section 4.1.11] of the JWS RFC.
     ///
     /// [section 4.1.11]: https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.11
-    pub fn critical(mut self, crit: impl Into<Vec<String>>) -> Self {
-        self.header.critical = Some(crit.into());
+    pub fn critical(mut self, crit: Vec<String>) -> Self {
+        self.header.critical = Some(crit);
         self
     }
 
@@ -377,27 +377,6 @@ impl IntoFormat<Json> for JsonWebSignatureValue {
 /// that are not part of the specification.
 /// By default the `T` is [`()`], so there are no
 /// additional header parameters.
-///
-/// # Example
-///
-/// ```
-/// # use jose::jws::JoseHeader;
-/// # use jose::jwa::JsonWebSigningAlgorithm;
-/// # use serde::{Serialize, Deserialize};
-/// # fn main() {
-///
-/// #[derive(Debug, Serialize, Deserialize)]
-/// struct MyPrivateHeaders {
-///     foo: String,
-/// }
-///
-/// type MyHeader = JoseHeader<MyPrivateHeaders>;
-/// let header: MyHeader = serde_json::from_str(r#"{"alg": "none", "foo": "hello"}"#).unwrap();
-///
-/// assert_eq!(header.signing_algorithm, JsonWebSigningAlgorithm::None);
-/// assert_eq!(header.additional.foo.as_str(), "hello");
-/// # }
-/// ```
 ///
 /// [section 4]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4>
 /// [public]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.2>
