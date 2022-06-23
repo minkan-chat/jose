@@ -39,9 +39,19 @@ pub trait Payload: Sized {
 
     /// Turn `self` into it's raw byte representation that will
     /// be put into a [`JsonWebSignature`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if it failed to convert `self` into it's byte
+    /// representation.
     fn into_bytes(self) -> Result<Self::Buf, Self::IntoError>;
 
     /// Convert a raw byte sequence into this payload.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if it failed to convert the byte representation to this
+    /// type.
     fn from_bytes(input: Vec<u8>) -> Result<Self, Self::FromError>;
 }
 

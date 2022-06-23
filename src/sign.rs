@@ -49,6 +49,10 @@ pub trait Signable: Sized + sealed::Sealed {
 
     /// Sign `self` using the given signer and return a [signed](Signed) version
     /// of `self`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the signing operation fails.
     fn sign<S: AsRef<[u8]>>(self, signer: &dyn Signer<S>) -> Result<Signed<Self, S>, Self::Error>;
 }
 
@@ -64,6 +68,11 @@ pub trait Signable: Sized + sealed::Sealed {
 /// [specify the algorithm]: Signer::algorithm
 pub trait Signer<S: AsRef<[u8]>> {
     /// Sign the given bytestring using this signer and return the signature.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the signing operation fails.
+    /// An error usually only appears when communicating with external signers.
     fn sign(&self, msg: &[u8]) -> Result<S, signature::Error>;
 
     /// Return the type of signing algorithm used by this signer.

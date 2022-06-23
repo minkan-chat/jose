@@ -10,6 +10,7 @@ use core::fmt::Display;
 
 use ::p256::NistP256;
 use ::p384::NistP384;
+use ecdsa::{Signature, SigningKey};
 use elliptic_curve::{
     bigint::ArrayEncoding,
     sec1::{FromEncodedPoint, ModulusSize, ToEncodedPoint, ValidatePublicKey},
@@ -19,6 +20,7 @@ use generic_array::GenericArray;
 use k256::Secp256k1;
 use sec1::EncodedPoint;
 use serde::{de::Error as SerdeError, Deserialize, Serialize};
+use signature::Signer;
 
 use self::{
     p256::{P256PrivateKey, P256PublicKey},
@@ -26,8 +28,11 @@ use self::{
     secp256k1::{Secp256k1PrivateKey, Secp256k1PublicKey},
 };
 use crate::{
-    base64_url::Base64UrlEncodedField, borrowable::Borrowable,
-    tagged_visitor::TaggedContentVisitor, IntoSigner,
+    base64_url::Base64UrlEncodedField,
+    borrowable::Borrowable,
+    jwa::{EcDSA, JsonWebSigningAlgorithm},
+    sign::{FromKey, InvalidSigningAlgorithmError, Signer as JwsSigner},
+    tagged_visitor::TaggedContentVisitor,
 };
 
 // FIXME: support all curves specified in IANA "JWK Elliptic Curve"
@@ -273,14 +278,6 @@ impl_serde_ec!(
     "EC",
     Secp256k1
 );
-
-use ecdsa::{Signature, SigningKey};
-use signature::Signer;
-
-use crate::{
-    jwa::{EcDSA, JsonWebSigningAlgorithm},
-    sign::{FromKey, InvalidSigningAlgorithmError, Signer as JwsSigner},
-};
 
 macro_rules! ec_signer {
     ($(#[$meta:meta])* $name:ident, $priv:ty, $crv:ty, $alg:stmt, $($pattern:pat_param)+) => {

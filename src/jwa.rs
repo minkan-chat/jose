@@ -24,13 +24,15 @@ pub use self::{
 };
 
 // FIXME: find better name for this enum
-#[derive(Debug, Clone, Copy)]
+/// Either a JSON Web Algorithm for signing operations, or an algorithm for
+/// encryption operations.
+#[derive(Debug, Clone)]
 pub enum JsonWebSigningOrEnncryptionAlgorithm {
+    /// Signing algorithm.
     Signing(JsonWebSigningAlgorithm),
     // FIXME: uncomment after encryption is implemented
-    Encryption(
-        // JsonWebEncryptionAlgorithm
-    ),
+    /// Encryption algorithm.
+    Encryption(JsonWebEncryptionAlgorithm),
 }
 
 /// A JSON Web Algorithm (JWA) for singing operations (JWS) as defined in [RFC

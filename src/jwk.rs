@@ -1,3 +1,5 @@
+#![allow(dead_code, missing_docs)] // FIXME: remove once we use all fields
+
 use alloc::{boxed::Box, string::String};
 
 use hashbrown::HashSet;

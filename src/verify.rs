@@ -27,11 +27,22 @@ pub enum VerifyError {
 pub trait Verifier {
     /// The `verify` operation.
     ///
-    /// If the message is valid, returns `Ok(())`, if the signature is invalid,
-    /// returns [`VerifyError::InvalidSignature`].
+    /// If the message is valid, returns `Ok(())`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VerifyError::InvalidSignature`] if the signature did not
+    /// match, or [`VerifyError::Other`] if communication to an external
+    /// verifier failed, or some other error occurred.
     fn verify(&self, msg: &[u8], signature: &[u8]) -> Result<(), VerifyError>;
 }
 
+/// This wrapper type represents any type that was parsed from user input,
+/// but the data integrity was not verified, thus it might contain corrupted or
+/// malicious data.
+///
+/// An [`Unverified`] struct can be verified using the [`verify`](Self::verify)
+/// method.
 #[derive(Debug)]
 pub struct Unverified<T> {
     pub(crate) value: T,
@@ -40,6 +51,12 @@ pub struct Unverified<T> {
 }
 
 impl<T> Unverified<T> {
+    /// Parse the input format to an unverified representation of `T`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input format has an invalid representation for
+    /// the `T` type.
     pub fn decode<F>(input: F) -> Result<Self, <T as FromFormat<F>>::Error>
     where
         T: FromFormat<F>,
@@ -47,6 +64,14 @@ impl<T> Unverified<T> {
         T::from_format(input)
     }
 
+    /// Verify this struct using the given verifier, returning a [`Verified`]
+    /// representation of the inner type.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VerifyError::InvalidSignature`] if the signature did not
+    /// match, or [`VerifyError::Other`] if communication to an external
+    /// verifier failed, or some other error occurred.
     pub fn verify(self, verifier: &dyn Verifier) -> Result<Verified<T>, VerifyError> {
         verifier.verify(&self.msg, &self.signature)?;
         Ok(Verified(self.value))

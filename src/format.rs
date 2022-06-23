@@ -26,6 +26,11 @@ pub trait FromFormat<F>: Sized + sealed::Sealed {
     type Error;
 
     /// Parse the input into a new [unverified](Unverified) instance of `Self`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input format has an invalid representation for
+    /// this type.
     fn from_format(input: F) -> Result<Unverified<Self>, Self::Error>;
 }
 
@@ -82,7 +87,7 @@ impl Compact {
     pub(crate) fn part(&self, idx: usize) -> Option<Vec<u8>> {
         let part = self.parts.get(idx)?;
         Some(
-            Base64UrlUnpadded::decode_vec(&part)
+            Base64UrlUnpadded::decode_vec(part)
                 .expect("`Compact` type can only contain valid Base64Url strings"),
         )
     }
