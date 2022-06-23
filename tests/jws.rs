@@ -7,15 +7,19 @@ use std::{str::FromStr, string::FromUtf8Error};
 
 use jose::{
     format::Compact,
-    jwa::{EcDSA, JsonWebSigningAlgorithm},
-    jwk::ec::{p256::P256PrivateKey, P256Signer},
+    jwa::{EcDSA, Hmac, JsonWebSigningAlgorithm},
+    jwk::{
+        ec::{p256::P256PrivateKey, P256Signer},
+        symmetric::Hs256Signer,
+        SymmetricJsonWebKey,
+    },
     jws::ParseCompactError,
     IntoSigner, Signable, Signer, Unverified, Verifier, JWS,
 };
 
 struct NoneKey;
 impl Signer<&'static [u8]> for NoneKey {
-    fn sign(&self, _: &[u8]) -> Result<&'static [u8], signature::Error> {
+    fn sign(&mut self, _: &[u8]) -> Result<&'static [u8], signature::Error> {
         Ok(&[])
     }
 
@@ -36,7 +40,7 @@ fn deny_jws_with_unsupported_crit_header() {
     let jws = JWS::builder()
         .critical(vec!["foo".into()])
         .build(String::from(""))
-        .sign(&NoneKey)
+        .sign(&mut NoneKey)
         .unwrap();
     let jws = jws.encode::<Compact>();
 
@@ -52,7 +56,7 @@ fn allow_jws_with_empty_crit_header() {
     let jws = JWS::builder()
         .critical(vec![])
         .build(String::from(""))
-        .sign(&NoneKey)
+        .sign(&mut NoneKey)
         .unwrap();
     let jws = jws.encode::<Compact>();
 
@@ -63,7 +67,7 @@ fn allow_jws_with_empty_crit_header() {
 fn smoke() {
     let jws = JWS::builder().build(String::from("abc"));
 
-    let c = jws.sign(&NoneKey).unwrap().encode::<Compact>();
+    let c = jws.sign(&mut NoneKey).unwrap().encode::<Compact>();
 
     std::println!("{}", c);
 }
@@ -89,15 +93,41 @@ fn sign_jws_using_p256() {
     .unwrap();
 
     let key: P256PrivateKey = serde_json::from_str(&key).unwrap();
-    let signer: P256Signer = key
+    let mut signer: P256Signer = key
         .into_signer(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
         .unwrap();
 
     let jws = JWS::builder()
         .critical(vec![String::from("foo")])
         .build(String::from("abc"))
-        .sign(&signer)
+        .sign(&mut signer)
         .unwrap();
 
     println!("{}", jws.encode::<Compact>());
+}
+
+#[test]
+fn sign_jws_using_hs256() {
+    let key = std::fs::read_to_string(format!(
+        "{}/tests/keys/hs256.json",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .unwrap();
+
+    let key: SymmetricJsonWebKey = serde_json::from_str(&key).unwrap();
+
+    match key {
+        SymmetricJsonWebKey::OctetSequence(key) => {
+            let mut signer: Hs256Signer = key
+                .into_signer(JsonWebSigningAlgorithm::Hmac(Hmac::Hs256))
+                .unwrap();
+            let jws = JWS::builder()
+                .build("Here be dragons".to_string())
+                .sign(&mut signer)
+                .unwrap();
+
+            println!("{}", jws.encode::<Compact>());
+        }
+        _ => panic!("unexpected key type"),
+    }
 }

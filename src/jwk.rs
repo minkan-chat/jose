@@ -13,7 +13,7 @@ pub mod okp;
 mod private;
 mod public;
 pub mod rsa;
-mod symmetric;
+pub mod symmetric;
 #[doc(inline)]
 pub use self::{
     asymmetric::AsymmetricJsonWebKey, private::Private, public::Public,

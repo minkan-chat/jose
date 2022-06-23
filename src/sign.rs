@@ -29,8 +29,8 @@ pub struct Signed<T: sealed::Sealed, S> {
 impl<T: sealed::Sealed, S: AsRef<[u8]>> Signed<T, S> {
     /// Encodes this signed value into the given format (`F`).
     ///
-    /// Available formats are [`Json`](crate::format::Json) and
-    /// [`Compact`](crate::format::Compact).
+    /// Available formats are [`JsonFlattened`](crate::format::JsonFlattened)
+    /// and [`Compact`](crate::format::Compact).
     pub fn encode<F>(self) -> F
     where
         T::Value: IntoFormat<F>,

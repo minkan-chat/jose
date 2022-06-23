@@ -1,7 +1,7 @@
 //! Contains abstractions for different kinds of
 //! serialization formats.
 //!
-//! Currently, the only two formats are [`Compact`] and [`Json`].
+//! Currently, the only two formats are [`Compact`] and [`JsonFlattened`].
 
 use alloc::{
     string::{String, ToString},
@@ -19,7 +19,7 @@ pub(crate) mod sealed {
     pub trait Sealed {}
 }
 
-/// Conversion of a raw input format (e.g., [`Compact`], [`Json`], etc)
+/// Conversion of a raw input format (e.g., [`Compact`], [`JsonFlattened`], etc)
 /// to this type.
 pub trait FromFormat<F>: Sized + sealed::Sealed {
     /// The error that can occurr while parsing `Self` from the input.
@@ -43,7 +43,7 @@ pub trait IntoFormat<F>: sealed::Sealed {
     fn into_format(self) -> F;
 }
 
-/// Appends a [`Signature`] to a format.
+/// Appends a signature to a format.
 ///
 /// This trait can be ignored for any user of the crate as it is
 /// only used for internal workings of the crate.

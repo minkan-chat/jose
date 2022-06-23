@@ -84,7 +84,8 @@ pub enum FromOctetSequenceError {
 }
 
 macro_rules! hs_signer {
-    ($hash:ty, $name:ident, $alg:expr, $expected:pat_param) => {
+    ($(#[$meta:meta])* $name:ident, $hash:ty, $alg:expr, $expected:pat_param) => {
+        #[derive(Debug)]
         pub struct $name {
             key: Hmac<$hash>,
         }
@@ -119,6 +120,24 @@ macro_rules! hs_signer {
     };
 }
 
-hs_signer!(Sha256, Hs256Signer, Hs::Hs256, Hs::Hs256);
-hs_signer!(Sha384, Hs384Signer, Hs::Hs384, Hs::Hs384);
-hs_signer!(Sha512, Hs512Signer, Hs::Hs512, Hs::Hs512);
+hs_signer!(
+    /// A [`Signer`] using [`Hs256`](Hs::Hs256) with a [`OctetSequence`]
+    Hs256Signer,
+    Sha256,
+    Hs::Hs256,
+    Hs::Hs256
+);
+hs_signer!(
+    /// A [`Signer`] using [`Hs384`](Hs::Hs384) with a [`OctetSequence`]
+    Hs384Signer,
+    Sha384,
+    Hs::Hs384,
+    Hs::Hs384
+);
+hs_signer!(
+    /// A [`Signer`] using [`Hs512`](Hs::Hs512) with a [`OctetSequence`]
+    Hs512Signer,
+    Sha512,
+    Hs::Hs512,
+    Hs::Hs512
+);
