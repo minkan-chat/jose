@@ -43,29 +43,26 @@ pub trait IntoFormat<F>: sealed::Sealed {
     fn into_format(self) -> F;
 }
 
-/// Used to append `self`, which is a signature, to a given format.
+/// Appends a [`Signature`] to a format.
 ///
 /// This trait can be ignored for any user of the crate as it is
 /// only used for internal workings of the crate.
-pub trait AppendSignatureTo<F>: sealed::Sealed {
+pub trait AppendSignature {
     #[doc(hidden)]
-    fn append_to(self, f: &mut F);
+    fn append_signature(&mut self, sig: &[u8]);
 }
 
-// FIXME: do not use `impl AsRef<[u8]>` as signature type.
-impl<T: AsRef<[u8]>> sealed::Sealed for T {}
-
-impl<T: AsRef<[u8]> + sealed::Sealed> AppendSignatureTo<Compact> for T {
-    fn append_to(self, f: &mut Compact) {
-        f.push(self.as_ref());
+impl AppendSignature for Compact {
+    fn append_signature(&mut self, sig: &[u8]) {
+        self.push(sig);
     }
 }
 
-impl<T: AsRef<[u8]> + sealed::Sealed> AppendSignatureTo<JsonFlattened> for T {
-    fn append_to(self, f: &mut JsonFlattened) {
-        let sig = Base64UrlUnpadded::encode_string(self.as_ref());
+impl AppendSignature for JsonFlattened {
+    fn append_signature(&mut self, sig: &[u8]) {
+        let sig = Base64UrlUnpadded::encode_string(sig);
         if !sig.is_empty() {
-            f.value["signature"] = Value::String(sig);
+            self.value["signature"] = Value::String(sig);
         }
     }
 }

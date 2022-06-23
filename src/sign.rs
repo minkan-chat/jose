@@ -1,7 +1,7 @@
 use alloc::string::String;
 
 use crate::{
-    format::{AppendSignatureTo, IntoFormat},
+    format::{AppendSignature, IntoFormat},
     jwa::JsonWebSigningAlgorithm,
 };
 
@@ -26,7 +26,7 @@ pub struct Signed<T: sealed::Sealed, S> {
     pub(crate) signature: S,
 }
 
-impl<T: sealed::Sealed, S> Signed<T, S> {
+impl<T: sealed::Sealed, S: AsRef<[u8]>> Signed<T, S> {
     /// Encodes this signed value into the given format (`F`).
     ///
     /// Available formats are [`Json`](crate::format::Json) and
@@ -34,10 +34,10 @@ impl<T: sealed::Sealed, S> Signed<T, S> {
     pub fn encode<F>(self) -> F
     where
         T::Value: IntoFormat<F>,
-        S: AppendSignatureTo<F>,
+        F: AppendSignature,
     {
         let mut format = self.value.into_format();
-        self.signature.append_to(&mut format);
+        format.append_signature(self.signature.as_ref());
         format
     }
 }
