@@ -40,8 +40,8 @@ pub mod jwk;
 pub mod jws;
 mod jwt;
 
-pub use jws::JsonWebSignature;
-pub use jwt::JsonWebToken;
+#[doc(inline)]
+pub use self::{jws::JsonWebSignature, jwt::JsonWebToken};
 
 /// Type alias to make `JsonWebSignature` easier to access.
 pub type JWS<T, H = ()> = JsonWebSignature<T, H>;
