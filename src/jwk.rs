@@ -11,11 +11,10 @@ pub mod okp;
 mod private;
 mod public;
 pub mod rsa;
-mod signer;
 mod symmetric;
 #[doc(inline)]
 pub use self::{
-    asymmetric::AsymmetricJsonWebKey, private::Private, public::Public, signer::JwkSigner,
+    asymmetric::AsymmetricJsonWebKey, private::Private, public::Public,
     symmetric::SymmetricJsonWebKey,
 };
 

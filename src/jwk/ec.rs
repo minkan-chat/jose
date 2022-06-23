@@ -26,7 +26,8 @@ use self::{
     secp256k1::{Secp256k1PrivateKey, Secp256k1PublicKey},
 };
 use crate::{
-    base64_url::Base64UrlEncodedField, borrowable::Borrowable, tagged_visitor::TaggedContentVisitor,
+    base64_url::Base64UrlEncodedField, borrowable::Borrowable,
+    tagged_visitor::TaggedContentVisitor, IntoSigner,
 };
 
 // FIXME: support all curves specified in IANA "JWK Elliptic Curve"
@@ -296,7 +297,7 @@ macro_rules! ec_signer {
             }
         }
 
-        impl FromKey<$priv, $name, Signature<$crv>> for $name {
+        impl FromKey<$priv, Signature<$crv>> for $name {
             type Error = InvalidSigningAlgorithmError;
             fn from_key(key: $priv, alg: JsonWebSigningAlgorithm) -> Result<$name, InvalidSigningAlgorithmError> {
                 let key: SigningKey<$crv> = key.0.into();
