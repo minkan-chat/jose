@@ -117,7 +117,7 @@ fn sign_jws_using_hs256() {
     let key: SymmetricJsonWebKey = serde_json::from_str(&key).unwrap();
 
     match key {
-        SymmetricJsonWebKey::OctetSequence(key) => {
+        SymmetricJsonWebKey::OctetSequence(ref key) => {
             let mut signer: Hs256Signer = key
                 .into_signer(JsonWebSigningAlgorithm::Hmac(Hmac::Hs256))
                 .unwrap();

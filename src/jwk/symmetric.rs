@@ -101,11 +101,11 @@ macro_rules! hs_signer {
             }
         }
 
-        impl FromKey<OctetSequence, Output<Hmac<$hash>>> for $name {
+        impl FromKey<&'_ OctetSequence, Output<Hmac<$hash>>> for $name {
             type Error = FromOctetSequenceError;
 
             fn from_key(
-                key: OctetSequence,
+                key: &'_ OctetSequence,
                 alg: JsonWebSigningAlgorithm,
             ) -> Result<$name, FromOctetSequenceError> {
                 match alg {
@@ -115,6 +115,15 @@ macro_rules! hs_signer {
                     }
                     _ => Err(InvalidSigningAlgorithmError.into()),
                 }
+            }
+        }
+
+        impl TryFrom<&'_ OctetSequence> for $name {
+            type Error = InvalidLength;
+
+            fn try_from(key: &'_ OctetSequence) -> Result<Self, Self::Error> {
+                let key: Hmac<$hash> = Hmac::new_from_slice(&key.0)?;
+                Ok(Self { key })
             }
         }
     };
