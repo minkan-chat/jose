@@ -247,8 +247,11 @@ impl<T, H> JsonWebSignature<T, H> {
 
 /// Different kinds of errors that can occurr while parsing a JWS from it's
 /// compact format.
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq, Clone)]
 pub enum ParseCompactError<P> {
+    /// `crit` header field contained an unsupported name.
+    #[error("encountered unsupported critical headers (crit header field)")]
+    UnsupportedCriticalHeader,
     /// One of the parts was invalid UTF8
     #[error("one of the parts was an invalid UTF-8 byte sequence")]
     InvalidUtf8Encoding,
@@ -280,6 +283,11 @@ impl<T: Payload, H: DeserializeOwned> FromFormat<Compact> for JsonWebSignature<T
                 .map_err(|_| ParseCompactError::InvalidJson)?;
             (header, json)
         };
+
+        // currently no extension is supported, so deny if any entry is in `crit` list
+        if header.critical.as_ref().map_or(false, |l| !l.is_empty()) {
+            return Err(ParseCompactError::UnsupportedCriticalHeader);
+        }
 
         let (payload, raw_payload) = {
             let raw = input.part(1).expect("`len()` is checked above to be 3");
@@ -454,9 +462,6 @@ pub struct JoseHeader<T = ()> {
     ///
     /// This is serialized as `crit`.
     #[serde(rename = "crit", skip_serializing_if = "Option::is_none")]
-    // FIXME: figure out if we can replace Vec<String>
-    // with a dedicated type
-    // FIXME: check critical list when decoding JWS
     critical: Option<Vec<String>>,
     /// Additional (private or public) headers.
     ///
