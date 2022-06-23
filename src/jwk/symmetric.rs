@@ -78,7 +78,7 @@ use crate::{
 #[derive(Debug, thiserror_no_std::Error)]
 pub enum FromOctetSequenceError {
     #[error(transparent)]
-    InvalidSigning(#[from] InvalidSigningAlgorithmError),
+    InvalidSigningAlgorithm(#[from] InvalidSigningAlgorithmError),
     #[error(transparent)]
     InvalidLength(#[from] InvalidLength),
 }
