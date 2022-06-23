@@ -61,8 +61,8 @@ impl<T: AsRef<[u8]> + sealed::Sealed> AppendSignatureTo<Compact> for T {
     }
 }
 
-impl<T: AsRef<[u8]> + sealed::Sealed> AppendSignatureTo<Json> for T {
-    fn append_to(self, f: &mut Json) {
+impl<T: AsRef<[u8]> + sealed::Sealed> AppendSignatureTo<JsonFlattened> for T {
+    fn append_to(self, f: &mut JsonFlattened) {
         let sig = Base64UrlUnpadded::encode_string(self.as_ref());
         if !sig.is_empty() {
             f.value["signature"] = Value::String(sig);
@@ -156,37 +156,21 @@ impl fmt::Display for Compact {
 /// The flattened json serialization format that is a wrapper around
 /// a generic json value and that can be deserialized into
 /// any serilizable type.
-///
-/// # Example
-///
-/// ```
-/// # use jose::format::Json;
-/// # use std::str::FromStr;
-/// # use serde_json::json;
-/// # fn main() {
-/// let json = r#"{"foo":"bar"}"#;
-/// let expected = json!({ "foo": "bar" });
-/// let value = Json::from_str(json).unwrap();
-///
-/// assert_eq!(value.clone().into_inner(), expected);
-/// assert_eq!(value.to_string(), json.to_string());
-/// # }
-/// ```
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(transparent)]
 #[serde(transparent)]
-pub struct Json {
+pub struct JsonFlattened {
     pub(crate) value: Value,
 }
 
-impl Json {
+impl JsonFlattened {
     /// Turns this Json wrapper into it's generic underlying Value.
     pub fn into_inner(self) -> Value {
         self.value
     }
 }
 
-impl FromStr for Json {
+impl FromStr for JsonFlattened {
     type Err = serde_json::Error;
 
     /// The from_str implementation will parse the supplied
@@ -197,7 +181,7 @@ impl FromStr for Json {
     }
 }
 
-impl fmt::Display for Json {
+impl fmt::Display for JsonFlattened {
     /// The display implementation will format this value
     /// as compact JSON.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

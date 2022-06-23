@@ -78,7 +78,7 @@ pub mod rsa {
             "oth": []
         }"#;
 
-        let err = serde_json::from_str::<RsaPrivateKey>(&json).unwrap_err();
+        let err = serde_json::from_str::<RsaPrivateKey>(json).unwrap_err();
         assert_eq!(
             err.to_string(),
             "RSA private keys with \"oth\" field set are not supported"
@@ -101,7 +101,7 @@ pub mod rsa {
             "qi":"srk3oe6CxebsQo1QTTygg-dWBlXongHf2m4Asj7GBeswoa49NcqzUvv5wlWuTgKJeihjjp-L5lkC5JWiFfUpRkBqr7tUE9faUmDa6fPLlvqWcB9A04rrZ3aJYqHgJJZ9e6OrEKwhgliIYSsTxlD-bLGZVLj-dp0R7xSVOFqiRX0"
         }"#;
 
-        let err = serde_json::from_str::<RsaPrivateKey>(&json).unwrap_err();
+        let err = serde_json::from_str::<RsaPrivateKey>(json).unwrap_err();
         assert_eq!(
             err.to_string(),
             "expected \"dp\" to be present because all prime fields must be set if one of them is \

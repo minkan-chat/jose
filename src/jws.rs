@@ -14,7 +14,7 @@ use serde_json::Value;
 use thiserror_no_std::Error;
 
 use crate::{
-    format::{Compact, FromFormat, IntoFormat, Json},
+    format::{Compact, FromFormat, IntoFormat, JsonFlattened},
     jwa::JsonWebSigningAlgorithm,
     sign::{Signable, Signer},
     Signed, Unverified,
@@ -366,14 +366,14 @@ impl IntoFormat<Compact> for JsonWebSignatureValue {
     }
 }
 
-impl IntoFormat<Json> for JsonWebSignatureValue {
-    fn into_format(self) -> Json {
+impl IntoFormat<JsonFlattened> for JsonWebSignatureValue {
+    fn into_format(self) -> JsonFlattened {
         let mut value = Value::Object(serde_json::Map::new());
 
         value["protected"] = Value::String(self.header);
         value["payload"] = Value::String(self.payload);
 
-        Json { value }
+        JsonFlattened { value }
     }
 }
 
