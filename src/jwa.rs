@@ -35,8 +35,6 @@ pub enum JsonWebSigningOrEnncryptionAlgorithm {
     Encryption(JsonWebEncryptionAlgorithm),
 }
 
-const _: [u8; 4] = [0u8; core::mem::size_of::<JsonWebSigningOrEnncryptionAlgorithm>()];
-
 /// A JSON Web Algorithm (JWA) for singing operations (JWS) as defined in [RFC
 /// 7518 section 3]
 ///
