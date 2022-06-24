@@ -28,7 +28,7 @@ pub use self::{
 /// source of randomness to avoid [hash collision attacks][1].
 ///
 /// [1]: <https://en.wikipedia.org/wiki/Collision_attack>
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct JsonWebKey {
     /// `kty` parameter section 4.1
     // this should also cover the `alg` header or try to guess it
