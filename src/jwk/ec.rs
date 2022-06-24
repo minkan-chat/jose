@@ -42,7 +42,7 @@ use crate::{
 /// Note: This does not include Curve25519 and Curve448. For these, see the
 /// `Okp` variant of the [`Public`](super::Public) enum.
 #[non_exhaustive]
-#[derive(Debug, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum EcPublic {
     /// Public part of the P-256 curve
@@ -67,7 +67,7 @@ impl_internally_tagged_deserialize!(EcPublic, "crv", "EcCurve", [
 /// `Okp` variant of the [`Private`](super::Private)
 /// enum.
 #[non_exhaustive]
-#[derive(Debug, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum EcPrivate {
     /// Private part of the P-256 curve

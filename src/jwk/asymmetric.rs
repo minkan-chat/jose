@@ -4,7 +4,7 @@ use super::{Private, Public};
 
 /// Some kind of asymmetric cryptographic key which can be either [`Private`] or
 /// [`Public`]
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AsymmetricJsonWebKey {
     /// The private part of an asymmetric key

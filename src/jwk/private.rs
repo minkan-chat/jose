@@ -6,7 +6,7 @@ use super::{ec::EcPrivate, rsa::RsaPrivateKey};
 
 /// The `private` part of some asymmetric cryptographic key
 #[non_exhaustive]
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Private {
     /// The private part of a Rsa key

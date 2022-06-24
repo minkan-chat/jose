@@ -63,14 +63,14 @@ pub struct JsonWebKey {
     x509_certificate_sha256_thumbprint: Option<String>,
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum KeyUsage {
     Signing,
     Encryption,
     Other(String),
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum KeyOperations {
     Sign,
     Verify,
@@ -89,7 +89,7 @@ pub enum KeyOperations {
 /// types as defined in [RFC 7518 section 6].
 ///
 /// [RFC 7518 section 6]: <https://datatracker.ietf.org/doc/html/rfc7518#section-6>
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum JsonWebKeyType {
     /// A symmetric cryptographic key

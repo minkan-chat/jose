@@ -10,7 +10,7 @@ use serde::{de::Error as _, ser::Error as _, Deserialize, Serialize};
 use crate::base64_url::Base64UrlBytes;
 
 /// A public Rsa key used for signature verification and/or encryption
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RsaPublicKey(rsa::RsaPublicKey);
 
 impl Serialize for RsaPublicKey {
@@ -65,7 +65,7 @@ impl<'de> Deserialize<'de> for RsaPublicKey {
 
 /// A private Rsa key used to create signatures and/or to decrypt
 // INTERNAL NOTE: the inner RsaPrivateKey **MUST** contain exactly two prime factors (p, q)
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RsaPrivateKey(rsa::RsaPrivateKey);
 
 impl Serialize for RsaPrivateKey {

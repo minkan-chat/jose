@@ -4,7 +4,7 @@ use super::{ec::EcPublic, rsa::RsaPublicKey};
 
 /// The `public` part of some asymmetric cryptographic key
 #[non_exhaustive]
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Public {
     /// The public part of a Rsa key
