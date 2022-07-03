@@ -30,7 +30,6 @@ pub use self::{
 pub enum JsonWebSigningOrEnncryptionAlgorithm {
     /// Signing algorithm.
     Signing(JsonWebSigningAlgorithm),
-    // FIXME: uncomment after encryption is implemented
     /// Encryption algorithm.
     Encryption(JsonWebEncryptionAlgorithm),
 }

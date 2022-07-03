@@ -1,4 +1,4 @@
-#![allow(dead_code, missing_docs)] // FIXME: remove once we use all fields
+//! [`JsonWebKey`] and connected things
 
 use alloc::{boxed::Box, string::String};
 
@@ -21,13 +21,6 @@ pub use self::{
 };
 
 /// <https://datatracker.ietf.org/doc/html/rfc7517>
-///
-/// # Warning
-///
-/// If you use a custom [`Hasher`](core::hash::Hasher), make sure to have a true
-/// source of randomness to avoid [hash collision attacks][1].
-///
-/// [1]: <https://en.wikipedia.org/wiki/Collision_attack>
 #[derive(Debug, PartialEq, Eq)]
 pub struct JsonWebKey {
     /// `kty` parameter section 4.1
@@ -63,23 +56,54 @@ pub struct JsonWebKey {
     x509_certificate_sha256_thumbprint: Option<String>,
 }
 
+/// This enum represents possible key usage (`use`) parameter as
+/// defined in [Section 4.2 of RFC 7517]. All possible values are registered in
+/// the [IANA `JSON Web Key Use` registry].
+///
+/// [Section 4.2 of RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4.2>
+/// [IANA `JSON Web Key Use` registry]: <https://www.iana.org/assignments/jose/jose.xhtml#web-key-use>
+#[non_exhaustive]
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum KeyUsage {
+    /// The `sig` (signature) value
     Signing,
+    /// The `enc` (encryption) value
     Encryption,
+    /// Some other case-sensitive [String] that did not match any of the
+    /// publicly known variants
     Other(String),
 }
 
+/// This enum represents the key operations (`key_ops`) parameter as defined in
+/// [Section 4.3 of RFC 7517]. All possible values are registered in the [IANA
+/// `JSON Web Key Operations` registry].
+///
+/// This enum SHOULD NOT be used together with the [`KeyUsage`] enum. If they
+/// are both present, their information MUST be consistent.
+///
+/// [Section 4.3 of RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4.3>
+/// [IANA `JSON Web Key Operations` registry]: <https://www.iana.org/assignments/jose/jose.xhtml#web-key-operations>
+#[non_exhaustive]
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum KeyOperations {
+    /// This key may compute digital signatures or MACs
     Sign,
+    /// This key may verify digital signatures or MACs
     Verify,
+    /// This key may encrypt content
     Encrypt,
+    /// This key may decrypt content and validate decryption, if applicable
     Decrpy,
+    /// This key may encrypt a key
     WrapKey,
+    /// This key may decrypt a key and validate the decryption, if applicable
     UnwrapKey,
+    /// This key may derive a key
     DeriveKey,
+    /// This key may derive bits not to be used as a key
     DeriveBits,
+    /// Some other case-sensitive [String] that did not match any of the
+    /// publicly known key operations
     Other(String),
 }
 

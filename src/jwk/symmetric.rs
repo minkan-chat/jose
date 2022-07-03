@@ -1,3 +1,4 @@
+//! Symmetric cryptography for JWS and JWE
 use alloc::{string::String, vec::Vec};
 
 use base64ct::{Base64UrlUnpadded, Encoding};
@@ -77,8 +78,10 @@ use crate::{
 /// [`Hs512Signer`] from an [`OctetSequence`]
 #[derive(Debug, thiserror_no_std::Error)]
 pub enum FromOctetSequenceError {
+    /// An invalid signing algorithm was used
     #[error(transparent)]
     InvalidSigningAlgorithm(#[from] InvalidSigningAlgorithmError),
+    /// A key from which a signer should've been created had an invalid length
     #[error(transparent)]
     InvalidLength(#[from] InvalidLength),
 }
