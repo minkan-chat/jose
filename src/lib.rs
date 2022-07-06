@@ -39,6 +39,7 @@ mod jwe;
 pub mod jwk;
 pub mod jws;
 mod jwt;
+pub mod policy;
 
 #[doc(inline)]
 pub use self::{jws::JsonWebSignature, jwt::JsonWebToken};

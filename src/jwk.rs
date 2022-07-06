@@ -1,11 +1,16 @@
 //! [`JsonWebKey`] and connected things
 
 use alloc::{boxed::Box, string::String};
+use core::fmt::Debug;
 
+use chrono::{DateTime, Utc};
 use hashbrown::HashSet;
 use serde::{Deserialize, Serialize};
 
-use crate::jwa::JsonWebSigningOrEnncryptionAlgorithm;
+use crate::{
+    jwa::JsonWebSigningOrEnncryptionAlgorithm,
+    policy::{Checkable, Checked, Policy},
+};
 
 mod asymmetric;
 pub mod ec;
@@ -24,10 +29,11 @@ pub use self::{
 #[derive(Debug, PartialEq, Eq)]
 pub struct JsonWebKey {
     /// `kty` parameter section 4.1
-    // this should also cover the `alg` header or try to guess it
     key_type: JsonWebKeyType,
+    /// `use` parameter section 4.2
+    key_use: Option<KeyUsage>,
     /// `key_ops` parameter section 4.3
-    key_operations: Option<HashSet<KeyOperations>>,
+    key_operations: Option<HashSet<KeyOperation>>,
     /// `alg` parameter section 4.4
     // the spec says this member is OPTIONAL but I think it should not appear
     // as Option<_> in our public api since we have to decide what algorithm
@@ -54,6 +60,24 @@ pub struct JsonWebKey {
     x509_certificate_sha1_thumbprint: Option<String>,
     /// `x5t#S256` parameter section 4.9
     x509_certificate_sha256_thumbprint: Option<String>,
+}
+
+// TODO: implement other getters
+impl JsonWebKey {
+    /// A JWK MAY contain an algorithm
+    pub fn algorithm(&self) -> Option<JsonWebSigningOrEnncryptionAlgorithm> {
+        self.algorithm
+    }
+
+    ///
+    pub fn key_usage(&self) -> Option<&KeyUsage> {
+        self.key_use.as_ref()
+    }
+
+    ///
+    pub fn key_operations(&self) -> Option<&HashSet<KeyOperation>> {
+        self.key_operations.as_ref()
+    }
 }
 
 /// This enum represents possible key usage (`use`) parameter as
@@ -85,7 +109,7 @@ pub enum KeyUsage {
 /// [IANA `JSON Web Key Operations` registry]: <https://www.iana.org/assignments/jose/jose.xhtml#web-key-operations>
 #[non_exhaustive]
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub enum KeyOperations {
+pub enum KeyOperation {
     /// This key may compute digital signatures or MACs
     Sign,
     /// This key may verify digital signatures or MACs
@@ -93,7 +117,7 @@ pub enum KeyOperations {
     /// This key may encrypt content
     Encrypt,
     /// This key may decrypt content and validate decryption, if applicable
-    Decrpy,
+    Decrypt,
     /// This key may encrypt a key
     WrapKey,
     /// This key may decrypt a key and validate the decryption, if applicable
@@ -120,4 +144,28 @@ pub enum JsonWebKeyType {
     Symmetric(SymmetricJsonWebKey),
     /// An asymmetric cryptographic key
     Asymmetric(Box<AsymmetricJsonWebKey>),
+}
+
+impl Checkable for JsonWebKey {
+    fn check<P, E>(
+        self,
+        policy: &'_ P,
+        reference_time: DateTime<Utc>,
+    ) -> Result<Checked<'_, Self, P>, (Self, anyhow::Error)>
+    where
+        P: Policy,
+    {
+        if let Some(alg) = self.algorithm() {
+            if let Err(e) = policy.algorithm(alg) {
+                return Err((self, e));
+            }
+        }
+
+        if let (Some(key_use), Some(key_ops)) = (self.key_usage(), self.key_operations()) {
+            if let Err(e) = policy.compare_keyops_and_keyuse(key_use, key_ops) {
+                return Err((self, e));
+            }
+        }
+        Ok(Checked::new(self, policy, reference_time))
+    }
 }
