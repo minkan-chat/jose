@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     jwa::JsonWebSigningOrEnncryptionAlgorithm,
-    policy::{Checkable, Checked, Policy, StandardPolicy},
+    policy::{Checkable, Checked, Policy},
 };
 
 mod asymmetric;
