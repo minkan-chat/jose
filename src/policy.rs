@@ -4,7 +4,6 @@ use core::{
     ops::{Deref, DerefMut},
 };
 
-use chrono::{DateTime, Utc};
 use hashbrown::HashSet;
 
 use crate::{
@@ -18,9 +17,6 @@ pub struct Checked<'a, T, P>
 where
     P: Policy + ?Sized,
 {
-    /// The point in time `T` was encountered and checked against that
-    /// [`Policy`]
-    reference_time: DateTime<Utc>,
     /// The [`Policy`] this `T` was checked against
     policy: &'a P,
     /// The data that were checked
@@ -51,22 +47,13 @@ impl<'a, T, P> Checked<'a, T, P>
 where
     P: Policy,
 {
-    pub(crate) fn new(data: T, policy: &'a P, reference_time: DateTime<Utc>) -> Self {
-        Self {
-            reference_time,
-            policy,
-            data,
-        }
+    pub(crate) fn new(data: T, policy: &'a P) -> Self {
+        Self { policy, data }
     }
 
     /// Returns the [`Policy`] that was used to validate `T`
     pub fn policy(&'_ self) -> &'_ dyn Policy {
         self.policy
-    }
-
-    /// The date and time at which `T` was checked against `P`
-    pub fn reference_time(&self) -> DateTime<Utc> {
-        self.reference_time
     }
 }
 
@@ -100,11 +87,7 @@ pub trait Checkable: Sized {
     /// # Errors
     ///
     /// Returns an error if any check against the [`Policy`] failed
-    fn check<P, E>(
-        self,
-        policy: &P,
-        time: DateTime<Utc>,
-    ) -> Result<Checked<'_, Self, P>, (Self, anyhow::Error)>
+    fn check<P, E>(self, policy: &P) -> Result<Checked<'_, Self, P>, (Self, anyhow::Error)>
     where
         P: Policy;
 }

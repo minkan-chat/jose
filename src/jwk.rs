@@ -3,7 +3,6 @@
 use alloc::{boxed::Box, string::String};
 use core::fmt::Debug;
 
-use chrono::{DateTime, Utc};
 use hashbrown::HashSet;
 use serde::{Deserialize, Serialize};
 
@@ -147,11 +146,7 @@ pub enum JsonWebKeyType {
 }
 
 impl Checkable for JsonWebKey {
-    fn check<P, E>(
-        self,
-        policy: &'_ P,
-        reference_time: DateTime<Utc>,
-    ) -> Result<Checked<'_, Self, P>, (Self, anyhow::Error)>
+    fn check<P, E>(self, policy: &'_ P) -> Result<Checked<'_, Self, P>, (Self, anyhow::Error)>
     where
         P: Policy,
     {
@@ -166,6 +161,6 @@ impl Checkable for JsonWebKey {
                 return Err((self, e));
             }
         }
-        Ok(Checked::new(self, policy, reference_time))
+        Ok(Checked::new(self, policy))
     }
 }
