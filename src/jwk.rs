@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     jwa::JsonWebSigningOrEnncryptionAlgorithm,
-    policy::{Checkable, Checked, Policy},
+    policy::{Checkable, Checked, Policy, StandardPolicy},
 };
 
 mod asymmetric;
@@ -146,10 +146,7 @@ pub enum JsonWebKeyType {
 }
 
 impl Checkable for JsonWebKey {
-    fn check<P, E>(self, policy: &'_ P) -> Result<Checked<'_, Self, P>, (Self, anyhow::Error)>
-    where
-        P: Policy,
-    {
+    fn check<P: Policy>(self, policy: P) -> Result<Checked<Self, P>, (Self, P::Error)> {
         if let Some(alg) = self.algorithm() {
             if let Err(e) = policy.algorithm(alg) {
                 return Err((self, e));

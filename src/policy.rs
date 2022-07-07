@@ -1,29 +1,29 @@
 //! Validate jose data against some [`Policy`]
+
+mod standard;
 use core::{
     fmt::Debug,
     ops::{Deref, DerefMut},
 };
 
 use hashbrown::HashSet;
+pub use standard::{StandardPolicy, StandardPolicyFail};
 
 use crate::{
-    jwa::{JsonWebSigningAlgorithm, JsonWebSigningOrEnncryptionAlgorithm},
+    jwa::JsonWebSigningOrEnncryptionAlgorithm,
     jwk::{KeyOperation, KeyUsage},
 };
 
 /// A type `T` that was checked against a [`Policy`] `P`
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct Checked<'a, T, P>
-where
-    P: Policy + ?Sized,
-{
+pub struct Checked<T, P> {
     /// The [`Policy`] this `T` was checked against
-    policy: &'a P,
+    policy: P,
     /// The data that were checked
     data: T,
 }
 
-impl<T, P> Deref for Checked<'_, T, P>
+impl<T, P> Deref for Checked<T, P>
 where
     P: Policy,
 {
@@ -34,7 +34,7 @@ where
     }
 }
 
-impl<T, P> DerefMut for Checked<'_, T, P>
+impl<T, P> DerefMut for Checked<T, P>
 where
     P: Policy,
 {
@@ -43,29 +43,37 @@ where
     }
 }
 
-impl<'a, T, P> Checked<'a, T, P>
+impl<T, P> Checked<T, P>
 where
     P: Policy,
 {
-    pub(crate) fn new(data: T, policy: &'a P) -> Self {
+    pub(crate) fn new(data: T, policy: P) -> Self {
         Self { policy, data }
     }
 
+    /// Turns this `Checked` into it's underlying value that was checked.
+    pub fn into_inner(self) -> T {
+        self.data
+    }
+
     /// Returns the [`Policy`] that was used to validate `T`
-    pub fn policy(&'_ self) -> &'_ dyn Policy {
-        self.policy
+    pub fn policy(&self) -> &P {
+        &self.policy
     }
 }
 
 /// A trait to enforce some rules in jose
 pub trait Policy {
+    /// The error type returned when any check of this policy fails.
+    type Error;
+
     /// Checks the `alg` header
     ///
     /// # Errors
     ///
     /// This should return an [`Err`] if the algorithm is not accepted (e.g.
     /// because it is considered insecure)
-    fn algorithm(&self, alg: JsonWebSigningOrEnncryptionAlgorithm) -> Result<(), anyhow::Error>;
+    fn algorithm(&self, alg: JsonWebSigningOrEnncryptionAlgorithm) -> Result<(), Self::Error>;
 
     /// Compares the `use` and `key_ops` parameters
     ///
@@ -77,7 +85,23 @@ pub trait Policy {
         &self,
         key_use: &KeyUsage,
         key_ops: &HashSet<KeyOperation>,
-    ) -> Result<(), anyhow::Error>;
+    ) -> Result<(), Self::Error>;
+}
+
+impl<P: Policy> Policy for &P {
+    type Error = P::Error;
+
+    fn algorithm(&self, alg: JsonWebSigningOrEnncryptionAlgorithm) -> Result<(), Self::Error> {
+        P::algorithm(self, alg)
+    }
+
+    fn compare_keyops_and_keyuse(
+        &self,
+        key_use: &KeyUsage,
+        key_ops: &HashSet<KeyOperation>,
+    ) -> Result<(), Self::Error> {
+        P::compare_keyops_and_keyuse(self, key_use, key_ops)
+    }
 }
 
 /// A type that can be checked against some [`Policy`]
@@ -87,45 +111,5 @@ pub trait Checkable: Sized {
     /// # Errors
     ///
     /// Returns an error if any check against the [`Policy`] failed
-    fn check<P, E>(self, policy: &P) -> Result<Checked<'_, Self, P>, (Self, anyhow::Error)>
-    where
-        P: Policy;
-}
-
-/// A [`Policy`] with reasonable rules. Use this struct if you want to have some
-/// secure defaults.
-#[non_exhaustive]
-#[derive(Debug, Default)]
-pub struct StandardPolicy;
-
-impl Policy for StandardPolicy {
-    fn algorithm(&self, alg: JsonWebSigningOrEnncryptionAlgorithm) -> Result<(), anyhow::Error> {
-        match alg {
-            JsonWebSigningOrEnncryptionAlgorithm::Signing(alg) => {
-                anyhow::ensure!(
-                    !matches!(alg, JsonWebSigningAlgorithm::None),
-                    "`none` algorithm is not allowed"
-                );
-                Ok(())
-            }
-            _ => Ok(()),
-        }
-    }
-
-    fn compare_keyops_and_keyuse(
-        &self,
-        key_use: &KeyUsage,
-        key_ops: &HashSet<KeyOperation>,
-    ) -> Result<(), anyhow::Error> {
-        anyhow::ensure!(
-            !matches!(key_use, KeyUsage::Other(_))
-                || !key_ops.iter().any(|o| matches!(o, &KeyOperation::Other(_))),
-            concat!(
-                "`Other` variant not allowed in `use` and `key_ops` since they can't be checked",
-            )
-        );
-
-        // TODO: check that the typed variants of KeyUsage and KeyOperation
-        Ok(())
-    }
+    fn check<P: Policy>(self, policy: P) -> Result<Checked<Self, P>, (Self, P::Error)>;
 }

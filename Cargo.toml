@@ -66,5 +66,3 @@ num-bigint-dig = { version = "0.8.1", default-features = false, features = [
     "u64_digit",
 ] }
 serde-value = { version = "0.7.0", default-features = false }
-
-anyhow = { version = "1", default-features = false }
