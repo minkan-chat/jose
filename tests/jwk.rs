@@ -218,3 +218,10 @@ fn serde_jwk() {
     // different order but by the definition of the json spec, they are the same
     // assert_eq!(sig_json, serde_json::to_string(&sig).unwrap());
 }
+
+#[test]
+fn deny_duplicates_key_operations() {
+    let _ok: JsonWebKey = serde_json::from_str(&read_key_file("key_ops_rsa_enc.pub")).unwrap();
+    let _err = serde_json::from_str::<JsonWebKey>(&read_key_file("key_ops_duplicates_rsa_enc.pub"))
+        .unwrap_err();
+}

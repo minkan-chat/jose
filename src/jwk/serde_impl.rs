@@ -25,7 +25,7 @@ where
                 // detect duplicates in `key_ops` parameter. according to the rfc,
                 // > Duplicate key operation values MUST NOT be present in the array.
                 // means: this is a set
-                if set.insert(o) {
+                if !set.insert(o) {
                     return Err(<D::Error as Error>::custom(
                         "found duplicate in `key_ops` parameter",
                     ));
