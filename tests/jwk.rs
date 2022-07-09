@@ -1,6 +1,9 @@
-use jose::jwk::{
-    ec::{EcPrivate, EcPublic},
-    AsymmetricJsonWebKey, JsonWebKeyType, Private, Public,
+use jose::{
+    jwa::JsonWebSigningOrEnncryptionAlgorithm,
+    jwk::{
+        ec::{EcPrivate, EcPublic},
+        AsymmetricJsonWebKey, JsonWebKey, JsonWebKeyType, Private, Public,
+    },
 };
 
 fn read_key_file(name: &str) -> String {
@@ -192,4 +195,26 @@ fn generic_private_key_roundtrip() {
     let key2: JsonWebKeyType = serde_json::from_str(&json2).unwrap();
 
     assert_eq!(key, key2);
+}
+
+#[test]
+fn serde_jwk() {
+    let enc_json = read_key_file("jwk_optional_parameters_rsa_enc.pub");
+    let enc: JsonWebKey = serde_json::from_str(&enc_json).unwrap();
+    match enc.algorithm().unwrap() {
+        JsonWebSigningOrEnncryptionAlgorithm::Encryption(_) => (),
+        _ => panic!(),
+    }
+
+    let sig_json = read_key_file("jwk_optional_parameters_rsa_sig.pub");
+    let sig: JsonWebKey = serde_json::from_str(&sig_json).unwrap();
+    match sig.algorithm().unwrap() {
+        JsonWebSigningOrEnncryptionAlgorithm::Signing(_) => (),
+        _ => panic!(),
+    }
+
+    // It is not required for json keys to maintain order. Therefore, the input
+    // and output json string might differ in the sense that keys appear in a
+    // different order but by the definition of the json spec, they are the same
+    // assert_eq!(sig_json, serde_json::to_string(&sig).unwrap());
 }

@@ -11,6 +11,8 @@ mod hmac;
 mod pbes2;
 mod rsa;
 
+use serde::{Deserialize, Serialize};
+
 #[doc(inline)]
 pub use self::{
     aes_cbc_hs::AesCbcHs,
@@ -26,7 +28,8 @@ pub use self::{
 // FIXME: find better name for this enum
 /// Either a JSON Web Algorithm for signing operations, or an algorithm for
 /// encryption operations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(untagged)]
 pub enum JsonWebSigningOrEnncryptionAlgorithm {
     /// Signing algorithm.
     Signing(JsonWebSigningAlgorithm),
@@ -77,7 +80,7 @@ macro_rules! impl_serde {
         $($name:literal => $val:expr; $valp:pat,)*
         err: $err:ident => $get_err:expr, $(,)?
     ]) => {
-        impl<'de> serde::Deserialize<'de> for $T {
+        impl<'de> Deserialize<'de> for $T {
             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
             where
                 D: serde::Deserializer<'de>,
@@ -91,7 +94,7 @@ macro_rules! impl_serde {
             }
         }
 
-        impl serde::Serialize for $T {
+        impl Serialize for $T {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
             where
                 S: serde::Serializer,
