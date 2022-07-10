@@ -30,7 +30,7 @@ pub use self::{
 /// encryption operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(untagged)]
-pub enum JsonWebSigningOrEnncryptionAlgorithm {
+pub enum JsonWebAlgorithm {
     /// Signing algorithm.
     Signing(JsonWebSigningAlgorithm),
     /// Encryption algorithm.

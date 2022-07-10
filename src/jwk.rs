@@ -11,7 +11,7 @@ use sha1::Sha1;
 use sha2::Sha256;
 
 use crate::{
-    jwa::JsonWebSigningOrEnncryptionAlgorithm,
+    jwa::JsonWebAlgorithm,
     policy::{Checkable, Checked, Policy},
 };
 
@@ -52,7 +52,7 @@ pub struct JsonWebKey {
     key_operations: Option<HashSet<KeyOperation>>,
     /// `alg` parameter section 4.4
     #[serde(rename = "alg", skip_serializing_if = "Option::is_none")]
-    algorithm: Option<JsonWebSigningOrEnncryptionAlgorithm>,
+    algorithm: Option<JsonWebAlgorithm>,
     /// `kid` parameter section 4.4
     // FIXME: Consider an enum if this value is a valid JWK Thumbprint,
     // see <https://www.rfc-editor.org/rfc/rfc7638>
@@ -94,7 +94,7 @@ pub struct JsonWebKey {
 // TODO: implement other getters
 impl JsonWebKey {
     /// A JWK MAY contain an algorithm
-    pub fn algorithm(&self) -> Option<JsonWebSigningOrEnncryptionAlgorithm> {
+    pub fn algorithm(&self) -> Option<JsonWebAlgorithm> {
         self.algorithm
     }
 

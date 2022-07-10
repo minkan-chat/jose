@@ -1,5 +1,5 @@
 use jose::{
-    jwa::JsonWebSigningOrEnncryptionAlgorithm,
+    jwa::JsonWebAlgorithm,
     jwk::{
         ec::{EcPrivate, EcPublic},
         AsymmetricJsonWebKey, JsonWebKey, JsonWebKeyType, Private, Public,
@@ -202,14 +202,14 @@ fn serde_jwk() {
     let enc_json = read_key_file("jwk_optional_parameters_rsa_enc.pub");
     let enc: JsonWebKey = serde_json::from_str(&enc_json).unwrap();
     match enc.algorithm().unwrap() {
-        JsonWebSigningOrEnncryptionAlgorithm::Encryption(_) => (),
+        JsonWebAlgorithm::Encryption(_) => (),
         _ => panic!(),
     }
 
     let sig_json = read_key_file("jwk_optional_parameters_rsa_sig.pub");
     let sig: JsonWebKey = serde_json::from_str(&sig_json).unwrap();
     match sig.algorithm().unwrap() {
-        JsonWebSigningOrEnncryptionAlgorithm::Signing(_) => (),
+        JsonWebAlgorithm::Signing(_) => (),
         _ => panic!(),
     }
 

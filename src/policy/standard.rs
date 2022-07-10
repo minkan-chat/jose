@@ -3,7 +3,7 @@ use thiserror_no_std::Error;
 
 use super::Policy;
 use crate::{
-    jwa::{JsonWebSigningAlgorithm, JsonWebSigningOrEnncryptionAlgorithm},
+    jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::{KeyOperation, KeyUsage},
 };
 
@@ -43,8 +43,8 @@ pub struct StandardPolicy;
 impl Policy for StandardPolicy {
     type Error = StandardPolicyFail;
 
-    fn algorithm(&self, alg: JsonWebSigningOrEnncryptionAlgorithm) -> Result<(), Self::Error> {
-        if let JsonWebSigningOrEnncryptionAlgorithm::Signing(JsonWebSigningAlgorithm::None) = alg {
+    fn algorithm(&self, alg: JsonWebAlgorithm) -> Result<(), Self::Error> {
+        if let JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::None) = alg {
             return Err(StandardPolicyFail::NoneAlgorithm);
         }
 
