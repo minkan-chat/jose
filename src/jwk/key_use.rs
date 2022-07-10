@@ -40,12 +40,10 @@ impl<'de> Deserialize<'de> for KeyUsage {
         D: serde::Deserializer<'de>,
     {
         let val = <&str as Deserialize>::deserialize(deserializer)?;
-        Ok(if val == "sig" {
-            Self::Signing
-        } else if val == "enc" {
-            Self::Encryption
-        } else {
-            Self::Other(val.to_string())
+        Ok(match val {
+            "sig" => Self::Signing,
+            "enc" => Self::Encryption,
+            _ => Self::Other(val.to_string()),
         })
     }
 }

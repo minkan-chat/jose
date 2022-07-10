@@ -61,24 +61,16 @@ impl<'de> Deserialize<'de> for KeyOperation {
         D: serde::Deserializer<'de>,
     {
         let val = <&str as Deserialize>::deserialize(deserializer)?;
-        Ok(if val == "sign" {
-            Self::Sign
-        } else if val == "verify" {
-            Self::Verify
-        } else if val == "encrypt" {
-            Self::Encrypt
-        } else if val == "decrypt" {
-            Self::Decrypt
-        } else if val == "wrapKey" {
-            Self::WrapKey
-        } else if val == "unwrapKey" {
-            Self::UnwrapKey
-        } else if val == "deriveKey" {
-            Self::DeriveKey
-        } else if val == "deriveBits" {
-            Self::DeriveBits
-        } else {
-            Self::Other(val.to_string())
+        Ok(match val {
+            "sign" => Self::Sign,
+            "verify" => Self::Verify,
+            "encrypt" => Self::Encrypt,
+            "decrypt" => Self::Decrypt,
+            "wrapKey" => Self::WrapKey,
+            "unwrapKey" => Self::UnwrapKey,
+            "deriveKey" => Self::DeriveKey,
+            "deriveBits" => Self::DeriveBits,
+            _ => Self::Other(val.to_string()),
         })
     }
 }
