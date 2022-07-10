@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 /// [Section 4.3 of RFC 7517]. All possible values are registered in the [IANA
 /// `JSON Web Key Operations` registry].
 ///
-/// This enum SHOULD NOT be used together with the [`KeyUsage`] enum. If they
-/// are both present, their information MUST be consistent.
+/// This enum SHOULD NOT be used together with the [`KeyUsage`](super::KeyUsage)
+/// enum. If they are both present, their information MUST be consistent.
 ///
 /// [Section 4.3 of RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4.3>
 /// [IANA `JSON Web Key Operations` registry]: <https://www.iana.org/assignments/jose/jose.xhtml#web-key-operations>
@@ -30,7 +30,7 @@ pub enum KeyOperation {
     DeriveKey,
     /// This key may derive bits not to be used as a key
     DeriveBits,
-    /// Some other case-sensitive [String] that did not match any of the
+    /// Some other case-sensitive [`String`] that did not match any of the
     /// publicly known key operations
     Other(String),
 }

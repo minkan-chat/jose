@@ -33,7 +33,7 @@ pub use self::{
 
 /// <https://datatracker.ietf.org/doc/html/rfc7517>
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
-pub struct JsonWebKey {
+pub struct JsonWebKey<T = ()> {
     /// `kty` parameter section 4.1
     /// Note that the [`JsonWebKeyType`] enum does way more than just
     /// checking/storing the `kty` parameter
@@ -45,10 +45,11 @@ pub struct JsonWebKey {
     /// `key_ops` parameter section 4.3
     #[serde(
         deserialize_with = "serde_impl::deserialize_ensure_set",
-        rename = "key_ops"
+        rename = "key_ops",
+        skip_serializing_if = "Option::is_none",
+        // default needed because else serde will error if the `key_ops` parameter is not present
+        default
     )]
-    // default needed because else serde will error if the `key_ops` parameter is not present
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     key_operations: Option<HashSet<KeyOperation>>,
     /// `alg` parameter section 4.4
     #[serde(rename = "alg", skip_serializing_if = "Option::is_none")]
@@ -89,10 +90,16 @@ pub struct JsonWebKey {
     )]
     x509_certificate_sha256_thumbprint:
         Option<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>>,
+    /// Additional members in the JWK as permitted by the fourth paragraph of
+    /// [section 4]
+    ///
+    /// [section 4]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4>
+    #[serde(flatten)]
+    additional: T,
 }
 
 // TODO: implement other getters
-impl JsonWebKey {
+impl<T> JsonWebKey<T> {
     /// A JWK MAY contain an algorithm
     pub fn algorithm(&self) -> Option<JsonWebAlgorithm> {
         self.algorithm
@@ -109,6 +116,39 @@ impl JsonWebKey {
     }
 }
 
+impl<T> Checkable for JsonWebKey<T>
+where
+    T: Checkable,
+{
+    fn check<P: Policy>(self, policy: P) -> Result<Checked<Self, P>, (Self, P::Error)> {
+        if let Some(alg) = self.algorithm() {
+            if let Err(e) = policy.algorithm(alg) {
+                return Err((self, e));
+            }
+        }
+
+        if let (Some(key_use), Some(key_ops)) = (self.key_usage(), self.key_operations()) {
+            if let Err(e) = policy.compare_keyops_and_keyuse(key_use, key_ops) {
+                return Err((self, e));
+            }
+        }
+
+        match self.additional.check(policy) {
+            Err(e) => Err((
+                Self {
+                    additional: e.0,
+                    ..self
+                },
+                e.1,
+            )),
+            Ok(o) => {
+                let (additional, p) = o.into_inner();
+                Ok(Checked::new(Self { additional, ..self }, p))
+            }
+        }
+    }
+}
+
 /// A [`JsonWebKey`] represents a cryptographic key. It can either be symmetric
 /// or asymmetric. In the latter case, it can store public or private
 /// information about the key. This enum represents the key types as defined in
@@ -122,21 +162,4 @@ pub enum JsonWebKeyType {
     Symmetric(SymmetricJsonWebKey),
     /// An asymmetric cryptographic key
     Asymmetric(Box<AsymmetricJsonWebKey>),
-}
-
-impl Checkable for JsonWebKey {
-    fn check<P: Policy>(self, policy: P) -> Result<Checked<Self, P>, (Self, P::Error)> {
-        if let Some(alg) = self.algorithm() {
-            if let Err(e) = policy.algorithm(alg) {
-                return Err((self, e));
-            }
-        }
-
-        if let (Some(key_use), Some(key_ops)) = (self.key_usage(), self.key_operations()) {
-            if let Err(e) = policy.compare_keyops_and_keyuse(key_use, key_ops) {
-                return Err((self, e));
-            }
-        }
-        Ok(Checked::new(self, policy))
-    }
 }

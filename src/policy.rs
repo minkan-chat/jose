@@ -51,9 +51,21 @@ where
         Self { policy, data }
     }
 
-    /// Turns this `Checked` into it's underlying value that was checked.
-    pub fn into_inner(self) -> T {
-        self.data
+    /// Turns this `Checked` into it's underlying values. `T` is the type that
+    /// was checked and `P` the [`Policy`] used to check `T`
+    pub fn into_inner(self) -> (T, P) {
+        (self.data, self.policy)
+    }
+
+    /// Turns this `Checked` into it's underlying checked type `T`
+    pub fn into_type(self) -> T {
+        self.into_inner().0
+    }
+
+    /// Turns this `Checked` into it's underlying [`Policy`] `P` that was used
+    /// to check `T`
+    pub fn into_policy(self) -> P {
+        self.into_inner().1
     }
 
     /// Returns the [`Policy`] that was used to validate `T`
@@ -112,4 +124,13 @@ pub trait Checkable: Sized {
     ///
     /// Returns an error if any check against the [`Policy`] failed
     fn check<P: Policy>(self, policy: P) -> Result<Checked<Self, P>, (Self, P::Error)>;
+}
+
+/// This implementation allows the default JsonWebKey (and others types with
+/// additional members) to implement Checkable where there are no additional
+/// members (T = ())
+impl Checkable for () {
+    fn check<P: Policy>(self, policy: P) -> Result<Checked<Self, P>, (Self, P::Error)> {
+        Ok(Checked::new(self, policy))
+    }
 }
