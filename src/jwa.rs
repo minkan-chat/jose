@@ -25,9 +25,11 @@ pub use self::{
     rsa::{RsaSigning, RsaesOaep, RsassaPkcs1V1_5, RsassaPss},
 };
 
-// FIXME: find better name for this enum
 /// Either a JSON Web Algorithm for signing operations, or an algorithm for
-/// encryption operations.
+/// encryption operations. Possible values should be registered in the [IANA
+/// `JSON Web Signature and Encryption Algorithms` registry][1].
+///
+/// [1]: <https://www.iana.org/assignments/jose/jose.xhtml#web-signature-encryption-algorithms>
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum JsonWebAlgorithm {
@@ -47,6 +49,7 @@ pub enum JsonWebAlgorithm {
 /// [section 3.1]: <https://datatracker.ietf.org/doc/html/rfc7518#section-3.1>
 // FIXME: `alg` header supports custom algorithms
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum JsonWebSigningAlgorithm {
     /// HMAC with SHA-2 Functions
     Hmac(Hmac),
@@ -59,7 +62,7 @@ pub enum JsonWebSigningAlgorithm {
     /// as defined in [section 3.1 of RFC 8037]
     ///
     /// Note: `EdDSA` should not be confused with
-    /// [`EcDSA`](crate::jwa::JsonWebSigningAlgorithm::EcDSA).
+    /// [`EcDSA`](JsonWebSigningAlgorithm::EcDSA).
     /// Also note that an EdDSA signature can either be made using `Ed25519` or
     /// `Ed448` but this information is not included.
     ///
@@ -148,6 +151,7 @@ impl_serde!(
 /// [RFC 7518 section 4]: <https://datatracker.ietf.org/doc/html/rfc7518#section-4>
 /// [section 4.1]: <https://datatracker.ietf.org/doc/html/rfc7518#section-4.1>
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
+#[non_exhaustive]
 pub enum JsonWebEncryptionAlgorithm {
     /// Key Encryption with RSAES-PKCS1-v1_5 as defined in [section 4.2]
     ///
@@ -204,6 +208,7 @@ impl_serde!(
 /// [RFC 7518 section 5]: <https://datatracker.ietf.org/doc/html/rfc7518#section-5>
 /// [section 5.1]: <https://datatracker.ietf.org/doc/html/rfc7518#section-5.1>
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum JsonWebContentEncryptionAlgorithm {
     /// Content Encryption using AES in CBC mode with HMAC
     AesCbcHs(AesCbcHs),
