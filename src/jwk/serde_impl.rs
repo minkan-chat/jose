@@ -1,12 +1,9 @@
 use alloc::vec::Vec;
+use core::ops::Deref;
 
-use base64ct::{Base64UrlUnpadded, Encoding};
-use digest::OutputSizeUser;
-use generic_array::GenericArray;
+use base64ct::{Base64, Base64UrlUnpadded, Encoding};
 use hashbrown::HashSet;
 use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
-use sha1::Sha1;
-use sha2::Sha256;
 
 use super::KeyOperation;
 
@@ -38,13 +35,12 @@ where
 }
 
 /// serialize a generic array to base64 urlsafe nopad
-pub fn serialize_ga<T, S>(
+pub fn serialize_ga<const N: usize, S>(
     // &Option needed because serde passes an &Option<T> instead of Option<&T>
-    v: &Option<GenericArray<u8, T::OutputSize>>,
+    v: &Option<[u8; N]>,
     serializer: S,
 ) -> Result<S::Ok, S::Error>
 where
-    T: OutputSizeUser,
     S: Serializer,
 {
     let v = v.as_ref();
@@ -53,16 +49,13 @@ where
 }
 
 /// deserialize a generic array from base64 urlsafe nopad
-pub fn deserialize_ga<'de, D, T>(
-    deserializer: D,
-) -> Result<Option<GenericArray<u8, T::OutputSize>>, D::Error>
+pub fn deserialize_ga<'de, D, const N: usize>(deserializer: D) -> Result<Option<[u8; N]>, D::Error>
 where
     D: Deserializer<'de>,
-    T: OutputSizeUser,
 {
     Ok(match Option::<&str>::deserialize(deserializer)? {
         Some(val) => {
-            let mut buf: GenericArray<u8, T::OutputSize> = GenericArray::default();
+            let mut buf = [0u8; N];
             Base64UrlUnpadded::decode(val, &mut buf).map_err(<D::Error as Error>::custom)?;
             Some(buf)
         }
@@ -70,40 +63,62 @@ where
     })
 }
 
-pub fn serialize_ga_sha1<S>(
-    v: &Option<GenericArray<u8, <Sha1 as OutputSizeUser>::OutputSize>>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
+pub fn serialize_ga_sha1<S>(v: &Option<[u8; 20]>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    serialize_ga::<Sha1, _>(v, serializer)
+    serialize_ga::<20, _>(v, serializer)
 }
 
-pub fn serialize_ga_sha256<S>(
-    v: &Option<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
+pub fn serialize_ga_sha256<S>(v: &Option<[u8; 32]>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    serialize_ga::<Sha256, _>(v, serializer)
+    serialize_ga::<32, _>(v, serializer)
 }
 
-pub fn deserialize_ga_sha1<'de, D>(
-    deserializer: D,
-) -> Result<Option<GenericArray<u8, <Sha1 as OutputSizeUser>::OutputSize>>, D::Error>
+pub fn deserialize_ga_sha1<'de, D>(deserializer: D) -> Result<Option<[u8; 20]>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    deserialize_ga::<_, Sha1>(deserializer)
+    deserialize_ga::<_, 20>(deserializer)
 }
 
-pub fn deserialize_ga_sha256<'de, D>(
-    deserializer: D,
-) -> Result<Option<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>>, D::Error>
+pub fn deserialize_ga_sha256<'de, D>(deserializer: D) -> Result<Option<[u8; 32]>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    deserialize_ga::<_, Sha256>(deserializer)
+    deserialize_ga::<_, 32>(deserializer)
+}
+
+#[derive(Debug, Hash, PartialEq, Eq)]
+pub(crate) struct Base64DerCertificate(pub Vec<u8>);
+
+impl<'de> Deserialize<'de> for Base64DerCertificate {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let val = <&str as Deserialize>::deserialize(deserializer)?;
+        Ok(Self(
+            base64ct::Base64::decode_vec(val).map_err(<D::Error as Error>::custom)?,
+        ))
+    }
+}
+
+impl Deref for Base64DerCertificate {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.0.deref()
+    }
+}
+
+impl Serialize for Base64DerCertificate {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        Base64::encode_string(&self.0).serialize(serializer)
+    }
 }

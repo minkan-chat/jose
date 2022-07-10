@@ -1,14 +1,10 @@
 //! [`JsonWebKey`] and connected things
 
 use alloc::{boxed::Box, string::String, vec::Vec};
-use core::fmt::Debug;
+use core::{fmt::Debug, ops::Deref};
 
-use digest::OutputSizeUser;
-use generic_array::GenericArray;
 use hashbrown::HashSet;
 use serde::{Deserialize, Serialize};
-use sha1::Sha1;
-use sha2::Sha256;
 
 use crate::{
     jwa::JsonWebAlgorithm,
@@ -25,6 +21,7 @@ mod public;
 pub mod rsa;
 mod serde_impl;
 pub mod symmetric;
+use self::serde_impl::Base64DerCertificate;
 #[doc(inline)]
 pub use self::{
     asymmetric::AsymmetricJsonWebKey, key_ops::KeyOperation, key_use::KeyUsage, private::Private,
@@ -66,10 +63,10 @@ pub struct JsonWebKey<T = ()> {
     #[serde(rename = "x5u", skip_serializing_if = "Option::is_none")]
     x509_url: Option<String>,
     /// `x5c` parameter section 4.7
-    // just look at the rfc
+    // If the `x5c` parameter is not present, this will be an empty Vec
     // FIXME: find a good way and crate to parse the DER-encoded X.509 certificate(s)
-    #[serde(rename = "x5c", skip_serializing_if = "Option::is_none")]
-    x509_certificate_chain: Option<Vec<String>>,
+    #[serde(rename = "x5c", skip_serializing_if = "Vec::is_empty", default)]
+    x509_certificate_chain: Vec<Base64DerCertificate>,
     /// `x5t` parameter section 4.8
     #[serde(
         serialize_with = "serde_impl::serialize_ga_sha1",
@@ -78,8 +75,7 @@ pub struct JsonWebKey<T = ()> {
         default,
         skip_serializing_if = "Option::is_none"
     )]
-    x509_certificate_sha1_thumbprint:
-        Option<GenericArray<u8, <Sha1 as OutputSizeUser>::OutputSize>>,
+    x509_certificate_sha1_thumbprint: Option<[u8; 20]>,
     /// `x5t#S256` parameter section 4.9
     #[serde(
         serialize_with = "serde_impl::serialize_ga_sha256",
@@ -88,8 +84,7 @@ pub struct JsonWebKey<T = ()> {
         default,
         skip_serializing_if = "Option::is_none"
     )]
-    x509_certificate_sha256_thumbprint:
-        Option<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>>,
+    x509_certificate_sha256_thumbprint: Option<[u8; 32]>,
     /// Additional members in the JWK as permitted by the fourth paragraph of
     /// [section 4]
     ///
@@ -98,21 +93,120 @@ pub struct JsonWebKey<T = ()> {
     additional: T,
 }
 
-// TODO: implement other getters
 impl<T> JsonWebKey<T> {
-    /// A JWK MAY contain an algorithm
-    pub fn algorithm(&self) -> Option<JsonWebAlgorithm> {
-        self.algorithm
+    /// [Section 4.1 of RFC 7517] defines the `kty` (Key Type) Parameter.
+    ///
+    /// Since the `kty` parameter is used to distinguish different key types, we
+    /// use the [`JsonWebKeyType`] to also store key specific data. You can
+    /// match the [`JsonWebKeyType`] to determine the exact key type used.
+    ///
+    /// [Section 4.1 of RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4.1>
+    pub fn key_type(&self) -> &JsonWebKeyType {
+        &self.key_type
     }
 
+    /// [Section 4.2 of RFC 7517] defines the `use` (Public Key Use) Parameter.
     ///
+    /// See the documentation of [`KeyUsage`] for details.
+    ///
+    /// [Section 4.2 of RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4.2>
     pub fn key_usage(&self) -> Option<&KeyUsage> {
         self.key_use.as_ref()
     }
 
+    /// [Section 4.3 of RFC 7517] defines the `key_ops` (Key Operations)
+    /// Parameter.
     ///
+    /// It is a set of different operations a key may perform.
+    /// See the documentation of [`KeyOperation`] for details.
+    ///
+    /// [Section 4.3 of RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4.3>
     pub fn key_operations(&self) -> Option<&HashSet<KeyOperation>> {
         self.key_operations.as_ref()
+    }
+
+    /// [Section 4.4 of RFC 7517] defines the `alg` (Algorithm) Parameter.
+    ///
+    /// See the documentation of [`JsonWebAlgorithm`] for details.
+    ///
+    /// [Section 4.4 of RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4.4>
+    pub fn algorithm(&self) -> Option<JsonWebAlgorithm> {
+        self.algorithm
+    }
+
+    /// [Section 4.5 of RFC 7517] defines the `kid` (Key ID) Parameter.
+    ///
+    /// [Section 4.5 of RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4.5>
+    pub fn key_id(&self) -> Option<&str> {
+        self.kid.as_deref()
+    }
+
+    /// [Section 4.6 of RFC 7517] defines the `x5u` (X.509 URL) Parameter.
+    ///
+    /// [Section 4.6 of RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4.6>
+    pub fn x509_url(&self) -> Option<&str> {
+        self.x509_url.as_deref()
+    }
+
+    /// [Section 4.7 of RFC 7517] defines the `x5c` (X.509 Certificate Chain)
+    /// Parameter.
+    ///
+    /// This parameter is a list of X.509 certificates. The first certificate in
+    /// the [`ExactSizeIterator`] returned by this method is the PKIX
+    /// certificate containing the key value as required by the RFC. Note
+    /// that this parameter is OPTIONAL and if not present, this
+    /// [`ExactSizeIterator`] will be empty ([`next`](Iterator::next) will be
+    /// [`None`] and [`len`](ExactSizeIterator::len) will be `0`).
+    ///
+    /// Each [`Item`](Iterator::Item) will be the byte representation of a
+    /// DER-encoded X.509 certificate.
+    ///
+    /// [Section 4.7 of RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4.7>
+    pub fn x509_certificate_chain(&self) -> impl ExactSizeIterator<Item = &[u8]> {
+        self.x509_certificate_chain.iter().map(Deref::deref)
+    }
+
+    /// [Section 4.8 of RFC 7517] defines the `x5t` (X.509 Certificate SHA-1
+    /// Thumbprint) Parameter.
+    ///
+    /// It is the SHA-1 hash of the DER-encoded X.509 certificate.
+    ///
+    /// # Warning: Cryptographically broken!
+    ///
+    /// TL;DR: use the [SHA-256
+    /// thumbprint](JsonWebKey::x509_certificate_sha256_thumbprint) instead.
+    ///
+    /// The following text is taken from the [`sha1`] crate: \
+    /// The SHA-1 hash function should be considered cryptographically broken
+    /// and unsuitable for further use in any security critical capacity, as it
+    /// is [practically vulnerable to chosen-prefix collisions](https://sha-mbles.github.io/).
+    ///
+    /// [Section 4.8 of RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4.8>
+    // replace the hardcoded output size with the Sha1::OutputsizeUser value then
+    // they use const generics
+    #[deprecated = "SHA-1 is cryptographically broken, use the [SHA-256 \
+                    thumbprint](struct.JsonWebKey.html#method.x509_certificate_sha256_thumbprint) \
+                    instead"]
+    pub fn x509_certificate_sha1_thumbprint(&self) -> Option<&[u8; 20]> {
+        self.x509_certificate_sha1_thumbprint.as_ref()
+    }
+
+    /// [Section 4.9 of RFC 7517] defines the `x5t#S256` (X.509 Certificate
+    /// SHA-256 Thumbprint) Parameter.
+    ///
+    /// It is the SHA-256 hash of the DER-encoded X.509 certificate.
+    ///
+    /// [Section 4.9 of RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4.9>
+    pub fn x509_certificate_sha256_thumbprint(&self) -> Option<&[u8; 32]> {
+        self.x509_certificate_sha256_thumbprint.as_ref()
+    }
+
+    /// Additional members in the [`JsonWebKey`] as permitted by the fourth
+    /// paragraph of [section 4 in RFC 7517]
+    ///
+    /// [section 4 in RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4>
+    pub fn additional(&self) -> &T {
+        &self.additional
     }
 }
 
