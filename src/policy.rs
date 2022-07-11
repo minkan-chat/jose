@@ -47,7 +47,11 @@ impl<T, P> Checked<T, P>
 where
     P: Policy,
 {
-    pub(crate) fn new(data: T, policy: P) -> Self {
+    /// Create a new [`Checked<T, P>`]
+    ///
+    /// **Warning**: This function can't perform any validation/checks and
+    /// therefore MUST only be used after sufficient validation is already done.
+    pub fn new(data: T, policy: P) -> Self {
         Self { policy, data }
     }
 

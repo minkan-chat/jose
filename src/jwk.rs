@@ -28,7 +28,132 @@ pub use self::{
     public::Public, symmetric::SymmetricJsonWebKey,
 };
 
-/// <https://datatracker.ietf.org/doc/html/rfc7517>
+/// A [`JsonWebKey`] is a [JSON Object](serde_json::Value::Object) representing
+/// the components of a cryptographic keys that can be used for
+/// [JWE](crate::jwe::JsonWebEncryption) and
+/// [JWS](crate::jws::JsonWebSignature).
+///
+/// The format of Json Web Keys is defined in [RFC 7517] with key specific
+/// parameters defined in [section 6 of RFC 7518]. The [`JsonWebKey`] struct is
+/// an abstract representation of all possible key types. The [`JsonWebKeyType`]
+/// enum is used to specialize on concrete key type.
+///
+/// # Examples
+///
+/// Parse a JsonWebKey from its json representation:
+///
+/// ```
+/// # // std is available in tests
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use jose::{jwk::KeyUsage, JsonWebKey};
+///
+/// // The following json object represents a RSA key used for signing
+/// let json = r#"
+/// {
+///  "kty": "RSA",
+///  "kid": "bilbo.baggins@hobbiton.example",
+///  "use": "sig",
+///  "n": "n4EPtAOCc9AlkeQHPzHStgAbgs7bTZLwUBZdR8_KuKPEHLd4rHVTeT-O-XV2jRojdNhxJWTDvNd7nqQ0VEiZQHz_AJmSCpMaJMRBSFKrKb2wqVwGU_NsYOYL-QtiWN2lbzcEe6XC0dApr5ydQLrHqkHHig3RBordaZ6Aj-oBHqFEHYpPe7Tpe-OfVfHd1E6cS6M1FZcD1NNLYD5lFHpPI9bTwJlsde3uhGqC0ZCuEHg8lhzwOHrtIQbS0FVbb9k3-tVTU4fg_3L_vniUFAKwuCLqKnS2BYwdq_mzSnbLY7h_qixoR7jig3__kRhuaxwUkRz5iaiQkqgc5gHdrNP5zw",
+///  "e": "AQAB"
+/// }"#;
+///
+/// // deserialize the key from it's json representation using serde_json
+/// let jwk: JsonWebKey = serde_json::from_str(json)?;
+///
+/// // You can use the JsonWebKey to access parameters defined by the spec.
+/// // For example, we might want to ensure that this key is for signing by
+/// // checking the `use` parameter
+/// assert_eq!(jwk.key_usage(), Some(&KeyUsage::Signing));
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ## Additional parameters
+///
+/// The spec allows custom/additional parameters that are not registered in the
+/// [IANA `JSON Web Key Parameters` registry]. The `T` generic parameter of
+/// [`JsonWebKey<T>`] allows you to bring your own type to do just that.
+///
+/// To do so, create a container type that holds all your parameters (and maybe
+/// even another container).
+/// Imagine we have a custom parameter `intended_party` which holds a [`String`]
+/// identifying the application which should use the [`JsonWebKey`]:
+///
+/// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use jose::JsonWebKey;
+/// use serde::{Deserialize, Serialize};
+///
+/// // don't forget to derive or implement the serde traits since they are used for (de)serialization
+/// #[derive(Deserialize, Serialize)]
+/// struct MyCustomParameters {
+///     intended_party: String,
+/// }
+///
+/// /// A type alias so we dont have to type so much
+/// type MyJsonWebKey = JsonWebKey<MyCustomParameters>;
+///
+/// // consider the same key as before but this time it needs our custom parameter `intended_party`
+/// let json = r#"
+/// {
+///  "intended_party": "my_application",
+///  "kty": "RSA",
+///  "kid": "bilbo.baggins@hobbiton.example",
+///  "use": "sig",
+///  "n": "n4EPtAOCc9AlkeQHPzHStgAbgs7bTZLwUBZdR8_KuKPEHLd4rHVTeT-O-XV2jRojdNhxJWTDvNd7nqQ0VEiZQHz_AJmSCpMaJMRBSFKrKb2wqVwGU_NsYOYL-QtiWN2lbzcEe6XC0dApr5ydQLrHqkHHig3RBordaZ6Aj-oBHqFEHYpPe7Tpe-OfVfHd1E6cS6M1FZcD1NNLYD5lFHpPI9bTwJlsde3uhGqC0ZCuEHg8lhzwOHrtIQbS0FVbb9k3-tVTU4fg_3L_vniUFAKwuCLqKnS2BYwdq_mzSnbLY7h_qixoR7jig3__kRhuaxwUkRz5iaiQkqgc5gHdrNP5zw",
+///  "e": "AQAB"
+/// }"#;
+///
+/// let jwk: MyJsonWebKey = serde_json::from_str(json)?;
+///
+/// // access the custom parameter
+/// assert_eq!("my_application", jwk.additional().intended_party.as_str());
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ### Implementing [`Checkable`] for your additional type
+///
+/// The [`Checkable`] trait should be implemented by types that can utilize some
+/// (potentially expensive) checks to ensure their validity optionally using a
+/// [`Policy`]. For example, [`JsonWebKey`] implements the [`Checkable`] trait
+/// to validate some parameters which can't be validated during deserialization.
+///
+/// For [`JsonWebKey`] to implement [`Checkable`], your additional type also
+/// needs to implement [`Checkable`]. If we recall the example from before, we
+/// might want to ensure that our `intended_party` parameter containts only
+/// ascii characters. An implementation for that purpose might look like this:
+/// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use jose::policy::{Checkable, Checked, Policy, PolicyError};
+/// use serde::{Deserialize, Serialize};
+/// // our type from before
+/// #[derive(Deserialize, Serialize)]
+/// struct MyCustomParameters {
+///     intended_party: String,
+/// }
+///
+/// impl Checkable for MyCustomParameters {
+///     fn check<P: Policy>(self, policy: P) -> Result<Checked<Self, P>, (Self, P::Error)> {
+///         if self.intended_party.is_ascii() {
+///             Ok(Checked::new(self, policy))
+///         } else {
+///             Err((
+///                 self,
+///                 <P::Error as PolicyError>::custom(
+///                     "`intended_party` parameter must contain ascii characters only",
+///                 ),
+///             ))
+///         }
+///     }
+/// }
+/// # Ok(())
+/// # }
+/// ```
+///
+/// [RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517>
+/// [section 6 of RFC 7518]: <https://datatracker.ietf.org/doc/html/rfc7518#section-6>
+/// [IANA `Json Web Key Parameters` registry]: <https://www.iana.org/assignments/jose/jose.xhtml#web-key-parameters>
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct JsonWebKey<T = ()> {
     /// `kty` parameter section 4.1
