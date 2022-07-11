@@ -2,7 +2,7 @@
 
 mod standard;
 use core::{
-    fmt::Debug,
+    fmt::{Debug, Display},
     ops::{Deref, DerefMut},
 };
 
@@ -77,7 +77,7 @@ where
 /// A trait to enforce some rules in jose
 pub trait Policy {
     /// The error type returned when any check of this policy fails.
-    type Error;
+    type Error: PolicyError;
 
     /// Checks the `alg` header
     ///
@@ -114,6 +114,14 @@ impl<P: Policy> Policy for &P {
     ) -> Result<(), Self::Error> {
         P::compare_keyops_and_keyuse(self, key_use, key_ops)
     }
+}
+
+/// An error returned by the [`Policy`] trait
+pub trait PolicyError {
+    /// A custom error message
+    fn custom<T>(msg: T) -> Self
+    where
+        T: Display;
 }
 
 /// A type that can be checked against some [`Policy`]

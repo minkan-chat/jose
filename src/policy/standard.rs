@@ -1,7 +1,10 @@
+use alloc::string::{String, ToString};
+use core::fmt::Display;
+
 use hashbrown::HashSet;
 use thiserror_no_std::Error;
 
-use super::Policy;
+use super::{Policy, PolicyError};
 use crate::{
     jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::{KeyOperation, KeyUsage},
@@ -24,6 +27,18 @@ pub enum StandardPolicyFail {
     /// check it.
     #[error("\"key_ops\" contained custom operation which can't be checked")]
     OtherKeyOperation,
+    /// Used for the [`PolicyError`] implementation
+    #[error("{0}")]
+    Custom(String),
+}
+
+impl PolicyError for StandardPolicyFail {
+    fn custom<T>(msg: T) -> Self
+    where
+        T: Display,
+    {
+        Self::Custom(msg.to_string())
+    }
 }
 
 /// A [`Policy`] with reasonable rules. Use this struct if you want to have some
@@ -40,6 +55,8 @@ pub enum StandardPolicyFail {
 #[derive(Debug, Default)]
 pub struct StandardPolicy;
 
+// TODO: StandardPolicy should check that the JsonWebKeyType and the provided
+// Algorithm make sense
 impl Policy for StandardPolicy {
     type Error = StandardPolicyFail;
 
@@ -47,6 +64,8 @@ impl Policy for StandardPolicy {
         if let JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::None) = alg {
             return Err(StandardPolicyFail::NoneAlgorithm);
         }
+        // TODO: match the Other variant against possible prohibited algorithms which
+        // are not typed out in the api. See the IANA registry for a list
 
         Ok(())
     }
