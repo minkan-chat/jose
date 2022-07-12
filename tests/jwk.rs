@@ -1,9 +1,11 @@
 use jose::{
-    jwa::JsonWebAlgorithm,
+    jwa::{EcDSA, Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::{
         ec::{EcPrivate, EcPublic},
-        AsymmetricJsonWebKey, JsonWebKey, JsonWebKeyType, Private, Public,
+        AsymmetricJsonWebKey, JsonWebKey, JsonWebKeyType, JwkSigner, Private, Public,
     },
+    policy::{Checkable, Checked, StandardPolicy},
+    Signer,
 };
 
 fn read_key_file(name: &str) -> String {
@@ -224,4 +226,28 @@ fn deny_duplicates_key_operations() {
     let _ok: JsonWebKey = serde_json::from_str(&read_key_file("key_ops_rsa_enc.pub")).unwrap();
     let _err = serde_json::from_str::<JsonWebKey>(&read_key_file("key_ops_duplicates_rsa_enc.pub"))
         .unwrap_err();
+}
+
+#[test]
+fn jwk_signer() {
+    let hs256: Checked<JsonWebKey, _> = serde_json::from_str::<JsonWebKey>(&read_key_file("hs256"))
+        .unwrap()
+        .check(StandardPolicy::default())
+        .unwrap();
+    let hs256_signer: JwkSigner = hs256.try_into().unwrap();
+    assert_eq!(
+        hs256_signer.algorithm(),
+        JsonWebSigningAlgorithm::Hmac(Hmac::Hs256)
+    );
+
+    let p256: Checked<_, _> = serde_json::from_str::<JsonWebKey>(&read_key_file("p256"))
+        .unwrap()
+        .check(StandardPolicy::default())
+        .unwrap();
+    let p256_signer: JwkSigner = p256.try_into().unwrap();
+
+    assert_eq!(
+        p256_signer.algorithm(),
+        JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256)
+    );
 }

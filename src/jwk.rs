@@ -7,8 +7,9 @@ use hashbrown::HashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    jwa::JsonWebAlgorithm,
+    jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
     policy::{Checkable, Checked, Policy},
+    IntoSigner,
 };
 
 mod asymmetric;
@@ -20,12 +21,18 @@ mod private;
 mod public;
 pub mod rsa;
 mod serde_impl;
+mod signer;
 pub mod symmetric;
 use self::serde_impl::Base64DerCertificate;
 #[doc(inline)]
 pub use self::{
-    asymmetric::AsymmetricJsonWebKey, key_ops::KeyOperation, key_use::KeyUsage, private::Private,
-    public::Public, symmetric::SymmetricJsonWebKey,
+    asymmetric::AsymmetricJsonWebKey,
+    key_ops::KeyOperation,
+    key_use::KeyUsage,
+    private::Private,
+    public::Public,
+    signer::{FromJwkError, JwkSigner},
+    symmetric::SymmetricJsonWebKey,
 };
 
 /// A [`JsonWebKey`] is a [JSON Object](serde_json::Value::Object) representing
@@ -332,6 +339,15 @@ impl<T> JsonWebKey<T> {
     }
 }
 
+impl<T, P> IntoSigner<JwkSigner, Vec<u8>> for Checked<JsonWebKey<T>, P> {
+    type Error = <JwkSigner as TryFrom<Self>>::Error;
+
+    /// Turn a [`JsonWebKey`] into a [`Signer`](crate::sign::Signer) by
+    /// overwriting [`JsonWebKey::algorithm`] with `alg`
+    fn into_signer(self, alg: JsonWebSigningAlgorithm) -> Result<JwkSigner, Self::Error> {
+        JwkSigner::new(self.into_type().key_type, alg)
+    }
+}
 impl<T> Checkable for JsonWebKey<T>
 where
     T: Checkable,

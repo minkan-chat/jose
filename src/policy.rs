@@ -43,15 +43,15 @@ where
     }
 }
 
-impl<T, P> Checked<T, P>
-where
-    P: Policy,
-{
+impl<T, P> Checked<T, P> {
     /// Create a new [`Checked<T, P>`]
     ///
     /// **Warning**: This function can't perform any validation/checks and
     /// therefore MUST only be used after sufficient validation is already done.
-    pub fn new(data: T, policy: P) -> Self {
+    pub fn new(data: T, policy: P) -> Self
+    where
+        P: Policy,
+    {
         Self { policy, data }
     }
 
@@ -73,7 +73,10 @@ where
     }
 
     /// Returns the [`Policy`] that was used to validate `T`
-    pub fn policy(&self) -> &P {
+    pub fn policy(&self) -> &P
+    where
+        P: Policy,
+    {
         &self.policy
     }
 }
@@ -140,7 +143,7 @@ pub trait Checkable: Sized {
 
 /// This implementation allows the default JsonWebKey (and others types with
 /// additional members) to implement Checkable where there are no additional
-/// members (T = ())
+/// members (`T = ()`)
 impl Checkable for () {
     fn check<P: Policy>(self, policy: P) -> Result<Checked<Self, P>, (Self, P::Error)> {
         Ok(Checked::new(self, policy))

@@ -88,8 +88,8 @@ pub trait Signer<S: AsRef<[u8]>> {
     }
 }
 
-/// An error used if [`FromKey`] or [`IntoSigner`] expected a different
-/// algorithm
+/// An error returned if something expected a different
+/// [`JsonWebAlgorithm`](crate::jwa::JsonWebAlgorithm)
 #[derive(Debug, thiserror_no_std::Error)]
 #[error("Invalid algorithm")]
 pub struct InvalidSigningAlgorithmError;
@@ -120,7 +120,7 @@ where
     T: Signer<S>,
     S: AsRef<[u8]>,
 {
-    /// The error returned if the version failed
+    /// The error returned if the conversion failed
     type Error;
 
     /// Turn `self` into the [`Signer`] `T`
