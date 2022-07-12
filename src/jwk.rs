@@ -298,7 +298,7 @@ impl<T> JsonWebKey<T> {
     ///
     /// # Warning: Cryptographically broken!
     ///
-    /// TL;DR: use the [SHA-256
+    /// TL;DR: check if you can use the [SHA-256
     /// thumbprint](JsonWebKey::x509_certificate_sha256_thumbprint) instead.
     ///
     /// The following text is taken from the [`sha1`] crate: \
@@ -309,9 +309,6 @@ impl<T> JsonWebKey<T> {
     /// [Section 4.8 of RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4.8>
     // replace the hardcoded output size with the Sha1::OutputsizeUser value then
     // they use const generics
-    #[deprecated = "SHA-1 is cryptographically broken, use the [SHA-256 \
-                    thumbprint](struct.JsonWebKey.html#method.x509_certificate_sha256_thumbprint) \
-                    instead"]
     pub fn x509_certificate_sha1_thumbprint(&self) -> Option<&[u8; 20]> {
         self.x509_certificate_sha1_thumbprint.as_ref()
     }
