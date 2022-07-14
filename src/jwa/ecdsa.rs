@@ -9,4 +9,10 @@ pub enum EcDSA {
     Es384,
     /// ECDSA using P-521 and SHA-512
     Es512,
+    /// ECDSA using secp256k1 curve and SHA-256
+    ///
+    /// ECDSA with secp256k1 is defined in [RFC 8812 section 3]
+    ///
+    /// [RFC 8812 section 3]: <https://datatracker.ietf.org/doc/html/rfc8812#section-3>
+    Es256K,
 }

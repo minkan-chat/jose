@@ -13,15 +13,11 @@ use base64ct::{Base64UrlUnpadded, Encoding};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::Unverified;
-
-pub(crate) mod sealed {
-    pub trait Sealed {}
-}
+use crate::{jws::Unverified, sealed::Sealed};
 
 /// Conversion of a raw input format (e.g., [`Compact`], [`JsonFlattened`], etc)
 /// to this type.
-pub trait FromFormat<F>: Sized + sealed::Sealed {
+pub trait FromFormat<F>: Sized + Sealed {
     /// The error that can occurr while parsing `Self` from the input.
     type Error;
 
@@ -38,7 +34,7 @@ pub trait FromFormat<F>: Sized + sealed::Sealed {
 ///
 /// This trait can be ignored for any user of the crate as it is
 /// only used for internal workings of the crate.
-pub trait IntoFormat<F>: sealed::Sealed {
+pub trait IntoFormat<F>: Sealed {
     #[doc(hidden)]
     fn into_format(self) -> F;
 }

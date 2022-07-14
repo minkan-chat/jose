@@ -9,12 +9,12 @@ use jose::{
     format::Compact,
     jwa::{EcDSA, Hmac, JsonWebSigningAlgorithm},
     jwk::{
-        ec::{p256::P256PrivateKey, P256Signer},
+        ec::p256::{P256PrivateKey, P256Signer},
         symmetric::Hs256Signer,
         SymmetricJsonWebKey,
     },
-    jws::ParseCompactError,
-    IntoSigner, Signable, Signer, Unverified, Verifier, JWS,
+    jws::{IntoSigner, ParseCompactError, Signer, Unverified, Verifier},
+    JWS,
 };
 
 struct NoneKey;
@@ -30,7 +30,7 @@ impl Signer<&'static [u8]> for NoneKey {
 
 struct NoneVerifier;
 impl Verifier for NoneVerifier {
-    fn verify(&self, _: &[u8], _: &[u8]) -> Result<(), jose::VerifyError> {
+    fn verify(&self, _: &[u8], _: &[u8]) -> Result<(), jose::jws::VerifyError> {
         Ok(())
     }
 }

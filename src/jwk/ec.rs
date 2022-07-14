@@ -8,19 +8,13 @@ pub mod secp256k1;
 use alloc::format;
 use core::fmt::Display;
 
-use ::p256::NistP256;
-use ::p384::NistP384;
-use ecdsa::{Signature, SigningKey};
 use elliptic_curve::{
     bigint::ArrayEncoding,
     sec1::{FromEncodedPoint, ModulusSize, ToEncodedPoint, ValidatePublicKey},
     AffinePoint, Curve, FieldSize, ProjectiveArithmetic, PublicKey, SecretKey,
 };
-use generic_array::GenericArray;
-use k256::Secp256k1;
 use sec1::EncodedPoint;
-use serde::{de::Error as SerdeError, Deserialize, Serialize};
-use signature::Signer;
+use serde::{Deserialize, Serialize};
 
 use self::{
     p256::{P256PrivateKey, P256PublicKey},
@@ -28,11 +22,7 @@ use self::{
     secp256k1::{Secp256k1PrivateKey, Secp256k1PublicKey},
 };
 use crate::{
-    base64_url::Base64UrlEncodedField,
-    borrowable::Borrowable,
-    jwa::{EcDSA, JsonWebSigningAlgorithm},
-    sign::{FromKey, InvalidSigningAlgorithmError, Signer as JwsSigner},
-    tagged_visitor::TaggedContentVisitor,
+    base64_url::Base64UrlEncodedField, borrowable::Borrowable, tagged_visitor::TaggedContentVisitor,
 };
 
 // FIXME: support all curves specified in IANA "JWK Elliptic Curve"
@@ -146,181 +136,3 @@ where
             .map(|_| secret)
     }
 }
-
-macro_rules! impl_serde_ec {
-    ($public:ty, $private:ty, $curve:literal, $key_type:literal, $inner:ty) => {
-        impl<'de> Deserialize<'de> for $public {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                let key = crate::jwk::ec::EcPublicKey::deserialize(deserializer)?;
-
-                if &*key.crv != $curve {
-                    return Err(<D::Error as SerdeError>::custom(format!(
-                        "Invalid curve type `{}`. Expected: `{}`",
-                        &*key.crv, $curve,
-                    )));
-                }
-
-                if &*key.kty != $key_type {
-                    return Err(<D::Error as SerdeError>::custom(format!(
-                        "Invalid key type `{}`. Expected: `{}`",
-                        &*key.kty, $key_type,
-                    )));
-                }
-
-                Ok(Self(
-                    key.to_public_key()
-                        .map_err(<D::Error as SerdeError>::custom)?,
-                ))
-            }
-        }
-
-        impl<'de> Deserialize<'de> for $private {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                let key = crate::jwk::ec::EcPrivateKey::deserialize(deserializer)?;
-                if &*key.public_part.crv != $curve {
-                    return Err(<D::Error as SerdeError>::custom(format!(
-                        "Invalid curve type `{}`. Expected: `{}`",
-                        &*key.public_part.crv, $curve,
-                    )));
-                }
-                if &*key.public_part.kty != $key_type {
-                    return Err(<D::Error as SerdeError>::custom(format!(
-                        "Invalid key type `{}`. Expected: `{}`",
-                        &*key.public_part.kty, $key_type,
-                    )));
-                }
-
-                Ok(Self(
-                    key.to_secret_key()
-                        .map_err(<D::Error as SerdeError>::custom)?,
-                ))
-            }
-        }
-
-        impl Serialize for $public {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-            where
-                S: serde::Serializer,
-            {
-                let key = &self.0;
-
-                #[derive(Serialize)]
-                struct Repr<'a> {
-                    crv: &'a str,
-                    kty: &'a str,
-                    x: Base64UrlEncodedField<$inner>,
-                    y: Base64UrlEncodedField<$inner>,
-                }
-
-                use elliptic_curve::sec1::ToEncodedPoint;
-                let point = key.to_encoded_point(false);
-                let x = point.x().map(AsRef::as_ref).unwrap_or(&[0u8][..]);
-                let y = point.y().map(AsRef::as_ref).unwrap_or(&[0u8][..]);
-
-                let repr = Repr {
-                    crv: $curve,
-                    kty: $key_type,
-                    x: Base64UrlEncodedField(*GenericArray::from_slice(x)),
-                    y: Base64UrlEncodedField(*GenericArray::from_slice(y)),
-                };
-
-                repr.serialize(serializer)
-            }
-        }
-
-        impl Serialize for $private {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-            where
-                S: serde::Serializer,
-            {
-                let key = &self.0;
-
-                #[derive(Serialize)]
-                struct Repr<'a> {
-                    crv: &'a str,
-                    kty: &'a str,
-                    x: Base64UrlEncodedField<$inner>,
-                    y: Base64UrlEncodedField<$inner>,
-                    d: Base64UrlEncodedField<$inner>,
-                }
-
-                use elliptic_curve::sec1::ToEncodedPoint;
-                let point = key.public_key().to_encoded_point(false);
-                let x = point.x().map(AsRef::as_ref).unwrap_or(&[0u8][..]);
-                let y = point.y().map(AsRef::as_ref).unwrap_or(&[0u8][..]);
-
-                let repr = Repr {
-                    crv: $curve,
-                    kty: $key_type,
-                    x: Base64UrlEncodedField(*GenericArray::from_slice(x)),
-                    y: Base64UrlEncodedField(*GenericArray::from_slice(y)),
-                    d: Base64UrlEncodedField(key.to_be_bytes()),
-                };
-
-                repr.serialize(serializer)
-            }
-        }
-    };
-}
-
-impl_serde_ec!(P256PublicKey, P256PrivateKey, "P-256", "EC", NistP256);
-impl_serde_ec!(P384PublicKey, P384PrivateKey, "P-384", "EC", NistP384);
-impl_serde_ec!(
-    Secp256k1PublicKey,
-    Secp256k1PrivateKey,
-    "secp256k1",
-    "EC",
-    Secp256k1
-);
-
-macro_rules! ec_signer {
-    ($(#[$meta:meta])* $name:ident, $priv:ty, $crv:ty, $alg:stmt, $($pattern:pat_param)+) => {
-        $(#[$meta])*
-        #[derive(Debug)]
-        pub struct $name(SigningKey<$crv>);
-        impl JwsSigner<Signature<$crv>> for $name {
-            fn sign(&mut self, msg: &[u8]) -> Result<Signature<$crv>, signature::Error> {
-                Signer::try_sign(&self.0, msg)
-            }
-
-            fn algorithm(&self) -> JsonWebSigningAlgorithm {
-                $alg
-            }
-        }
-
-        impl FromKey<$priv, Signature<$crv>> for $name {
-            type Error = InvalidSigningAlgorithmError;
-            fn from_key(key: $priv, alg: JsonWebSigningAlgorithm) -> Result<$name, InvalidSigningAlgorithmError> {
-                let key: SigningKey<$crv> = key.0.into();
-                match alg {
-                    $($pattern)+ => Ok(Self(key)),
-                    _ => Err(InvalidSigningAlgorithmError),
-                }
-            }
-        }
-    };
-}
-
-ec_signer!(
-    /// A [`Signer`](crate::sign::Signer) using a [`P256PrivateKey`]
-    P256Signer,
-    P256PrivateKey,
-    NistP256,
-    JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256),
-    JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256)
-);
-
-ec_signer!(
-    /// A [`Signer`](crate::sign::Signer) using a [`P384PrivateKey`]
-    P384Signer,
-    P384PrivateKey,
-    NistP384,
-    JsonWebSigningAlgorithm::EcDSA(EcDSA::Es384),
-    JsonWebSigningAlgorithm::EcDSA(EcDSA::Es384)
-);

@@ -1,20 +1,24 @@
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 
 use super::{
-    ec::{EcPrivate, P256Signer, P384Signer},
+    ec::{p256::P256Signer, p384::P384Signer, EcPrivate},
     symmetric::{FromOctetSequenceError, Hs256Signer, Hs384Signer, Hs512Signer},
     AsymmetricJsonWebKey, JsonWebKeyType, Private, SymmetricJsonWebKey,
 };
 use crate::{
     jwa::{EcDSA, Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
+    jws::{IntoSigner, InvalidSigningAlgorithmError, Signer},
     policy::Checked,
-    IntoSigner, InvalidSigningAlgorithmError, JsonWebKey, Signer,
+    JsonWebKey,
 };
 
 /// An abstract [`Signer`] over all possible [key types](JsonWebKeyType)
 // FIXME: make PR to dependencies to we can derive C-COMMON-TRAITS
 #[derive(Debug)]
-pub struct JwkSigner(InnerSigner);
+pub struct JwkSigner {
+    inner: InnerSigner,
+    key_id: Option<String>,
+}
 
 impl JwkSigner {
     /// Create a [`JwkSigner`] from a [`JsonWebKeyType`] used with the provided
@@ -56,35 +60,38 @@ impl JwkSigner {
     /// # }
     /// ```
     pub fn new(key: JsonWebKeyType, alg: JsonWebSigningAlgorithm) -> Result<Self, FromJwkError> {
-        Ok(Self(match key {
-            JsonWebKeyType::Asymmetric(key) => match *key {
-                AsymmetricJsonWebKey::Public(_) => Err(FromJwkError::NoPrivateKey)?,
-                AsymmetricJsonWebKey::Private(key) => match key {
-                    Private::Ec(key) => match key {
-                        EcPrivate::P256(key) => InnerSigner::Es256(key.into_signer(alg)?),
-                        EcPrivate::P384(key) => InnerSigner::Es384(key.into_signer(alg)?),
-                        EcPrivate::Secp256k1(_) => todo!(),
+        Ok(Self {
+            key_id: None,
+            inner: match key {
+                JsonWebKeyType::Asymmetric(key) => match *key {
+                    AsymmetricJsonWebKey::Public(_) => Err(FromJwkError::NoPrivateKey)?,
+                    AsymmetricJsonWebKey::Private(key) => match key {
+                        Private::Ec(key) => match key {
+                            EcPrivate::P256(key) => InnerSigner::Es256(key.into_signer(alg)?),
+                            EcPrivate::P384(key) => InnerSigner::Es384(key.into_signer(alg)?),
+                            EcPrivate::Secp256k1(_) => todo!(),
+                        },
+                        Private::Rsa(_) => todo!(),
                     },
-                    Private::Rsa(_) => todo!(),
+                },
+                JsonWebKeyType::Symmetric(key) => match key {
+                    SymmetricJsonWebKey::OctetSequence(ref key) => match alg {
+                        JsonWebSigningAlgorithm::Hmac(hs) => match hs {
+                            Hmac::Hs256 => InnerSigner::Hs256(key.into_signer(alg)?),
+                            Hmac::Hs384 => InnerSigner::Hs384(key.into_signer(alg)?),
+                            Hmac::Hs512 => InnerSigner::Hs512(key.into_signer(alg)?),
+                        },
+                        _ => Err(InvalidSigningAlgorithmError)?,
+                    },
                 },
             },
-            JsonWebKeyType::Symmetric(key) => match key {
-                SymmetricJsonWebKey::OctetSequence(ref key) => match alg {
-                    JsonWebSigningAlgorithm::Hmac(hs) => match hs {
-                        Hmac::Hs256 => InnerSigner::Hs256(key.into_signer(alg)?),
-                        Hmac::Hs384 => InnerSigner::Hs384(key.into_signer(alg)?),
-                        Hmac::Hs512 => InnerSigner::Hs512(key.into_signer(alg)?),
-                    },
-                    _ => Err(InvalidSigningAlgorithmError)?,
-                },
-            },
-        }))
+        })
     }
 }
 
 impl Signer<Vec<u8>> for JwkSigner {
     fn sign(&mut self, msg: &[u8]) -> Result<Vec<u8>, signature::Error> {
-        match &mut self.0 {
+        match &mut self.inner {
             InnerSigner::Hs256(signer) => signer.sign(msg).map(|v| v.into_iter().collect()),
             InnerSigner::Hs384(signer) => signer.sign(msg).map(|v| v.into_iter().collect()),
             InnerSigner::Hs512(signer) => signer.sign(msg).map(|v| v.into_iter().collect()),
@@ -94,13 +101,17 @@ impl Signer<Vec<u8>> for JwkSigner {
     }
 
     fn algorithm(&self) -> JsonWebSigningAlgorithm {
-        match self.0 {
+        match self.inner {
             InnerSigner::Hs256(_) => JsonWebSigningAlgorithm::Hmac(Hmac::Hs256),
             InnerSigner::Hs384(_) => JsonWebSigningAlgorithm::Hmac(Hmac::Hs384),
             InnerSigner::Hs512(_) => JsonWebSigningAlgorithm::Hmac(Hmac::Hs512),
             InnerSigner::Es256(_) => JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256),
             InnerSigner::Es384(_) => JsonWebSigningAlgorithm::EcDSA(EcDSA::Es384),
         }
+    }
+
+    fn key_id(&self) -> Option<&str> {
+        self.key_id.as_deref()
     }
 }
 

@@ -77,44 +77,9 @@ pub enum JsonWebSigningAlgorithm {
     None,
 }
 
-// FIXME: move to extra file
-macro_rules! impl_serde {
-    ($T:ty, [
-        $($name:literal => $val:expr; $valp:pat,)*
-        err: $err:ident => $get_err:expr, $(,)?
-    ]) => {
-        impl<'de> Deserialize<'de> for $T {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                let name = <&str as serde::Deserialize>::deserialize(deserializer)?;
-
-                Ok(match name {
-                    $($name => $val,)*
-                    $err => return Err(<D::Error as serde::de::Error>::custom($get_err)),
-                })
-            }
-        }
-
-        impl Serialize for $T {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-            where
-                S: serde::Serializer,
-            {
-                let name = match self {
-                    $($valp => $name,)*
-                };
-                <&str as serde::Serialize>::serialize(&name, serializer)
-            }
-        }
-
-    };
-}
-
 // don't judge this macro please.
 // its ugly but it works
-impl_serde!(
+impl_serde_jwa!(
     JsonWebSigningAlgorithm,
     [
         "HS256" => Self::Hmac(Hmac::Hs256); Self::Hmac(Hmac::Hs256),
@@ -128,6 +93,7 @@ impl_serde!(
         "ES256" => Self::EcDSA(EcDSA::Es256); Self::EcDSA(EcDSA::Es256),
         "ES384" => Self::EcDSA(EcDSA::Es384); Self::EcDSA(EcDSA::Es384),
         "ES512" => Self::EcDSA(EcDSA::Es512); Self::EcDSA(EcDSA::Es512),
+        "ES256K" => Self::EcDSA(EcDSA::Es256K); Self::EcDSA(EcDSA::Es256K),
 
         "EdDSA" => Self::EdDSA; Self::EdDSA,
 
@@ -174,7 +140,7 @@ pub enum JsonWebEncryptionAlgorithm {
     Pbes2(Pbes2),
 }
 
-impl_serde!(
+impl_serde_jwa!(
     JsonWebEncryptionAlgorithm,
     [
         "RSA1_5" => Self::Rsa1_5; Self::Rsa1_5,
@@ -216,7 +182,7 @@ pub enum JsonWebContentEncryptionAlgorithm {
     AesGcm(AesGcm),
 }
 
-impl_serde!(
+impl_serde_jwa!(
     JsonWebContentEncryptionAlgorithm,
     [
         "A128CBC-HS256" => Self::AesCbcHs(AesCbcHs::Aes128CbcHs256); Self::AesCbcHs(AesCbcHs::Aes128CbcHs256),

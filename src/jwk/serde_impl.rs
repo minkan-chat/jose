@@ -91,7 +91,7 @@ where
     deserialize_ga::<_, 32>(deserializer)
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub(crate) struct Base64DerCertificate(pub Vec<u8>);
 
 impl<'de> Deserialize<'de> for Base64DerCertificate {

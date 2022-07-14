@@ -7,34 +7,7 @@ use serde::{
 };
 use serde_value::Value;
 
-macro_rules! impl_internally_tagged_deserialize {
-    ($T:ty, $tag:literal, $expecting:literal, [$($name:literal => $i:ident),* $(,)?]) => {
-        #[allow(warnings)]
-        impl<'de> serde::Deserialize<'de> for $T {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                #[derive(Clone, Copy, Deserialize)]
-                enum Tag {
-                    $(#[serde(rename = $name)]
-                    $i,)*
-                }
 
-                let tagged =
-                    deserializer.deserialize_any(TaggedContentVisitor::new($tag, $expecting))?;
-
-                match tagged.tag {
-                    $(Tag::$i => Deserialize::deserialize(tagged.content).map(<$T>::$i),)*
-                    //Tag::P256 => Deserialize::deserialize(tagged.content).map(Self::P256),
-                    //Tag::P384 => Deserialize::deserialize(tagged.content).map(Self::P384),
-                    //Tag::Secp256k1 => Deserialize::deserialize(tagged.content).map(Self::Secp256k1),
-                }
-                .map_err(|x| x.into_error())
-            }
-        }
-    };
-}
 
 pub(crate) struct TaggedContent<T> {
     pub tag: T,

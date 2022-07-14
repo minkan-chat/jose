@@ -22,16 +22,14 @@
 
 extern crate alloc;
 
-mod sign;
-pub use sign::*;
-
-mod verify;
-pub use verify::*;
+#[macro_use]
+mod macros;
 
 pub(crate) mod base64_url;
 pub(crate) mod borrowable;
 #[macro_use]
 pub(crate) mod tagged_visitor;
+pub(crate) mod sealed;
 
 pub mod format;
 pub mod jwa;

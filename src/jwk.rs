@@ -8,11 +8,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
+    jws::IntoSigner,
     policy::{Checkable, Checked, Policy},
-    IntoSigner,
 };
 
 mod asymmetric;
+#[macro_use]
 pub mod ec;
 mod key_ops;
 mod key_use;
@@ -161,7 +162,7 @@ pub use self::{
 /// [RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517>
 /// [section 6 of RFC 7518]: <https://datatracker.ietf.org/doc/html/rfc7518#section-6>
 /// [IANA `Json Web Key Parameters` registry]: <https://www.iana.org/assignments/jose/jose.xhtml#web-key-parameters>
-#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone)]
 pub struct JsonWebKey<T = ()> {
     /// `kty` parameter section 4.1
     /// Note that the [`JsonWebKeyType`] enum does way more than just
@@ -342,7 +343,7 @@ impl<T> JsonWebKey<T> {
 impl<T, P> IntoSigner<JwkSigner, Vec<u8>> for Checked<JsonWebKey<T>, P> {
     type Error = <JwkSigner as TryFrom<Self>>::Error;
 
-    /// Turn a [`JsonWebKey`] into a [`Signer`](crate::sign::Signer) by
+    /// Turn a [`JsonWebKey`] into a [`Signer`](crate::jws::Signer) by
     /// overwriting [`JsonWebKey::algorithm`] with `alg`
     fn into_signer(self, alg: JsonWebSigningAlgorithm) -> Result<JwkSigner, Self::Error> {
         JwkSigner::new(self.into_type().key_type, alg)

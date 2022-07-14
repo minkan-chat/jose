@@ -4,8 +4,8 @@ use jose::{
         ec::{EcPrivate, EcPublic},
         AsymmetricJsonWebKey, JsonWebKey, JsonWebKeyType, JwkSigner, Private, Public,
     },
+    jws::Signer,
     policy::{Checkable, Checked, StandardPolicy},
-    Signer,
 };
 
 fn read_key_file(name: &str) -> String {

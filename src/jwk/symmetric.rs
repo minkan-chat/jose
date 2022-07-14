@@ -70,8 +70,7 @@ use sha2::{Sha256, Sha384, Sha512};
 
 use crate::{
     jwa::{Hmac as Hs, JsonWebSigningAlgorithm},
-    sign::{FromKey, InvalidSigningAlgorithmError},
-    Signer,
+    jws::{FromKey, InvalidSigningAlgorithmError, Signer},
 };
 
 /// An error that can occur then creating [`Hs256Signer`], [`Hs384Signer`] or
@@ -86,52 +85,7 @@ pub enum FromOctetSequenceError {
     InvalidLength(#[from] InvalidLength),
 }
 
-macro_rules! hs_signer {
-    ($(#[$meta:meta])* $name:ident, $hash:ty, $alg:expr, $expected:pat_param) => {
-        $(#[$meta])*
-        #[derive(Debug)]
-        pub struct $name {
-            key: Hmac<$hash>,
-        }
 
-        impl Signer<Output<Hmac<$hash>>> for $name {
-            fn sign(&mut self, msg: &[u8]) -> Result<Output<Hmac<$hash>>, signature::Error> {
-                self.key.update(msg);
-                Ok(self.key.finalize_reset().into_bytes())
-            }
-
-            fn algorithm(&self) -> JsonWebSigningAlgorithm {
-                JsonWebSigningAlgorithm::Hmac($alg)
-            }
-        }
-
-        impl FromKey<&'_ OctetSequence, Output<Hmac<$hash>>> for $name {
-            type Error = FromOctetSequenceError;
-
-            fn from_key(
-                key: &'_ OctetSequence,
-                alg: JsonWebSigningAlgorithm,
-            ) -> Result<$name, FromOctetSequenceError> {
-                match alg {
-                    JsonWebSigningAlgorithm::Hmac($expected) => {
-                        let key: Hmac<$hash> = Hmac::new_from_slice(&key.0)?;
-                        Ok(Self { key })
-                    }
-                    _ => Err(InvalidSigningAlgorithmError.into()),
-                }
-            }
-        }
-
-        impl TryFrom<&'_ OctetSequence> for $name {
-            type Error = InvalidLength;
-
-            fn try_from(key: &'_ OctetSequence) -> Result<Self, Self::Error> {
-                let key: Hmac<$hash> = Hmac::new_from_slice(&key.0)?;
-                Ok(Self { key })
-            }
-        }
-    };
-}
 
 hs_signer!(
     /// A [`Signer`] using [`Hs256`](Hs::Hs256) with a [`OctetSequence`]

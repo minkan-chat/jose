@@ -1,15 +1,8 @@
-use alloc::string::String;
-
+use super::JsonWebSignatureValue;
 use crate::{
     format::{AppendSignature, IntoFormat},
     jwa::JsonWebSigningAlgorithm,
 };
-
-pub(crate) mod sealed {
-    pub trait Sealed {
-        type Value;
-    }
-}
 
 /// This type indicates that the inner value is signed using a [signing
 /// algorithm].
@@ -21,42 +14,25 @@ pub(crate) mod sealed {
 ///
 /// [signing algorithm]: crate::jwa::JsonWebSigningAlgorithm
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub struct Signed<T: sealed::Sealed, S> {
-    pub(crate) value: T::Value,
+pub struct Signed<S> {
+    pub(crate) value: JsonWebSignatureValue,
     pub(crate) signature: S,
 }
 
-impl<T: sealed::Sealed, S: AsRef<[u8]>> Signed<T, S> {
+impl<S: AsRef<[u8]>> Signed<S> {
     /// Encodes this signed value into the given format (`F`).
     ///
     /// Available formats are [`JsonFlattened`](crate::format::JsonFlattened)
     /// and [`Compact`](crate::format::Compact).
     pub fn encode<F>(self) -> F
     where
-        T::Value: IntoFormat<F>,
         F: AppendSignature,
+        JsonWebSignatureValue: IntoFormat<F>,
     {
-        let mut format = self.value.into_format();
+        let mut format: F = self.value.into_format();
         format.append_signature(self.signature.as_ref());
         format
     }
-}
-
-/// Implemented for anything that can be using a [`Signer`].
-pub trait Signable: Sized + sealed::Sealed {
-    /// The error that can occurr while signing.
-    type Error;
-
-    /// Sign `self` using the given signer and return a [signed](Signed) version
-    /// of `self`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the signing operation fails.
-    fn sign<S: AsRef<[u8]>>(
-        self,
-        signer: &mut dyn Signer<S>,
-    ) -> Result<Signed<Self, S>, Self::Error>;
 }
 
 /// This trait represents anything that can be used to sign a JWS, JWE, or
@@ -83,7 +59,7 @@ pub trait Signer<S: AsRef<[u8]>> {
 
     /// JsonWebSignatures *can* contain a key id which is specified
     /// by this method.
-    fn key_id(&self) -> Option<String> {
+    fn key_id(&self) -> Option<&str> {
         None
     }
 }

@@ -16,9 +16,15 @@ use thiserror_no_std::Error;
 use crate::{
     format::{Compact, FromFormat, IntoFormat, JsonFlattened},
     jwa::JsonWebSigningAlgorithm,
-    sign::{Signable, Signer},
-    Signed, Unverified,
+    sealed::Sealed,
+    JsonWebKey,
 };
+
+mod sign;
+mod verify;
+
+#[doc(inline)]
+pub use {sign::*, verify::*};
 
 // FIXME: check section 5.3. (string comparison) and verify correctness
 // FIXME: Appendix F: Detached Content
@@ -104,10 +110,11 @@ pub enum SignError<P> {
 ///
 /// The `T` type indicates the payload that will be put into this JWS.
 ///
-/// When signing a [`JsonWebSignature`] using the [`Signable::sign`] method
-/// the `signing_algorithm` field (and optionally the `key_id` field if present)
-/// inside the header will be overwritten with the values from the new key
-/// given as an argument to the `sign` method.
+/// When signing a [`JsonWebSignature`] using the
+/// [`sign`](JsonWebSignature::sign) method the `signing_algorithm` field (and
+/// optionally the `key_id` field if present) inside the header will be
+/// overwritten with the values from the new key given as an argument to the
+/// `sign` method.
 #[derive(Debug)]
 pub struct JsonWebSignature<T, H = ()> {
     header: JoseHeader<H>,
@@ -266,7 +273,6 @@ pub enum ParseCompactError<P> {
     Payload(P),
 }
 
-impl<T: Payload, H: DeserializeOwned> crate::format::sealed::Sealed for JsonWebSignature<T, H> {}
 impl<T: Payload, H: DeserializeOwned> FromFormat<Compact> for JsonWebSignature<T, H> {
     type Error = ParseCompactError<T::FromError>;
 
@@ -314,30 +320,34 @@ impl<T: Payload, H: DeserializeOwned> FromFormat<Compact> for JsonWebSignature<T
 ///
 /// Cached value of the header and payload both
 /// stores as Base64Url strings.
-#[doc(hidden)]
-#[derive(Debug)]
+//#[doc(hidden)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct JsonWebSignatureValue {
     header: String,
     payload: String,
 }
 
-impl<T: Payload, H: Serialize> crate::sign::sealed::Sealed for JsonWebSignature<T, H> {
-    type Value = JsonWebSignatureValue;
-}
+impl Sealed for JsonWebSignatureValue {}
+impl<T, H> Sealed for JsonWebSignature<T, H> {}
 
-impl<T: Payload, H: Serialize> Signable for JsonWebSignature<T, H>
+impl<T: Payload, H: Serialize> JsonWebSignature<T, H>
 where
     T: Payload,
     H: Serialize,
 {
-    type Error = SignError<T::IntoError>;
-
-    fn sign<S: AsRef<[u8]>>(
+    /// Create a signature over the contents of this [`JsonWebSignature`] with
+    /// the given [`Signer`]
+    ///
+    /// # Errors
+    ///
+    ///  This method returns an error if the serialization of the header `H`
+    /// fails or if the [`Signer`] returns an error.
+    pub fn sign<S: AsRef<[u8]>>(
         mut self,
         signer: &mut dyn Signer<S>,
-    ) -> Result<Signed<Self, S>, Self::Error> {
+    ) -> Result<Signed<S>, SignError<T::IntoError>> {
         self.header.signing_algorithm = signer.algorithm();
-        self.header.key_id = signer.key_id();
+        self.header.key_id = signer.key_id().map(|s| s.to_string());
 
         let header = serde_json::to_value(&self.header).map_err(SignError::SerializeHeader)?;
         let header = Base64UrlUnpadded::encode_string(header.to_string().as_bytes());
@@ -354,8 +364,6 @@ where
         })
     }
 }
-
-impl crate::format::sealed::Sealed for JsonWebSignatureValue {}
 
 impl IntoFormat<Compact> for JsonWebSignatureValue {
     fn into_format(self) -> Compact {
@@ -411,7 +419,7 @@ pub struct JoseHeader<T = ()> {
     /// This is serialized as `jwk`.
     #[serde(rename = "jwk", skip_serializing_if = "Option::is_none")]
     // FIXME: replace `String` with `JsonWebKey`
-    json_web_key: Option<String>,
+    json_web_key: Option<JsonWebKey>,
     /// Hint indicating which key was used to secure the JWS.
     ///
     /// This is serialized as `kid`.

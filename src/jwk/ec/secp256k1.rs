@@ -4,8 +4,25 @@ use k256::Secp256k1;
 
 /// A secp256k1 public key used to verify signatures and/or encrypt
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Secp256k1PublicKey(pub(super) PublicKey<Secp256k1>);
+pub struct Secp256k1PublicKey(PublicKey<Secp256k1>);
 
 /// A secp256k1 private key used to create signatures and/or decrypt
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Secp256k1PrivateKey(pub(super) SecretKey<Secp256k1>);
+pub struct Secp256k1PrivateKey(SecretKey<Secp256k1>);
+
+impl_serde_ec!(
+    Secp256k1PublicKey,
+    Secp256k1PrivateKey,
+    "secp256k1",
+    "EC",
+    Secp256k1
+);
+
+ec_signer!(
+    /// A [`Signer`](crate::jws::Signer) using a [`Secp256k1PrivateKey`]
+    Secp256k1Signer,
+    Secp256k1PrivateKey,
+    Secp256k1,
+    crate::jwa::JsonWebSigningAlgorithm::EcDSA(crate::jwa::EcDSA::Es256K),
+    crate::jwa::JsonWebSigningAlgorithm::EcDSA(crate::jwa::EcDSA::Es256K)
+);

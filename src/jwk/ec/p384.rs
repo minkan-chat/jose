@@ -5,8 +5,19 @@ use p384::NistP384;
 
 /// A P-384 public key used to verify signatures and/or encrypt
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct P384PublicKey(pub(super) PublicKey<NistP384>);
+pub struct P384PublicKey(PublicKey<NistP384>);
 
 /// A P-384 private key used to create signatures and/or decrypt
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct P384PrivateKey(pub(super) SecretKey<NistP384>);
+pub struct P384PrivateKey(SecretKey<NistP384>);
+
+impl_serde_ec!(P384PublicKey, P384PrivateKey, "P-384", "EC", NistP384);
+
+ec_signer!(
+    /// A [`Signer`](crate::jws::Signer) using a [`P384PrivateKey`]
+    P384Signer,
+    P384PrivateKey,
+    NistP384,
+    crate::jwa::JsonWebSigningAlgorithm::EcDSA(crate::jwa::EcDSA::Es384),
+    crate::jwa::JsonWebSigningAlgorithm::EcDSA(crate::jwa::EcDSA::Es384)
+);
