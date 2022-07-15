@@ -13,7 +13,6 @@ use crate::{
 };
 
 mod asymmetric;
-#[macro_use]
 pub mod ec;
 mod key_ops;
 mod key_use;
