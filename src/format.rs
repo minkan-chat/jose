@@ -43,17 +43,19 @@ pub trait IntoFormat<F>: Sealed {
 ///
 /// This trait can be ignored for any user of the crate as it is
 /// only used for internal workings of the crate.
-pub trait AppendSignature {
+pub trait AppendSignature: Sealed {
     #[doc(hidden)]
     fn append_signature(&mut self, sig: &[u8]);
 }
 
+impl Sealed for Compact {}
 impl AppendSignature for Compact {
     fn append_signature(&mut self, sig: &[u8]) {
         self.push(sig);
     }
 }
 
+impl Sealed for JsonFlattened {}
 impl AppendSignature for JsonFlattened {
     fn append_signature(&mut self, sig: &[u8]) {
         let sig = Base64UrlUnpadded::encode_string(sig);
