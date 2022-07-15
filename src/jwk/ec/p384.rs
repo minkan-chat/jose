@@ -13,11 +13,14 @@ pub struct P384PrivateKey(SecretKey<NistP384>);
 
 impl_serde_ec!(P384PublicKey, P384PrivateKey, "P-384", "EC", NistP384);
 
-ec_signer!(
+impl_ec!(
     /// A [`Signer`](crate::jws::Signer) using a [`P384PrivateKey`]
     P384Signer,
     P384PrivateKey,
     NistP384,
     crate::jwa::JsonWebSigningAlgorithm::EcDSA(crate::jwa::EcDSA::Es384),
-    crate::jwa::JsonWebSigningAlgorithm::EcDSA(crate::jwa::EcDSA::Es384)
+    crate::jwa::JsonWebSigningAlgorithm::EcDSA(crate::jwa::EcDSA::Es384),
+    /// A [`Verifier`](crate::jws::Verifier) using a [`P384PublicKey`]
+    P384Verifier,
+    P384PublicKey
 );

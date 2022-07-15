@@ -1,26 +1,7 @@
 use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
-use thiserror_no_std::Error;
-
 use crate::format::FromFormat;
-
-pub(crate) mod sealed {
-    pub trait Sealed {}
-}
-
-/// Error type returned for the `verify` operation.
-#[derive(Debug, Error)]
-pub enum VerifyError {
-    /// Indicating that the signature does not correspond to the message.
-    #[error("invalid signature")]
-    InvalidSignature,
-    /// Failed to verify message because of unexpected reason.
-    ///
-    /// This may occurr when communication to a HSM fails.
-    #[error(transparent)]
-    Other(signature::Error),
-}
 
 /// This trait represents anything that can be used to verify a JWS, JWE, or
 /// whatever.
@@ -31,10 +12,9 @@ pub trait Verifier {
     ///
     /// # Errors
     ///
-    /// Returns [`VerifyError::InvalidSignature`] if the signature did not
-    /// match, or [`VerifyError::Other`] if communication to an external
-    /// verifier failed, or some other error occurred.
-    fn verify(&self, msg: &[u8], signature: &[u8]) -> Result<(), VerifyError>;
+    /// Returns [`signature::Error`] if anything went wrong during signature
+    /// verification or if the signature is just invalid.
+    fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<(), signature::Error>;
 }
 
 /// This wrapper type represents any type that was parsed from user input,
@@ -69,10 +49,9 @@ impl<T> Unverified<T> {
     ///
     /// # Errors
     ///
-    /// Returns [`VerifyError::InvalidSignature`] if the signature did not
-    /// match, or [`VerifyError::Other`] if communication to an external
-    /// verifier failed, or some other error occurred.
-    pub fn verify(self, verifier: &dyn Verifier) -> Result<Verified<T>, VerifyError> {
+    /// Returns [`signature::Error`] if anything went wrong during signature
+    /// verification or if the signature is just invalid.
+    pub fn verify(self, verifier: &mut dyn Verifier) -> Result<Verified<T>, signature::Error> {
         verifier.verify(&self.msg, &self.signature)?;
         Ok(Verified(self.value))
     }

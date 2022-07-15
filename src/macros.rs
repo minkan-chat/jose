@@ -1,11 +1,14 @@
-macro_rules! ec_signer {
-    ($(#[$meta:meta])* $name:ident, $priv:ty, $crv:ty, $alg:stmt, $($pattern:pat_param)+) => {
+macro_rules! impl_ec {
+    ($(#[$meta:meta])* $signer:ident, $priv:ty, $crv:ty, $alg:stmt, $($pattern:pat_param)+,
+    $(#[$verifier_meta:meta])*
+    $verifier:ident,
+    $public:ty) => {
         $(#[$meta])*
         #[derive(Debug)]
         #[allow(unused_qualifications)]
-        pub struct $name(ecdsa::SigningKey<$crv>);
+        pub struct $signer(ecdsa::SigningKey<$crv>);
         #[allow(unused_qualifications)]
-        impl crate::jws::Signer<ecdsa::Signature<$crv>> for $name {
+        impl crate::jws::Signer<ecdsa::Signature<$crv>> for $signer {
             fn sign(&mut self, msg: &[u8]) -> Result<ecdsa::Signature<$crv>, signature::Error> {
                 signature::Signer::try_sign(&self.0, msg)
             }
@@ -16,9 +19,9 @@ macro_rules! ec_signer {
         }
 
         #[allow(unused_qualifications)]
-        impl crate::jws::FromKey<$priv, ecdsa::Signature<$crv>> for $name {
+        impl crate::jws::FromKey<$priv, ecdsa::Signature<$crv>> for $signer {
             type Error = crate::jws::InvalidSigningAlgorithmError;
-            fn from_key(key: $priv, alg: crate::jwa::JsonWebSigningAlgorithm) -> Result<$name, crate::jws::InvalidSigningAlgorithmError> {
+            fn from_key(key: $priv, alg: crate::jwa::JsonWebSigningAlgorithm) -> Result<$signer, crate::jws::InvalidSigningAlgorithmError> {
                 let key: ecdsa::SigningKey<$crv> = key.0.into();
                 match alg {
                     $($pattern)+ => Ok(Self(key)),
@@ -26,6 +29,21 @@ macro_rules! ec_signer {
                 }
             }
         }
+
+        $(#[$verifier_meta])*
+        #[derive(Debug)]
+        #[allow(unused_qualifications)]
+        pub struct $verifier(ecdsa::VerifyingKey<$crv>);
+
+        #[allow(unused_qualifications)]
+        impl crate::jws::Verifier for $verifier {
+            fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<(), signature::Error> {
+                let signature: ecdsa::Signature<$crv> = signature.try_into()?;
+                signature::Verifier::verify(&self.0, msg, &signature)
+            }
+        }
+
+        // TODO: implement something like the FromKey trait
     };
 }
 
