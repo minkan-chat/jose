@@ -30,7 +30,7 @@ impl Signer<&'static [u8]> for NoneKey {
 
 struct NoneVerifier;
 impl Verifier for NoneVerifier {
-    fn verify(&self, _: &[u8], _: &[u8]) -> Result<(), jose::jws::VerifyError> {
+    fn verify(&mut self, _: &[u8], _: &[u8]) -> Result<(), signature::Error> {
         Ok(())
     }
 }
@@ -79,7 +79,7 @@ fn verify() {
 
     let jws = Unverified::<JWS<String>>::decode(input)
         .unwrap()
-        .verify(&NoneVerifier)
+        .verify(&mut NoneVerifier)
         .unwrap();
     dbg!(jws);
 }
