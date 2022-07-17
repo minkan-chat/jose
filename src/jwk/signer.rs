@@ -87,6 +87,28 @@ impl JwkSigner {
             },
         })
     }
+
+    /// Sets the key id for this [`Signer`].
+    ///
+    /// If this method is used, the [`kid`] header of the signed JWS will be set
+    /// to the given key id.
+    ///
+    /// [`kid`]: https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.4
+    pub fn with_key_id(mut self, key_id: String) -> Self {
+        self.key_id = Some(key_id);
+        self
+    }
+
+    /// Sets the key id of this signer to `None`.
+    ///
+    /// Calling this method will result to omitting the [`kid`] header in the
+    /// signed JWS header.
+    ///
+    /// [`kid`]: https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.4
+    pub fn without_key_id(mut self) -> Self {
+        self.key_id = None;
+        self
+    }
 }
 
 impl Signer<Vec<u8>> for JwkSigner {
