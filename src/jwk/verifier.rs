@@ -84,7 +84,7 @@ impl Verifier for JwkVerifier {
 impl<T, P> TryFrom<Checked<JsonWebKey<T>, P>> for JwkVerifier {
     type Error = FromJwkError;
 
-    /// Crate a [`JwkVerifier`] from a [`JsonWebKey`]
+    /// Create a [`JwkVerifier`] from a [`JsonWebKey`]
     ///
     /// # Errors
     ///
