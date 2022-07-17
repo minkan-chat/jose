@@ -132,7 +132,7 @@ impl<T, P> TryFrom<Checked<JsonWebKey<T>, P>> for JwkSigner {
         JwkSigner::new(jwk.key_type, alg)
     }
 }
-/// An error returned when creating a [`JwkSigner`] form a [`JsonWebKeyType`]
+/// An error returned when creating a [`JwkSigner`] from a [`JsonWebKeyType`]
 /// (or indirectly via [`JsonWebKey`])
 #[derive(Debug, thiserror_no_std::Error)]
 #[non_exhaustive]
