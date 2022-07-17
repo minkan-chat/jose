@@ -1,7 +1,11 @@
 use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
-use crate::format::FromFormat;
+use crate::{
+    format::FromFormat,
+    jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
+    jwk::FromKey,
+};
 
 /// This trait represents anything that can be used to verify a JWS, JWE, or
 /// whatever.
@@ -79,5 +83,35 @@ impl<T> Deref for Verified<T> {
 impl<T> DerefMut for Verified<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+/// A trait to turn something into a [`Verifier`]
+///
+/// Some key types like the [`Rsa`](crate::jwk::rsa::RsaPublicKey) key type need
+/// to know which [algorithm](JsonWebSigningAlgorithm) to use.
+pub trait IntoVerifier<V>
+where
+    V: Verifier,
+{
+    /// The error returned if the conversion failed
+    type Error;
+
+    /// Turn `self` into the [`Verifier`] `V`
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the conversion failed
+    fn into_verifier(self, alg: JsonWebSigningAlgorithm) -> Result<V, Self::Error>;
+}
+
+impl<K, V> IntoVerifier<V> for K
+where
+    V: FromKey<K> + Verifier,
+{
+    type Error = <V as FromKey<K>>::Error;
+
+    fn into_verifier(self, alg: JsonWebSigningAlgorithm) -> Result<V, Self::Error> {
+        V::from_key(self, JsonWebAlgorithm::Signing(alg))
     }
 }

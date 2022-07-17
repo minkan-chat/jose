@@ -1,7 +1,8 @@
 use super::JsonWebSignatureValue;
 use crate::{
     format::{AppendSignature, IntoFormat},
-    jwa::JsonWebSigningAlgorithm,
+    jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
+    jwk::FromKey,
 };
 
 /// This type indicates that the inner value is signed using a [signing
@@ -70,23 +71,6 @@ pub trait Signer<S: AsRef<[u8]>> {
 #[error("Invalid algorithm")]
 pub struct InvalidSigningAlgorithmError;
 
-/// A trait for a [`Signer`] to implement if it can be created from key material
-/// as long as the algorithm is known
-pub trait FromKey<K, S>: Signer<S> + Sized
-where
-    S: AsRef<[u8]>,
-{
-    /// The error returned if the conversion failed
-    type Error;
-
-    /// Turn `K` into this [`Signer`].
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the conversion failed
-    fn from_key(value: K, alg: JsonWebSigningAlgorithm) -> Result<Self, Self::Error>;
-}
-
 /// A trait to turn something into a [`Signer`].
 ///
 /// Some key types like the [`Rsa`](crate::jwk::rsa::RsaPrivateKey) key type
@@ -107,14 +91,14 @@ where
     fn into_signer(self, alg: JsonWebSigningAlgorithm) -> Result<T, Self::Error>;
 }
 
-impl<A, T, S> IntoSigner<T, S> for A
+impl<K, T, S> IntoSigner<T, S> for K
 where
-    T: FromKey<A, S>,
+    T: FromKey<K> + Signer<S>,
     S: AsRef<[u8]>,
 {
-    type Error = <T as FromKey<A, S>>::Error;
+    type Error = <T as FromKey<K>>::Error;
 
     fn into_signer(self, alg: JsonWebSigningAlgorithm) -> Result<T, Self::Error> {
-        T::from_key(self, alg)
+        T::from_key(self, JsonWebAlgorithm::Signing(alg))
     }
 }

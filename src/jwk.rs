@@ -23,6 +23,7 @@ pub mod rsa;
 mod serde_impl;
 mod signer;
 pub mod symmetric;
+mod verifier;
 use self::serde_impl::Base64DerCertificate;
 #[doc(inline)]
 pub use self::{
@@ -33,6 +34,7 @@ pub use self::{
     public::Public,
     signer::{FromJwkError, JwkSigner},
     symmetric::SymmetricJsonWebKey,
+    verifier::JwkVerifier,
 };
 
 /// A [`JsonWebKey`] is a [JSON Object](serde_json::Value::Object) representing
@@ -394,4 +396,20 @@ pub enum JsonWebKeyType {
     Symmetric(SymmetricJsonWebKey),
     /// An asymmetric cryptographic key
     Asymmetric(Box<AsymmetricJsonWebKey>),
+}
+
+/// A trait for a [`Signer`](crate::jws::Signer) or
+/// [`Verifier`](crate::jws::Verifier) to implement if it can be created from
+/// key material as long as the algorithm is known
+pub trait FromKey<K>: Sized {
+    /// The error returned if the conversion failed
+    type Error;
+
+    /// Turn `K` into this [`Signer`](crate::jws::Signer) or
+    /// [`Verifier`](crate::jws::Verifier).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the conversion failed
+    fn from_key(value: K, alg: JsonWebAlgorithm) -> Result<Self, Self::Error>;
 }

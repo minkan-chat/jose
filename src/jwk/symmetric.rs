@@ -70,7 +70,8 @@ use sha2::{Sha256, Sha384, Sha512};
 
 use crate::{
     jwa::{Hmac as Hs, JsonWebSigningAlgorithm},
-    jws::{FromKey, InvalidSigningAlgorithmError, Signer},
+    jwk::FromKey,
+    jws::{InvalidSigningAlgorithmError, Signer},
 };
 
 /// An error that can occur then creating [`Hs256Signer`], [`Hs384Signer`] or
@@ -85,6 +86,6 @@ pub enum FromOctetSequenceError {
     InvalidLength(#[from] InvalidLength),
 }
 
-hs_signer!(Hs256Signer, Sha256, Hs::Hs256);
-hs_signer!(Hs384Signer, Sha384, Hs::Hs384);
-hs_signer!(Hs512Signer, Sha512, Hs::Hs512);
+hs_impl!(Hs256Signer, Hs256Verifier, Sha256, Hs::Hs256);
+hs_impl!(Hs384Signer, Hs384Verifier, Sha384, Hs::Hs384);
+hs_impl!(Hs512Signer, Hs512Verifier, Sha512, Hs::Hs512);

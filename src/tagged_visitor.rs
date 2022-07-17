@@ -7,8 +7,6 @@ use serde::{
 };
 use serde_value::Value;
 
-
-
 pub(crate) struct TaggedContent<T> {
     pub tag: T,
     pub content: Value,

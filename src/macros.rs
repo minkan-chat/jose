@@ -19,12 +19,14 @@ macro_rules! impl_ec {
         }
 
         #[allow(unused_qualifications)]
-        impl crate::jws::FromKey<$priv, ecdsa::Signature<$crv>> for $signer {
+        impl crate::jwk::FromKey<$priv> for $signer {
             type Error = crate::jws::InvalidSigningAlgorithmError;
-            fn from_key(key: $priv, alg: crate::jwa::JsonWebSigningAlgorithm) -> Result<$signer, crate::jws::InvalidSigningAlgorithmError> {
-                let key: ecdsa::SigningKey<$crv> = key.0.into();
+            fn from_key(key: $priv, alg: crate::jwa::JsonWebAlgorithm) -> Result<$signer, crate::jws::InvalidSigningAlgorithmError> {
                 match alg {
-                    $($pattern)+ => Ok(Self(key)),
+                    crate::jwa::JsonWebAlgorithm::Signing($($pattern)+) => {
+                        let key: ecdsa::SigningKey<$crv> = key.0.into();
+                        Ok(Self(key))
+                    },
                     _ => Err(crate::jws::InvalidSigningAlgorithmError),
                 }
             }
@@ -43,7 +45,29 @@ macro_rules! impl_ec {
             }
         }
 
-        // TODO: implement something like the FromKey trait
+        impl crate::jwk::FromKey<$public> for $verifier {
+            type Error = crate::jws::InvalidSigningAlgorithmError;
+
+            fn from_key(key: $public, alg: crate::jwa::JsonWebAlgorithm) -> Result<$verifier, Self::Error> {
+                let key: ecdsa::VerifyingKey<$crv> = key.0.into();
+                match alg {
+                    crate::jwa::JsonWebAlgorithm::Signing($($pattern)+) => Ok(Self(key)),
+                    _ => Err(crate::jws::InvalidSigningAlgorithmError)
+                }
+            }
+        }
+
+        /// Create a [`Verifier`](crate::jws::Verifier) from the private key by turning it into the public key and dropping the private parts afterwards
+        impl crate::jwk::FromKey<$priv> for $verifier {
+            type Error = crate::jws::InvalidSigningAlgorithmError;
+            fn from_key(key: $priv, alg: crate::jwa::JsonWebAlgorithm) -> Result<$verifier, Self::Error> {
+                let key: ecdsa::VerifyingKey<$crv> = ecdsa::SigningKey::<$crv>::from(key.0).verifying_key();
+                match alg {
+                    crate::jwa::JsonWebAlgorithm::Signing($($pattern)+) => Ok(Self(key)),
+                    _ => Err(crate::jws::InvalidSigningAlgorithmError)
+                }
+            }
+        }
     };
 }
 
@@ -247,8 +271,8 @@ macro_rules! impl_internally_tagged_deserialize {
     };
 }
 
-macro_rules! hs_signer {
-    ($name:ident, $hash:ty, $alg1:ident::$alg2:ident) => {
+macro_rules! hs_impl {
+    ($name:ident, $verifier:ident, $hash:ty, $alg1:ident::$alg2:ident) => {
         #[doc = concat!("A [`Signer`](crate::jws::Signer) using a [`", stringify!($alg2), "`](", stringify!($alg1), "::", stringify!($alg2), ") with an [`OctetSequence`]")]
         #[derive(Debug)]
         pub struct $name {
@@ -266,19 +290,19 @@ macro_rules! hs_signer {
             }
         }
 
-        impl FromKey<&'_ OctetSequence, Output<Hmac<$hash>>> for $name {
+        impl FromKey<&'_ OctetSequence> for $name {
             type Error = FromOctetSequenceError;
 
             fn from_key(
                 key: &'_ OctetSequence,
-                alg: JsonWebSigningAlgorithm,
+                alg: crate::jwa::JsonWebAlgorithm,
             ) -> Result<$name, FromOctetSequenceError> {
                 match alg {
-                    JsonWebSigningAlgorithm::Hmac($alg1::$alg2) => {
+                    crate::jwa::JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::Hmac($alg1::$alg2)) => {
                         let key: Hmac<$hash> = Hmac::new_from_slice(&key.0)?;
                         Ok(Self { key })
-                    }
-                    _ => Err(InvalidSigningAlgorithmError.into()),
+                    },
+                _ => Err(InvalidSigningAlgorithmError.into())
                 }
             }
         }
@@ -291,5 +315,46 @@ macro_rules! hs_signer {
                 Ok(Self { key })
             }
         }
+
+        #[doc = concat!("A [`Verifier`](crate::jws::Verifier) using a [`", stringify!($alg2), "`](", stringify!($alg1), "::", stringify!($alg2), ") with an [`OctetSequence`]")]
+        #[derive(Debug)]
+        pub struct $verifier {
+            key: Hmac<$hash>
+        }
+
+        impl crate::jws::Verifier for $verifier {
+            fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<(), signature::Error> {
+                // FIXME: use the verify method from the `digest::Mac` trait instead then it has a method which does not consume self
+                self.key.update(msg);
+                // the signature that this Hmac would calculate
+                let expected = self.key.finalize_reset().into_bytes();
+
+                // constant time check to avoid potential leakage
+                use subtle::ConstantTimeEq as _;
+                // this u8 is 1 for true, 0 for false
+                match expected.ct_eq(signature).unwrap_u8() {
+                    1 => Ok(()),
+                    _ => Err(signature::Error::new())
+                }
+            }
+        }
+
+        impl FromKey<&'_ OctetSequence> for $verifier {
+            type Error = FromOctetSequenceError;
+
+            fn from_key(
+                key: &'_ OctetSequence,
+                alg: crate::jwa::JsonWebAlgorithm,
+            ) -> Result<Self, Self::Error> {
+                match alg {
+                    crate::jwa::JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::Hmac($alg1::$alg2)) => {
+                        let key: Hmac<$hash> = Hmac::new_from_slice(&key.0)?;
+                        Ok(Self { key })
+                    },
+                _ => Err(InvalidSigningAlgorithmError.into())
+                }
+            }
+        }
+
     };
 }
