@@ -87,18 +87,18 @@ impl Signer<Vec<u8>> for RsaSigner {
     }
 }
 
-/// A [`Verifier`] using an [`RsaPrivateKey`](super::RsaPrivateKey) and an RSA
+/// A [`Verifier`] using an [`RsaPublicKey`](super::RsaPublicKey) and an RSA
 /// algorithm.
 #[derive(Debug)]
 pub struct RsaVerifier {
-    key: rsa::RsaPrivateKey,
+    key: rsa::RsaPublicKey,
     alg: RsaSigning,
 }
 
-impl FromKey<super::RsaPrivateKey> for RsaVerifier {
+impl FromKey<super::RsaPublicKey> for RsaVerifier {
     type Error = InvalidSigningAlgorithmError;
 
-    fn from_key(value: super::RsaPrivateKey, alg: JsonWebAlgorithm) -> Result<Self, Self::Error> {
+    fn from_key(value: super::RsaPublicKey, alg: JsonWebAlgorithm) -> Result<Self, Self::Error> {
         match alg {
             JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::Rsa(alg)) => {
                 Ok(Self { key: value.0, alg })
@@ -108,9 +108,19 @@ impl FromKey<super::RsaPrivateKey> for RsaVerifier {
     }
 }
 
+impl FromKey<super::RsaPrivateKey> for RsaVerifier {
+    type Error = InvalidSigningAlgorithmError;
+
+    /// Create a [`Verifier`](crate::jws::Verifier) from the private key by
+    /// turning it into the public key and dropping the private parts afterwards
+    fn from_key(value: super::RsaPrivateKey, alg: JsonWebAlgorithm) -> Result<Self, Self::Error> {
+        Self::from_key(super::RsaPublicKey(value.0.to_public_key()), alg)
+    }
+}
+
 impl Verifier for RsaVerifier {
     fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<(), signature::Error> {
-        let key = self.key.to_public_key();
+        let key = &self.key;
 
         let res = match self.alg {
             RsaSigning::Pss(pss) => match pss {
