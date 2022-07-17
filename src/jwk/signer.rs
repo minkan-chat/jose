@@ -155,7 +155,9 @@ impl<T, P> TryFrom<Checked<JsonWebKey<T>, P>> for JwkSigner {
             JsonWebAlgorithm::Encryption(_) => Err(InvalidSigningAlgorithmError)?,
             JsonWebAlgorithm::Signing(alg) => alg,
         };
-        JwkSigner::new(jwk.key_type, alg)
+        let mut signer = JwkSigner::new(jwk.key_type, alg)?;
+        signer.key_id = jwk.kid;
+        Ok(signer)
     }
 }
 /// An error returned when creating a [`JwkSigner`] from a [`JsonWebKeyType`]
