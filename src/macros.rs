@@ -249,7 +249,7 @@ macro_rules! impl_internally_tagged_deserialize {
 
 macro_rules! hs_signer {
     ($name:ident, $hash:ty, $alg1:ident::$alg2:ident) => {
-        #[doc = concat!("A [`Signer`](crate::jws::Signer) using a [`", stringify!($alg2), "`](", stringify!($alg1), "::", stringify!($alg2), ") with a [`OctetSequence`]")]
+        #[doc = concat!("A [`Signer`](crate::jws::Signer) using a [`", stringify!($alg2), "`](", stringify!($alg1), "::", stringify!($alg2), ") with an [`OctetSequence`]")]
         #[derive(Debug)]
         pub struct $name {
             key: Hmac<$hash>,
