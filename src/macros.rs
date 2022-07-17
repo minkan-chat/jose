@@ -248,8 +248,8 @@ macro_rules! impl_internally_tagged_deserialize {
 }
 
 macro_rules! hs_signer {
-    ($(#[$meta:meta])* $name:ident, $hash:ty, $alg:expr, $expected:pat_param) => {
-        $(#[$meta])*
+    ($name:ident, $hash:ty, $alg1:ident::$alg2:ident) => {
+        #[doc = concat!("A [`Signer`](crate::jws::Signer) using a [`", stringify!($alg2), "`](", stringify!($alg1), "::", stringify!($alg2), ") with a [`OctetSequence`]")]
         #[derive(Debug)]
         pub struct $name {
             key: Hmac<$hash>,
@@ -262,7 +262,7 @@ macro_rules! hs_signer {
             }
 
             fn algorithm(&self) -> JsonWebSigningAlgorithm {
-                JsonWebSigningAlgorithm::Hmac($alg)
+                JsonWebSigningAlgorithm::Hmac($alg1::$alg2)
             }
         }
 
@@ -274,7 +274,7 @@ macro_rules! hs_signer {
                 alg: JsonWebSigningAlgorithm,
             ) -> Result<$name, FromOctetSequenceError> {
                 match alg {
-                    JsonWebSigningAlgorithm::Hmac($expected) => {
+                    JsonWebSigningAlgorithm::Hmac($alg1::$alg2) => {
                         let key: Hmac<$hash> = Hmac::new_from_slice(&key.0)?;
                         Ok(Self { key })
                     }

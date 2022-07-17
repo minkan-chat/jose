@@ -85,26 +85,6 @@ pub enum FromOctetSequenceError {
     InvalidLength(#[from] InvalidLength),
 }
 
-
-
-hs_signer!(
-    /// A [`Signer`] using [`Hs256`](Hs::Hs256) with a [`OctetSequence`]
-    Hs256Signer,
-    Sha256,
-    Hs::Hs256,
-    Hs::Hs256
-);
-hs_signer!(
-    /// A [`Signer`] using [`Hs384`](Hs::Hs384) with a [`OctetSequence`]
-    Hs384Signer,
-    Sha384,
-    Hs::Hs384,
-    Hs::Hs384
-);
-hs_signer!(
-    /// A [`Signer`] using [`Hs512`](Hs::Hs512) with a [`OctetSequence`]
-    Hs512Signer,
-    Sha512,
-    Hs::Hs512,
-    Hs::Hs512
-);
+hs_signer!(Hs256Signer, Sha256, Hs::Hs256);
+hs_signer!(Hs384Signer, Sha384, Hs::Hs384);
+hs_signer!(Hs512Signer, Sha512, Hs::Hs512);
