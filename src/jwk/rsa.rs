@@ -1,11 +1,14 @@
 //! Rsa key types
 
+mod signer_verifier;
+
 use alloc::string::String;
 
 use num_bigint_dig::ModInverse;
 use num_traits::One;
 use rsa::{BigUint, PublicKeyParts};
 use serde::{de::Error as _, ser::Error as _, Deserialize, Serialize};
+pub use signer_verifier::{RsaSigner, RsaVerifier};
 
 use crate::base64_url::Base64UrlBytes;
 

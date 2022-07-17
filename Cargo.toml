@@ -5,7 +5,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [features]
-std = ["signature/std", "thiserror-no-std/std"]
+std = ["signature/std", "thiserror-no-std/std", "rsa/std", "rand_core/std"]
 
 [dependencies]
 thiserror-no-std = "2.0.2"
@@ -16,6 +16,7 @@ serde = { version = "1", default-features = false, features = [
 ] }
 serde_json = { version = "1", default-features = false, features = ["alloc"] }
 hashbrown = { version = "0.12", features = ["serde"] }
+rand_core = { version = "0.6.3", features = ["getrandom"] }
 hmac = { version = "0.12", default-features = false }
 sha1 = { version = "0.10", default-features = false }
 sha2 = { version = "0.10", default-features = false }

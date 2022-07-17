@@ -11,10 +11,11 @@ use jose::{
     jwk::{
         ec::p256::{P256PrivateKey, P256Signer},
         symmetric::Hs256Signer,
-        SymmetricJsonWebKey,
+        JwkSigner, SymmetricJsonWebKey,
     },
     jws::{IntoSigner, ParseCompactError, Signer, Unverified, Verifier},
-    JWS,
+    policy::{Checkable, StandardPolicy},
+    JsonWebKey, JWS,
 };
 
 struct NoneKey;
@@ -130,4 +131,27 @@ fn sign_jws_using_hs256() {
         }
         _ => panic!("unexpected key type"),
     }
+}
+
+#[test]
+fn sign_jws_using_rsa() {
+    let key = std::fs::read_to_string(format!(
+        "{}/tests/keys/rsa.json",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .unwrap();
+
+    let key = serde_json::from_str::<JsonWebKey>(&key)
+        .unwrap()
+        .check(StandardPolicy::default())
+        .unwrap();
+
+    let mut signer: JwkSigner = key.try_into().unwrap();
+
+    let jws = JWS::builder()
+        .build("Here be dragons".to_string())
+        .sign(&mut signer)
+        .unwrap();
+
+    println!("{}", jws.encode::<Compact>());
 }
