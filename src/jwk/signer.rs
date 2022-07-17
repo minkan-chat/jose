@@ -1,7 +1,7 @@
 use alloc::{string::String, vec::Vec};
 
 use super::{
-    ec::{p256::P256Signer, p384::P384Signer, EcPrivate},
+    ec::{p256::P256Signer, p384::P384Signer, secp256k1::Secp256k1Signer, EcPrivate},
     symmetric::{FromOctetSequenceError, Hs256Signer, Hs384Signer, Hs512Signer},
     AsymmetricJsonWebKey, JsonWebKeyType, Private, SymmetricJsonWebKey,
 };
@@ -69,7 +69,9 @@ impl JwkSigner {
                         Private::Ec(key) => match key {
                             EcPrivate::P256(key) => InnerSigner::Es256(key.into_signer(alg)?),
                             EcPrivate::P384(key) => InnerSigner::Es384(key.into_signer(alg)?),
-                            EcPrivate::Secp256k1(_) => todo!(),
+                            EcPrivate::Secp256k1(key) => {
+                                InnerSigner::Secp256k1(key.into_signer(alg)?)
+                            }
                         },
                         Private::Rsa(_) => todo!(),
                     },
@@ -119,6 +121,7 @@ impl Signer<Vec<u8>> for JwkSigner {
             InnerSigner::Hs512(signer) => signer.sign(msg).map(|v| v.into_iter().collect()),
             InnerSigner::Es256(signer) => signer.sign(msg).map(|v| v.to_vec()),
             InnerSigner::Es384(signer) => signer.sign(msg).map(|v| v.to_vec()),
+            InnerSigner::Secp256k1(signer) => signer.sign(msg).map(|v| v.to_vec()),
         }
     }
 
@@ -129,6 +132,7 @@ impl Signer<Vec<u8>> for JwkSigner {
             InnerSigner::Hs512(_) => JsonWebSigningAlgorithm::Hmac(Hmac::Hs512),
             InnerSigner::Es256(_) => JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256),
             InnerSigner::Es384(_) => JsonWebSigningAlgorithm::EcDSA(EcDSA::Es384),
+            InnerSigner::Secp256k1(_) => JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256K),
         }
     }
 
@@ -186,6 +190,7 @@ enum InnerSigner {
     // RSA not implemented yet
     Es256(P256Signer),
     Es384(P384Signer),
+    Secp256k1(Secp256k1Signer),
     // P-512 not supported yet
     // Curve-25519 and 448 not supported yet
 }
