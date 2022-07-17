@@ -1,12 +1,12 @@
 macro_rules! impl_ec {
-    ($(#[$meta:meta])* $signer:ident, $priv:ty, $crv:ty, $alg:stmt, $($pattern:pat_param)+,
-    $(#[$verifier_meta:meta])*
+    ($signer:ident, $priv:ident, $crv:ty, $alg:stmt, $($pattern:pat_param)+,
     $verifier:ident,
     $public:ty) => {
-        $(#[$meta])*
+        #[doc = concat!("A [`Signer`](crate::jws::Signer) using a [`", stringify!($priv), "`]")]
         #[derive(Debug)]
         #[allow(unused_qualifications)]
         pub struct $signer(ecdsa::SigningKey<$crv>);
+
         #[allow(unused_qualifications)]
         impl crate::jws::Signer<ecdsa::Signature<$crv>> for $signer {
             fn sign(&mut self, msg: &[u8]) -> Result<ecdsa::Signature<$crv>, signature::Error> {
@@ -30,7 +30,7 @@ macro_rules! impl_ec {
             }
         }
 
-        $(#[$verifier_meta])*
+        #[doc = concat!("A [`Verifier`](crate::jws::Verifier) using a [`", stringify!($public), "`]")]
         #[derive(Debug)]
         #[allow(unused_qualifications)]
         pub struct $verifier(ecdsa::VerifyingKey<$crv>);
@@ -240,9 +240,6 @@ macro_rules! impl_internally_tagged_deserialize {
 
                 match tagged.tag {
                     $(Tag::$i => Deserialize::deserialize(tagged.content).map(<$T>::$i),)*
-                    //Tag::P256 => Deserialize::deserialize(tagged.content).map(Self::P256),
-                    //Tag::P384 => Deserialize::deserialize(tagged.content).map(Self::P384),
-                    //Tag::Secp256k1 => Deserialize::deserialize(tagged.content).map(Self::Secp256k1),
                 }
                 .map_err(|x| x.into_error())
             }

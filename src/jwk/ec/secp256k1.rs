@@ -19,13 +19,11 @@ impl_serde_ec!(
 );
 
 impl_ec!(
-    /// A [`Signer`](crate::jws::Signer) using a [`Secp256k1PrivateKey`]
     Secp256k1Signer,
     Secp256k1PrivateKey,
     Secp256k1,
     crate::jwa::JsonWebSigningAlgorithm::EcDSA(crate::jwa::EcDSA::Es256K),
     crate::jwa::JsonWebSigningAlgorithm::EcDSA(crate::jwa::EcDSA::Es256K),
-    /// A [`Verifier`](crate::jws::Verifier) using a [`Secp256k1PublicKey`]
     Secp256k1Verifier,
     Secp256k1PublicKey
 );

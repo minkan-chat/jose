@@ -12,13 +12,11 @@ pub struct P256PrivateKey(SecretKey<NistP256>);
 impl_serde_ec!(P256PublicKey, P256PrivateKey, "P-256", "EC", NistP256);
 
 impl_ec!(
-    /// A [`Signer`](crate::jws::Signer) using a [`P256PrivateKey`]
     P256Signer,
     P256PrivateKey,
     NistP256,
     crate::jwa::JsonWebSigningAlgorithm::EcDSA(crate::jwa::EcDSA::Es256),
     crate::jwa::JsonWebSigningAlgorithm::EcDSA(crate::jwa::EcDSA::Es256),
-    /// A [`Verifier`](crate::jws::Verifier) using a [`P256PublicKey`]
     P256Verifier,
     P256PublicKey
 );
