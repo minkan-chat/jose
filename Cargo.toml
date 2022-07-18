@@ -5,6 +5,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [features]
+default = ["std"]
 std = ["signature/std", "thiserror-no-std/std", "rsa/std", "rand_core/std"]
 
 [dependencies]
