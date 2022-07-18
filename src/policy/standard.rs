@@ -55,6 +55,13 @@ impl PolicyError for StandardPolicyFail {
 #[derive(Debug, Default)]
 pub struct StandardPolicy;
 
+impl StandardPolicy {
+    /// Create a [`StandardPolicy`]
+    pub const fn new() -> Self {
+        Self
+    }
+}
+
 // TODO: StandardPolicy should check that the JsonWebKeyType and the provided
 // Algorithm make sense
 impl Policy for StandardPolicy {
