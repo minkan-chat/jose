@@ -3,7 +3,10 @@ use alloc::{string::String, vec::Vec};
 use super::{
     ec::{p256::P256Signer, p384::P384Signer, secp256k1::Secp256k1Signer, EcPrivate},
     rsa::RsaSigner,
-    symmetric::{FromOctetSequenceError, Hs256Signer, Hs384Signer, Hs512Signer},
+    symmetric::{
+        hmac::{self, HmacKey},
+        FromOctetSequenceError,
+    },
     AsymmetricJsonWebKey, JsonWebKeyType, Private, SymmetricJsonWebKey,
 };
 use crate::{
@@ -117,9 +120,9 @@ impl JwkSigner {
 impl Signer<Vec<u8>> for JwkSigner {
     fn sign(&mut self, msg: &[u8]) -> Result<Vec<u8>, signature::Error> {
         match &mut self.inner {
-            InnerSigner::Hs256(signer) => signer.sign(msg).map(|v| v.into_iter().collect()),
-            InnerSigner::Hs384(signer) => signer.sign(msg).map(|v| v.into_iter().collect()),
-            InnerSigner::Hs512(signer) => signer.sign(msg).map(|v| v.into_iter().collect()),
+            InnerSigner::Hs256(signer) => signer.sign(msg).map(|v| v.to_vec()),
+            InnerSigner::Hs384(signer) => signer.sign(msg).map(|v| v.to_vec()),
+            InnerSigner::Hs512(signer) => signer.sign(msg).map(|v| v.to_vec()),
             InnerSigner::Es256(signer) => signer.sign(msg).map(|v| v.to_vec()),
             InnerSigner::Es384(signer) => signer.sign(msg).map(|v| v.to_vec()),
             InnerSigner::Secp256k1(signer) => signer.sign(msg).map(|v| v.to_vec()),
@@ -188,9 +191,9 @@ pub enum FromJwkError {
 #[derive(Debug)]
 enum InnerSigner {
     // symmetric algorithms
-    Hs256(Hs256Signer),
-    Hs384(Hs384Signer),
-    Hs512(Hs512Signer),
+    Hs256(HmacKey<hmac::Hs256>),
+    Hs384(HmacKey<hmac::Hs384>),
+    Hs512(HmacKey<hmac::Hs512>),
     // asymmetric algorithms
     Rsa(RsaSigner),
     Es256(P256Signer),

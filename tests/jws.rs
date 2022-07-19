@@ -10,7 +10,7 @@ use jose::{
     jwa::{EcDSA, Hmac, JsonWebSigningAlgorithm},
     jwk::{
         ec::p256::{P256PrivateKey, P256Signer},
-        symmetric::Hs256Signer,
+        symmetric::hmac::{HmacKey, Hs256},
         JwkSigner, SymmetricJsonWebKey,
     },
     jws::{IntoSigner, ParseCompactError, Signer, Unverified, Verifier},
@@ -119,7 +119,7 @@ fn sign_jws_using_hs256() {
 
     match key {
         SymmetricJsonWebKey::OctetSequence(ref key) => {
-            let mut signer: Hs256Signer = key
+            let mut signer: HmacKey<Hs256> = key
                 .into_signer(JsonWebSigningAlgorithm::Hmac(Hmac::Hs256))
                 .unwrap();
             let jws = JWS::builder()
