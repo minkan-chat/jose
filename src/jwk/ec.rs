@@ -21,9 +21,7 @@ use self::{
     p384::{P384PrivateKey, P384PublicKey},
     secp256k1::{Secp256k1PrivateKey, Secp256k1PublicKey},
 };
-use crate::{
-    base64_url::Base64UrlEncodedField, borrowable::Borrowable, tagged_visitor::TaggedContentVisitor,
-};
+use crate::{base64_url::Base64UrlEncodedField, tagged_visitor::TaggedContentVisitor};
 
 // FIXME: support all curves specified in IANA "JWK Elliptic Curve"
 
@@ -79,19 +77,17 @@ impl_internally_tagged_deserialize!(EcPrivate, "crv", "EcCurve", [
 /// Generic type for serde for public elliptic curve keys
 #[derive(Deserialize)]
 #[serde(bound = "")]
-struct EcPublicKey<'a, C>
+struct EcPublicKey<C>
 where
     C: Curve,
 {
-    #[serde(borrow)]
-    pub(crate) crv: Borrowable<'a, str>,
-    #[serde(borrow)]
-    pub(crate) kty: Borrowable<'a, str>,
+    pub(crate) crv: String,
+    pub(crate) kty: String,
     x: Base64UrlEncodedField<C>,
     y: Base64UrlEncodedField<C>,
 }
 
-impl<'a, C> EcPublicKey<'a, C>
+impl<C> EcPublicKey<C>
 where
     C: Curve + ProjectiveArithmetic,
     AffinePoint<C>: FromEncodedPoint<C> + ToEncodedPoint<C>,
@@ -111,17 +107,16 @@ where
 /// Generic type for serde for private elliptic curve keys
 #[derive(Deserialize)]
 #[serde(bound = "")]
-struct EcPrivateKey<'a, C>
+struct EcPrivateKey<C>
 where
     C: Curve,
 {
     #[serde(flatten)]
-    #[serde(borrow)]
-    pub(crate) public_part: EcPublicKey<'a, C>,
+    pub(crate) public_part: EcPublicKey<C>,
     d: Base64UrlEncodedField<C>,
 }
 
-impl<'a, C> EcPrivateKey<'a, C>
+impl<C> EcPrivateKey<C>
 where
     C: Curve + ProjectiveArithmetic + ValidatePublicKey,
     AffinePoint<C>: FromEncodedPoint<C> + ToEncodedPoint<C>,
