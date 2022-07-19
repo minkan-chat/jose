@@ -143,7 +143,7 @@ impl<H: HmacVariant> FromKey<&OctetSequence> for HmacKey<H> {
                 }
 
                 let hmac = H::HmacType::new_from_slice(&value.0)
-                    .map_err(|e| FromOctetSequenceError::InvalidLength(e))?;
+                    .map_err(FromOctetSequenceError::InvalidLength)?;
                 Ok(Self { alg: hmac })
             }
             _ => Err(FromOctetSequenceError::InvalidSigningAlgorithm(
