@@ -129,3 +129,14 @@ jobs:
               with:
                   token: ${{ secrets.GITHUB_TOKEN }}
                   args: ${{ env.MODE }} --verbose
+    rust-ci-done:
+        needs:
+            - build
+            - doc
+            - test
+            - fmt
+            - clippy
+        runs-on: ubuntu-latest
+        steps:
+            - name: rust-ci succeeded
+              run: exit 0

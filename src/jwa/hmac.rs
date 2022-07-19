@@ -1,7 +1,7 @@
 /// HMAC with SHA-2 Functions as defined in [section 3.2 of RFC 7518]
 ///
 /// [section 3.2 of RFC 7518]: <https://datatracker.ietf.org/doc/html/rfc7518#section-3.2>
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Hmac {
     /// HMAC using SHA-256
     Hs256,

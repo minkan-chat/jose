@@ -8,7 +8,6 @@
     unused_import_braces,
     unused_qualifications,
     explicit_outlives_requirements,
-    clippy::missing_const_for_fn,
     clippy::missing_errors_doc
 )]
 #![deny(
@@ -19,13 +18,32 @@
     elided_lifetimes_in_paths
 )]
 #![forbid(unsafe_code)]
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 
+extern crate alloc;
+
+#[macro_use]
+mod macros;
+
+pub(crate) mod base64_url;
+pub(crate) mod borrowable;
+#[macro_use]
+pub(crate) mod tagged_visitor;
+pub(crate) mod sealed;
+
+pub mod format;
 pub mod jwa;
 mod jwe;
-mod jwk;
-mod jws;
+pub mod jwk;
+pub mod jws;
 mod jwt;
+pub mod policy;
 
 #[doc(inline)]
-pub use jwt::JsonWebToken;
+pub use self::{jwk::JsonWebKey, jws::JsonWebSignature, jwt::JsonWebToken};
+
+/// Type alias to make `JsonWebSignature` easier to access.
+pub type JWS<T, H = ()> = JsonWebSignature<T, H>;
+
+/// Type alias to make `JsonWebToken` easier to access.
+pub type JWT = JsonWebToken;

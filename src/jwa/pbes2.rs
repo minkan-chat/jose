@@ -1,29 +1,9 @@
-use serde_json::Value;
-
-#[derive(Debug)]
-/// Key Encryption with PBES2 as defined in [section 4.8 of RFC 7518]
-///
-/// [section 4.8 of RFC 7518]: <https://datatracker.ietf.org/doc/html/rfc7518#section-4.8>
-pub struct Pbes2 {
-    /// The "p2s" (PBES2 Salt Input) Header Parameter as defined in [section
-    /// 4.8.1.1]
-    ///
-    /// [section 4.8.1.1]: <https://datatracker.ietf.org/doc/html/rfc7518#section-4.8.1.1>
-    pub p2s: Value,
-    /// The "p2c" (PBES2 Count) Header Parameter as defined in [section 4.8.1.2]
-    ///
-    /// [section 4.8.1.2]: <https://datatracker.ietf.org/doc/html/rfc7518#section-4.8.1.2>
-    pub p2c: Value,
-    /// The variant of PBES2 that will be used
-    pub variant: Pbes2Variant,
-}
-
-#[derive(Debug)]
 /// A variant of Key Encryption with PBES2 as defined in the table of [section
 /// 4.8 of RFC 7518]
 ///
 /// [section 4.8 of RFC 7518]: <https://datatracker.ietf.org/doc/html/rfc7518#section-4.8>
-pub enum Pbes2Variant {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Pbes2 {
     /// PBES2 with HMAC SHA56 and "A128KW" wrapping
     Hs256Aes128,
     /// PBES2 with HMAC SHA-384 and "A192KW" wrapping

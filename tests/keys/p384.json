@@ -1,0 +1,10 @@
+{
+    "use": "sig",
+    "kty": "EC",
+    "kid": "B_9VooM6jEuy9OvK_plFUDVADfKKnjCUPrqfc5Wtgq4",
+    "crv": "P-384",
+    "alg": "ES384",
+    "x": "dA45oi0eOGHpFalBDTyKL3hv_gXnnOf-gUTqnxa3-J6K5G7qtaU_GD9D8uomskwb",
+    "y": "zsN2GFP9aj1oQrN5z4o69Lop-s2Ph13sZR_pfcoO5NP-NYaNJ4QsjaXvBTbjW1G_",
+    "d": "kQGljjJQbkhqobnCDTnfHdZ6oDwSJbysgFN3UUKf1cEM6_tTHmc4jS56WVrlONH0"
+}
