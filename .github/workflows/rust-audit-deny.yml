@@ -36,3 +36,11 @@ jobs:
             - uses: EmbarkStudios/cargo-deny-action@v1
               with:
                   command: check ${{ matrix.checks }}
+    audit-ci-done:
+        needs:
+            - audit
+            - deny
+        runs-on: ubuntu-latest
+        steps:
+            - name: rust-ci succeeded
+              run: exit 0
