@@ -9,9 +9,10 @@ on:
             - main
             - staging
             - trying
-        paths:
-            - "**/Cargo.toml"
-            - "**/Cargo.lock"
+        # Not supported by bors
+        #paths:
+        #    - "**/Cargo.toml"
+        #    - "**/Cargo.lock"
 
 jobs:
     audit:
