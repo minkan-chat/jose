@@ -1,10 +1,14 @@
 //! Symmetric cryptography for JWS and JWE
+
+pub mod hmac;
+
 use alloc::{string::String, vec::Vec};
 
 use base64ct::{Base64UrlUnpadded, Encoding};
+use digest::InvalidLength;
 use serde::{de::Error, Deserialize, Serialize};
 
-use crate::base64_url::Base64UrlBytes;
+use crate::{base64_url::Base64UrlBytes, jws::InvalidSigningAlgorithmError};
 
 /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4>
 #[non_exhaustive]
@@ -64,18 +68,8 @@ impl<'de> Deserialize<'de> for SymmetricJsonWebKey {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct OctetSequence(pub(self) Vec<u8>);
 
-use digest::{InvalidLength, Mac, Output};
-use hmac::Hmac;
-use sha2::{Sha256, Sha384, Sha512};
-
-use crate::{
-    jwa::{Hmac as Hs, JsonWebSigningAlgorithm},
-    jwk::FromKey,
-    jws::{InvalidSigningAlgorithmError, Signer},
-};
-
-/// An error that can occur then creating [`Hs256Signer`], [`Hs384Signer`] or
-/// [`Hs512Signer`] from an [`OctetSequence`]
+/// An error that can occur when creating an [`HmacKey`](hmac::HmacKey) from an
+/// [`OctetSequence`].
 #[derive(Debug, thiserror_no_std::Error)]
 pub enum FromOctetSequenceError {
     /// An invalid signing algorithm was used
@@ -85,7 +79,3 @@ pub enum FromOctetSequenceError {
     #[error(transparent)]
     InvalidLength(#[from] InvalidLength),
 }
-
-hs_impl!(Hs256Signer, Hs256Verifier, Sha256, Hs::Hs256);
-hs_impl!(Hs384Signer, Hs384Verifier, Sha384, Hs::Hs384);
-hs_impl!(Hs512Signer, Hs512Verifier, Sha512, Hs::Hs512);

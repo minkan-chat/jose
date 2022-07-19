@@ -2,7 +2,7 @@ use super::{
     ec::{
         p256::P256Verifier, p384::P384Verifier, secp256k1::Secp256k1Verifier, EcPrivate, EcPublic,
     },
-    symmetric::{Hs256Verifier, Hs384Verifier, Hs512Verifier},
+    symmetric::{self, hmac::HmacKey},
     AsymmetricJsonWebKey, FromJwkError, Private, Public, SymmetricJsonWebKey,
 };
 use crate::{
@@ -102,9 +102,9 @@ impl<T, P> TryFrom<Checked<JsonWebKey<T>, P>> for JwkVerifier {
 #[derive(Debug)]
 enum InnerVerifier {
     // symmetric algorithms
-    Hs256(Hs256Verifier),
-    Hs384(Hs384Verifier),
-    Hs512(Hs512Verifier),
+    Hs256(HmacKey<symmetric::hmac::Hs256>),
+    Hs384(HmacKey<symmetric::hmac::Hs384>),
+    Hs512(HmacKey<symmetric::hmac::Hs512>),
     // asymmetric algorithms
     // RSA not implemented yet
     Es256(P256Verifier),
