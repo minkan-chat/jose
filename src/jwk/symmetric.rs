@@ -68,8 +68,8 @@ impl<'de> Deserialize<'de> for SymmetricJsonWebKey {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct OctetSequence(pub(self) Vec<u8>);
 
-/// An error that can occur then creating [`Hs256Signer`], [`Hs384Signer`] or
-/// [`Hs512Signer`] from an [`OctetSequence`]
+/// An error that can occur when creating an [`HmacKey`](hmac::HmacKey) from an
+/// [`OctetSequence`].
 #[derive(Debug, thiserror_no_std::Error)]
 pub enum FromOctetSequenceError {
     /// An invalid signing algorithm was used

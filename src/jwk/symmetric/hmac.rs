@@ -88,7 +88,7 @@ impl<H: HmacVariant> AsRef<[u8]> for HmacSignature<H> {
     }
 }
 
-/// A generic key for any Hmac variant ([`Hs256`], [`Hs394`], [`Hs512`]).
+/// A generic key for any Hmac variant ([`Hs256`], [`Hs384`], [`Hs512`]).
 ///
 /// At the same time this key implements [`Signer`] and [`Verifier`], thus
 /// can be used to sign and verify JWSs.
