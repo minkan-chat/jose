@@ -2,8 +2,6 @@
 
 mod signer_verifier;
 
-use alloc::string::String;
-
 use num_bigint_dig::ModInverse;
 use num_traits::One;
 use rsa::{BigUint, PublicKeyParts};
@@ -53,7 +51,7 @@ impl<'de> Deserialize<'de> for RsaPublicKey {
 
         let repr = Repr::deserialize(deserializer)?;
 
-        if repr.kty != "RSA" {
+        if &*repr.kty != "RSA" {
             return Err(D::Error::custom("`kty` field is required to be \"RSA\""));
         }
 
@@ -156,7 +154,7 @@ impl<'de> Deserialize<'de> for RsaPrivateKey {
 
         let repr = Repr::deserialize(deserializer)?;
 
-        if repr.kty != "RSA" {
+        if &*repr.kty != "RSA" {
             return Err(D::Error::custom("`kty` field is required to be \"RSA\""));
         }
 

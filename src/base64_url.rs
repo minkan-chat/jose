@@ -7,8 +7,6 @@ use elliptic_curve::{bigint::ArrayEncoding, Curve, FieldBytes};
 use generic_array::{ArrayLength, GenericArray};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 
-use crate::borrowable::Borrowable;
-
 #[derive(Debug)]
 pub(crate) struct Base64UrlBytes(pub(crate) Vec<u8>);
 
@@ -47,7 +45,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        let s = <Borrowable<'_, str> as Deserialize>::deserialize(deserializer)?;
+        let s = <String as Deserialize>::deserialize(deserializer)?;
 
         // let len = s.len();
         // FIXME: this check fails but shouldn't?

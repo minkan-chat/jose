@@ -21,10 +21,10 @@ macro_rules! key_roundtrip_test {
     ($priv:ty, $pub:ty, $file:literal, [$($priv_field:literal),*$(,)?], [$($pub_field:literal),*$(,)?]$(,)?) => {
         #[test]
         fn private_key_serialisation_roundtrip() {
-            let json = crate::read_key_file($file);
-            let json = serde_json::from_str::<serde_json::Value>(&json).unwrap();
+            let json_str = crate::read_key_file($file);
+            let json = serde_json::from_str::<serde_json::Value>(&json_str).unwrap();
 
-            let key: $priv = serde_json::from_value(json.clone()).unwrap();
+            let key: $priv = serde_json::from_str(&json_str).unwrap();
 
             let json2 = serde_json::to_value(&key).unwrap();
 
@@ -38,10 +38,10 @@ macro_rules! key_roundtrip_test {
 
         #[test]
         fn public_key_serialisation_roundtrip() {
-            let json = crate::read_key_file(&format!("{}.pub", $file));
-            let json = serde_json::from_str::<serde_json::Value>(&json).unwrap();
+            let json_str = crate::read_key_file(&format!("{}.pub", $file));
+            let json = serde_json::from_str::<serde_json::Value>(&json_str).unwrap();
 
-            let key: $pub = serde_json::from_value(json.clone()).unwrap();
+            let key: $pub = serde_json::from_str(&json_str).unwrap();
 
             let json2 = serde_json::to_value(&key).unwrap();
 
