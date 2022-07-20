@@ -7,7 +7,7 @@ use elliptic_curve::{bigint::ArrayEncoding, Curve, FieldBytes};
 use generic_array::{ArrayLength, GenericArray};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub(crate) struct Base64UrlBytes(pub(crate) Vec<u8>);
 
 impl Serialize for Base64UrlBytes {
