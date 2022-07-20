@@ -22,9 +22,6 @@ pub trait HmacVariant: Sealed {
 
     /// The [`hmac::Hmac`] type for this variant.
     type HmacType: KeyInit + FixedOutputReset + Update + fmt::Debug;
-
-    /// The signature type for this algorithm.
-    type Signature: AsRef<[u8]>;
 }
 
 /// Marker type that represents Hmac using the Sha256 digest.
@@ -34,7 +31,6 @@ pub struct Hs256 {}
 impl Sealed for Hs256 {}
 impl HmacVariant for Hs256 {
     type HmacType = hmac::Hmac<sha2::Sha256>;
-    type Signature = [u8; 0];
 
     const ALGORITHM: JsonWebSigningAlgorithm = JsonWebSigningAlgorithm::Hmac(jwa::Hmac::Hs256);
 }
@@ -46,7 +42,6 @@ pub struct Hs384 {}
 impl Sealed for Hs384 {}
 impl HmacVariant for Hs384 {
     type HmacType = hmac::Hmac<sha2::Sha384>;
-    type Signature = [u8; 0];
 
     const ALGORITHM: JsonWebSigningAlgorithm = JsonWebSigningAlgorithm::Hmac(jwa::Hmac::Hs384);
 }
@@ -58,7 +53,6 @@ pub struct Hs512 {}
 impl Sealed for Hs512 {}
 impl HmacVariant for Hs512 {
     type HmacType = hmac::Hmac<sha2::Sha512>;
-    type Signature = [u8; 0];
 
     const ALGORITHM: JsonWebSigningAlgorithm = JsonWebSigningAlgorithm::Hmac(jwa::Hmac::Hs512);
 }
@@ -90,8 +84,8 @@ impl<H: HmacVariant> AsRef<[u8]> for HmacSignature<H> {
 
 /// A generic key for any Hmac variant ([`Hs256`], [`Hs384`], [`Hs512`]).
 ///
-/// At the same time this key implements [`Signer`] and [`Verifier`], thus
-/// can be used to sign and verify JWSs.
+/// Since hmac uses a [symmetric key](super::SymmetricJsonWebKey), this struct
+/// implements both [`Signer`] and [`Verifier`]
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct HmacKey<H: HmacVariant> {
@@ -101,7 +95,7 @@ pub struct HmacKey<H: HmacVariant> {
 impl<H: HmacVariant> Verifier for HmacKey<H> {
     fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<(), signature::Error> {
         // FIXME: use the verify method from the `digest::Mac` trait instead then it has
-        // a method which does not consume self
+        // a method which does not consume self. See <https://github.com/RustCrypto/traits/issues/1050>
         self.alg.update(msg);
 
         // the signature that this Hmac would calculate
@@ -142,7 +136,7 @@ impl<H: HmacVariant> FromKey<&OctetSequence> for HmacKey<H> {
                     ));
                 }
 
-                let hmac = H::HmacType::new_from_slice(&value.0)
+                let hmac = H::HmacType::new_from_slice(&value.0 .0)
                     .map_err(FromOctetSequenceError::InvalidLength)?;
                 Ok(Self { alg: hmac })
             }

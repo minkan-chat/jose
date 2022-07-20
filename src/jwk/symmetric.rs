@@ -2,72 +2,63 @@
 
 pub mod hmac;
 
-use alloc::{string::String, vec::Vec};
+use alloc::string::String;
 
-use base64ct::{Base64UrlUnpadded, Encoding};
 use digest::InvalidLength;
-use serde::{de::Error, Deserialize, Serialize};
+use serde::{de::Error, Deserialize, Deserializer, Serialize};
 
 use crate::{base64_url::Base64UrlBytes, jws::InvalidSigningAlgorithmError};
 
 /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4>
 #[non_exhaustive]
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum SymmetricJsonWebKey {
     /// `oct` <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4>
     OctetSequence(OctetSequence),
 }
 
-impl Serialize for SymmetricJsonWebKey {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self {
-            SymmetricJsonWebKey::OctetSequence(bytes) => {
-                #[derive(Serialize)]
-                struct Repr {
-                    kty: &'static str,
-                    k: String,
-                }
+/// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4.1>
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct OctetSequence(pub(self) Base64UrlBytes);
 
-                let encoded = Base64UrlUnpadded::encode_string(&bytes.0);
-
-                Repr {
-                    kty: "oct",
-                    k: encoded,
-                }
-                .serialize(serializer)
-            }
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for SymmetricJsonWebKey {
+impl<'de> Deserialize<'de> for OctetSequence {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de>,
+        D: Deserializer<'de>,
     {
         #[derive(Deserialize)]
-        struct OctetRepr {
+        struct Repr {
             kty: String,
             k: Base64UrlBytes,
         }
 
-        let repr = OctetRepr::deserialize(deserializer)?;
-
+        let repr = Repr::deserialize(deserializer)?;
         if repr.kty != "oct" {
             return Err(D::Error::custom("`kty` field is required to be \"oct\""));
         }
 
-        Ok(SymmetricJsonWebKey::OctetSequence(OctetSequence(repr.k.0)))
+        Ok(Self(repr.k))
     }
 }
 
-/// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4.1>
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub struct OctetSequence(pub(self) Vec<u8>);
-
+impl Serialize for OctetSequence {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        #[derive(Serialize)]
+        struct Repr<'a> {
+            kty: &'static str,
+            k: &'a Base64UrlBytes,
+        }
+        Repr {
+            kty: "oct",
+            k: &self.0,
+        }
+        .serialize(serializer)
+    }
+}
 /// An error that can occur when creating an [`HmacKey`](hmac::HmacKey) from an
 /// [`OctetSequence`].
 #[derive(Debug, thiserror_no_std::Error)]
