@@ -206,6 +206,13 @@ macro_rules! impl_serde_ec {
                 repr.serialize(serializer)
             }
         }
+
+        impl $private {
+            /// Generate a new private key using the provided rng
+            pub fn generate(rng: impl rand_core::CryptoRng + rand_core::RngCore) -> Self {
+                Self(elliptic_curve::SecretKey::random(rng))
+            }
+        }
     };
 }
 
