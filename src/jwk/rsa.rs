@@ -71,6 +71,16 @@ impl<'de> Deserialize<'de> for RsaPublicKey {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RsaPrivateKey(rsa::RsaPrivateKey);
 
+impl RsaPrivateKey {
+    /// Generate a new RSA key pair of the given bit size.
+    pub fn generate(
+        mut rng: impl rand_core::CryptoRng + rand_core::RngCore,
+        bit_size: usize,
+    ) -> rsa::errors::Result<Self> {
+        rsa::RsaPrivateKey::new(&mut rng, bit_size).map(Self)
+    }
+}
+
 impl Serialize for RsaPrivateKey {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
