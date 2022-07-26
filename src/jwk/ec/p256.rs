@@ -17,6 +17,7 @@ impl_ec!(
     NistP256,
     crate::jwa::JsonWebSigningAlgorithm::EcDSA(crate::jwa::EcDSA::Es256),
     crate::jwa::JsonWebSigningAlgorithm::EcDSA(crate::jwa::EcDSA::Es256),
+    P256,
     P256Verifier,
     P256PublicKey
 );

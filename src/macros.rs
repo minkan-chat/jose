@@ -1,7 +1,64 @@
 macro_rules! impl_ec {
-    ($signer:ident, $priv:ident, $crv:ty, $alg:stmt, $($pattern:pat_param)+,
+    ($signer:ident, $priv:ident, $crv:ty, $alg:expr, $($pattern:pat_param)+,
+    $ec_priv_name:ident,
     $verifier:ident,
-    $public:ty) => {
+    $public:path) => {
+        impl $priv {
+            /// Generate a new private key using the provided rng
+            pub fn generate(rng: impl rand_core::CryptoRng + rand_core::RngCore) -> Self {
+                Self(elliptic_curve::SecretKey::random(rng))
+            }
+
+            /// Get the public key corresponding to this private key.
+            pub fn to_public_key(&self) -> $public {
+                $public(self.0.public_key())
+            }
+        }
+
+        impl crate::jwk::IntoJsonWebKey for $public {
+            /// Algorithm is `()` because there's only
+            /// one algorithm for this key type.
+            type Algorithm = ();
+            type Error = core::convert::Infallible;
+
+            fn into_jwk(
+                self,
+                alg: impl Into<Option<Self::Algorithm>>,
+            ) -> Result<crate::JsonWebKey, Self::Error> {
+                let key = crate::jwk::JsonWebKeyType::Asymmetric(Box::new(
+                    crate::jwk::AsymmetricJsonWebKey::Public(crate::jwk::Public::Ec(
+                        super::EcPublic::$ec_priv_name(self),
+                    )),
+                ));
+
+                let mut jwk = crate::JsonWebKey::new(key);
+                jwk.algorithm = alg.into().map(|_| crate::jwa::JsonWebAlgorithm::Signing($alg));
+                Ok(jwk)
+            }
+        }
+
+        impl crate::jwk::IntoJsonWebKey for $priv {
+            /// Algorithm is `()` because there's only
+            /// one algorithm for this key type.
+            type Algorithm = ();
+            type Error = core::convert::Infallible;
+
+            fn into_jwk(
+                self,
+                alg: impl Into<Option<Self::Algorithm>>,
+            ) -> Result<crate::JsonWebKey, Self::Error> {
+                let key = crate::jwk::JsonWebKeyType::Asymmetric(Box::new(
+                    crate::jwk::AsymmetricJsonWebKey::Private(crate::jwk::Private::Ec(
+                        super::EcPrivate::$ec_priv_name(self),
+                    )),
+                ));
+
+                let mut jwk = crate::JsonWebKey::new(key);
+                jwk.algorithm = alg.into().map(|_| crate::jwa::JsonWebAlgorithm::Signing($alg));
+                Ok(jwk)
+            }
+        }
+
         #[doc = concat!("A [`Signer`](crate::jws::Signer) using a [`", stringify!($priv), "`]")]
         #[derive(Debug)]
         #[allow(unused_qualifications)]
@@ -204,13 +261,6 @@ macro_rules! impl_serde_ec {
                 };
 
                 repr.serialize(serializer)
-            }
-        }
-
-        impl $private {
-            /// Generate a new private key using the provided rng
-            pub fn generate(rng: impl rand_core::CryptoRng + rand_core::RngCore) -> Self {
-                Self(elliptic_curve::SecretKey::random(rng))
             }
         }
     };

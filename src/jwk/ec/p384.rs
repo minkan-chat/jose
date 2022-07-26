@@ -19,6 +19,7 @@ impl_ec!(
     NistP384,
     crate::jwa::JsonWebSigningAlgorithm::EcDSA(crate::jwa::EcDSA::Es384),
     crate::jwa::JsonWebSigningAlgorithm::EcDSA(crate::jwa::EcDSA::Es384),
+    P384,
     P384Verifier,
     P384PublicKey
 );
