@@ -2,7 +2,8 @@
 
 mod signer_verifier;
 
-use alloc::string::String;
+use alloc::{boxed::Box, string::String};
+use core::convert::Infallible;
 
 use num_bigint_dig::ModInverse;
 use num_traits::One;
@@ -10,11 +11,37 @@ use rsa::{BigUint, PublicKeyParts};
 use serde::{de::Error as _, ser::Error as _, Deserialize, Serialize};
 pub use signer_verifier::{RsaSigner, RsaVerifier};
 
-use crate::base64_url::Base64UrlBytes;
+use super::IntoJsonWebKey;
+use crate::{
+    base64_url::Base64UrlBytes,
+    jwa::{self, RsaSigning},
+};
 
 /// A public Rsa key used for signature verification and/or encryption
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RsaPublicKey(rsa::RsaPublicKey);
+
+impl IntoJsonWebKey for RsaPublicKey {
+    type Algorithm = RsaSigning;
+    type Error = Infallible;
+
+    fn into_jwk(
+        self,
+        alg: impl Into<Option<Self::Algorithm>>,
+    ) -> Result<crate::JsonWebKey, Self::Error> {
+        let alg = alg
+            .into()
+            .map(|rsa| jwa::JsonWebAlgorithm::Signing(jwa::JsonWebSigningAlgorithm::Rsa(rsa)));
+
+        let key = super::JsonWebKeyType::Asymmetric(Box::new(super::AsymmetricJsonWebKey::Public(
+            super::Public::Rsa(self),
+        )));
+
+        let mut jwk = crate::JsonWebKey::new(key);
+        jwk.algorithm = alg;
+        Ok(jwk)
+    }
+}
 
 impl Serialize for RsaPublicKey {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -78,6 +105,33 @@ impl RsaPrivateKey {
         bit_size: usize,
     ) -> rsa::errors::Result<Self> {
         rsa::RsaPrivateKey::new(&mut rng, bit_size).map(Self)
+    }
+
+    /// Get the public key corresponding to this private key.
+    pub fn to_public_key(&self) -> RsaPublicKey {
+        RsaPublicKey(self.0.to_public_key())
+    }
+}
+
+impl IntoJsonWebKey for RsaPrivateKey {
+    type Algorithm = RsaSigning;
+    type Error = Infallible;
+
+    fn into_jwk(
+        self,
+        alg: impl Into<Option<Self::Algorithm>>,
+    ) -> Result<crate::JsonWebKey, Self::Error> {
+        let alg = alg
+            .into()
+            .map(|rsa| jwa::JsonWebAlgorithm::Signing(jwa::JsonWebSigningAlgorithm::Rsa(rsa)));
+
+        let key = super::JsonWebKeyType::Asymmetric(Box::new(
+            super::AsymmetricJsonWebKey::Private(super::Private::Rsa(Box::new(self))),
+        ));
+
+        let mut jwk = crate::JsonWebKey::new(key);
+        jwk.algorithm = alg;
+        Ok(jwk)
     }
 }
 

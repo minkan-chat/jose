@@ -12,22 +12,26 @@ use crate::{
     policy::{Checkable, Checked, Policy},
 };
 
-mod asymmetric;
 pub mod ec;
+pub mod okp;
+pub mod rsa;
+pub mod symmetric;
+
+mod asymmetric;
+mod builder;
 mod key_ops;
 mod key_use;
-pub mod okp;
 mod private;
 mod public;
-pub mod rsa;
 mod serde_impl;
 mod signer;
-pub mod symmetric;
 mod verifier;
+
 use self::serde_impl::Base64DerCertificate;
 #[doc(inline)]
 pub use self::{
     asymmetric::AsymmetricJsonWebKey,
+    builder::JsonWebKeyBuilder,
     key_ops::KeyOperation,
     key_use::KeyUsage,
     private::Private,
@@ -227,6 +231,23 @@ pub struct JsonWebKey<T = ()> {
     additional: T,
 }
 
+impl JsonWebKey<()> {
+    fn new(key_type: JsonWebKeyType) -> Self {
+        Self {
+            key_type,
+            key_use: None,
+            key_operations: None,
+            algorithm: None,
+            kid: None,
+            x509_url: None,
+            x509_certificate_chain: vec![],
+            x509_certificate_sha1_thumbprint: None,
+            x509_certificate_sha256_thumbprint: None,
+            additional: (),
+        }
+    }
+}
+
 impl<T> JsonWebKey<T> {
     /// [Section 4.1 of RFC 7517] defines the `kty` (Key Type) Parameter.
     ///
@@ -412,4 +433,16 @@ pub trait FromKey<K>: Sized {
     ///
     /// Returns an error if the conversion failed
     fn from_key(value: K, alg: JsonWebAlgorithm) -> Result<Self, Self::Error>;
+}
+
+///
+pub trait IntoJsonWebKey {
+    ///
+    type Algorithm;
+
+    ///
+    type Error;
+
+    ///
+    fn into_jwk(self, alg: impl Into<Option<Self::Algorithm>>) -> Result<JsonWebKey, Self::Error>;
 }

@@ -71,5 +71,8 @@ num-bigint-dig = { version = "0.8.1", default-features = false, features = [
 ] }
 serde-value = { version = "0.7.0", default-features = false }
 
+[dev-dependencies]
+rand = "0.8.5"
+
 # For X.509 certificates of Json Web Keys
 # x509-cert = { git = "https://github.com/RustCrypto/formats.git" }
