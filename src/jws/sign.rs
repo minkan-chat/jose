@@ -67,7 +67,7 @@ pub trait Signer<S: AsRef<[u8]>> {
 
 /// An error returned if something expected a different
 /// [`JsonWebAlgorithm`](crate::jwa::JsonWebAlgorithm)
-#[derive(Debug, thiserror_no_std::Error)]
+#[derive(Debug, thiserror_no_std::Error, PartialEq, Eq)]
 #[error("Invalid algorithm")]
 pub struct InvalidSigningAlgorithmError;
 

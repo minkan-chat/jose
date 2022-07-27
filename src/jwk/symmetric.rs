@@ -61,7 +61,7 @@ impl Serialize for OctetSequence {
 }
 /// An error that can occur when creating an [`HmacKey`](hmac::HmacKey) from an
 /// [`OctetSequence`].
-#[derive(Debug, thiserror_no_std::Error)]
+#[derive(Debug, thiserror_no_std::Error, PartialEq, Eq)]
 pub enum FromOctetSequenceError {
     /// An invalid signing algorithm was used
     #[error(transparent)]
