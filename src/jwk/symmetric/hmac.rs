@@ -5,7 +5,8 @@ use core::{
     ops::{Deref, DerefMut},
 };
 
-use digest::{FixedOutputReset, KeyInit, Output, Update};
+use digest::{FixedOutputReset, KeyInit, Output, OutputSizeUser, Update};
+use typenum::Unsigned;
 
 use super::{FromOctetSequenceError, OctetSequence};
 use crate::{
@@ -136,7 +137,13 @@ impl<H: HmacVariant> FromKey<&OctetSequence> for HmacKey<H> {
                     ));
                 }
 
-                let hmac = H::HmacType::new_from_slice(&value.0 .0)
+                let key = &value.0 .0;
+
+                if key.len() < <<H::HmacType as OutputSizeUser>::OutputSize as Unsigned>::USIZE {
+                    return Err(digest::InvalidLength.into());
+                }
+
+                let hmac = H::HmacType::new_from_slice(key)
                     .map_err(FromOctetSequenceError::InvalidLength)?;
                 Ok(Self { alg: hmac })
             }

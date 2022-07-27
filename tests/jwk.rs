@@ -2,7 +2,11 @@ use jose::{
     jwa::{EcDSA, Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::{
         ec::{EcPrivate, EcPublic},
-        AsymmetricJsonWebKey, JsonWebKey, JsonWebKeyType, JwkSigner, Private, Public,
+        symmetric::{
+            hmac::{HmacKey, Hs256},
+            FromOctetSequenceError, OctetSequence,
+        },
+        AsymmetricJsonWebKey, FromKey, JsonWebKey, JsonWebKeyType, JwkSigner, Private, Public,
     },
     jws::Signer,
     policy::{Checkable, Checked, StandardPolicy},
@@ -249,5 +253,21 @@ fn jwk_signer() {
     assert_eq!(
         p256_signer.algorithm(),
         JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256)
+    );
+}
+
+#[test]
+fn deny_hmac_key_with_short_key() {
+    let raw_key = r#"{"kty": "oct", "k": "QUFBQQ"}"#;
+    let key = serde_json::from_str::<OctetSequence>(raw_key).unwrap();
+
+    let hmac = HmacKey::<Hs256>::from_key(
+        &key,
+        JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::Hmac(Hmac::Hs256)),
+    );
+
+    assert_eq!(
+        hmac.unwrap_err(),
+        FromOctetSequenceError::InvalidLength(digest::InvalidLength)
     );
 }
