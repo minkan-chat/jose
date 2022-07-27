@@ -11,7 +11,7 @@ use typenum::Unsigned;
 use super::{FromOctetSequenceError, OctetSequence};
 use crate::{
     jwa::{self, JsonWebAlgorithm, JsonWebSigningAlgorithm},
-    jwk::FromKey,
+    jwk::{self, FromKey, IntoJsonWebKey},
     jws::{Signer, Verifier},
     sealed::Sealed,
 };
@@ -88,9 +88,42 @@ impl<H: HmacVariant> AsRef<[u8]> for HmacSignature<H> {
 /// Since hmac uses a [symmetric key](super::SymmetricJsonWebKey), this struct
 /// implements both [`Signer`] and [`Verifier`]
 #[derive(Debug)]
-#[repr(transparent)]
 pub struct HmacKey<H: HmacVariant> {
     alg: H::HmacType,
+    key: Vec<u8>,
+}
+
+impl<H: HmacVariant> HmacKey<H> {
+    /// Generate a new HMAC key.
+    pub fn generate(mut rng: impl rand_core::CryptoRng + rand_core::RngCore) -> Self {
+        let mut key = digest::Key::<H::HmacType>::default();
+        rng.fill_bytes(&mut key);
+
+        HmacKey {
+            alg: H::HmacType::new(&key),
+            key: key.to_vec(),
+        }
+    }
+}
+
+impl<H: HmacVariant> IntoJsonWebKey for HmacKey<H> {
+    type Algorithm = ();
+    type Error = core::convert::Infallible;
+
+    fn into_jwk(
+        self,
+        alg: impl Into<Option<Self::Algorithm>>,
+    ) -> Result<crate::JsonWebKey, Self::Error> {
+        let key = jwk::JsonWebKeyType::Symmetric(jwk::SymmetricJsonWebKey::OctetSequence(
+            OctetSequence::new(self.key.to_vec()),
+        ));
+
+        let mut jwk = crate::JsonWebKey::new(key);
+        jwk.algorithm = alg
+            .into()
+            .map(|_| jwa::JsonWebAlgorithm::Signing(H::ALGORITHM));
+        Ok(jwk)
+    }
 }
 
 impl<H: HmacVariant> Verifier for HmacKey<H> {
@@ -145,7 +178,10 @@ impl<H: HmacVariant> FromKey<&OctetSequence> for HmacKey<H> {
 
                 let hmac = H::HmacType::new_from_slice(key)
                     .map_err(FromOctetSequenceError::InvalidLength)?;
-                Ok(Self { alg: hmac })
+                Ok(Self {
+                    alg: hmac,
+                    key: value.0 .0.clone(),
+                })
             }
             _ => Err(FromOctetSequenceError::InvalidSigningAlgorithm(
                 super::InvalidSigningAlgorithmError,
@@ -158,6 +194,24 @@ impl<H: HmacVariant> FromKey<OctetSequence> for HmacKey<H> {
     type Error = FromOctetSequenceError;
 
     fn from_key(value: OctetSequence, alg: JsonWebAlgorithm) -> Result<Self, Self::Error> {
-        <HmacKey<H> as FromKey<&OctetSequence>>::from_key(&value, alg)
+        match alg {
+            JsonWebAlgorithm::Signing(alg) => {
+                if alg != H::ALGORITHM {
+                    return Err(FromOctetSequenceError::InvalidSigningAlgorithm(
+                        super::InvalidSigningAlgorithmError,
+                    ));
+                }
+
+                let hmac = H::HmacType::new_from_slice(&value.0 .0)
+                    .map_err(FromOctetSequenceError::InvalidLength)?;
+                Ok(Self {
+                    alg: hmac,
+                    key: value.0 .0,
+                })
+            }
+            _ => Err(FromOctetSequenceError::InvalidSigningAlgorithm(
+                super::InvalidSigningAlgorithmError,
+            )),
+        }
     }
 }
