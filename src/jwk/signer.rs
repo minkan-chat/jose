@@ -58,7 +58,7 @@ impl JwkSigner {
     /// // returns an error since a P-256 key cannot be used with Hmac
     /// assert!(matches!(
     ///     JwkSigner::new(key, JsonWebSigningAlgorithm::Hmac(Hmac::Hs256)),
-    ///     Err(FromJwkError::InvalidAlgorithm(..))
+    ///     Err(FromJwkError::InvalidAlgorithm)
     /// ));
     /// # Ok(())
     /// # }
