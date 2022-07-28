@@ -7,7 +7,8 @@ use hashbrown::HashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    jwa::JsonWebAlgorithm,
+    jwa::{EcDSA, JsonWebAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
+    jwk::ec::{EcPrivate, EcPublic},
     policy::{Checkable, Checked, Policy},
 };
 
@@ -30,7 +31,7 @@ use self::serde_impl::Base64DerCertificate;
 #[doc(inline)]
 pub use self::{
     asymmetric::AsymmetricJsonWebKey,
-    builder::JsonWebKeyBuilder,
+    builder::{JsonWebKeyBuildError, JsonWebKeyBuilder},
     key_ops::KeyOperation,
     key_use::KeyUsage,
     private::Private,
@@ -248,6 +249,22 @@ impl JsonWebKey<()> {
 }
 
 impl<T> JsonWebKey<T> {
+    /// Turn this Json Web Key into a builder to modify it's contents.
+    pub fn into_builder(self) -> JsonWebKeyBuilder<T> {
+        JsonWebKeyBuilder {
+            key_type: self.key_type,
+            key_use: self.key_use,
+            key_operations: self.key_operations,
+            algorithm: self.algorithm,
+            kid: self.kid,
+            x509_url: self.x509_url,
+            x509_certificate_chain: self.x509_certificate_chain,
+            x509_certificate_sha1_thumbprint: self.x509_certificate_sha1_thumbprint,
+            x509_certificate_sha256_thumbprint: self.x509_certificate_sha256_thumbprint,
+            additional: self.additional,
+        }
+    }
+
     /// [Section 4.1 of RFC 7517] defines the `kty` (Key Type) Parameter.
     ///
     /// Since the `kty` parameter is used to distinguish different key types, we
@@ -409,6 +426,55 @@ pub enum JsonWebKeyType {
     Asymmetric(Box<AsymmetricJsonWebKey>),
 }
 
+impl JsonWebKeyType {
+    pub(self) fn compatible_with(&self, alg: &JsonWebAlgorithm) -> bool {
+        use JsonWebAlgorithm::*;
+        use JsonWebKeyType::*;
+
+        match (self, alg) {
+            (
+                Symmetric(SymmetricJsonWebKey::OctetSequence(..)),
+                Signing(JsonWebSigningAlgorithm::Hmac(..))
+                | Encryption(JsonWebEncryptionAlgorithm::Direct)
+                | Encryption(JsonWebEncryptionAlgorithm::AesKw(..))
+                | Encryption(JsonWebEncryptionAlgorithm::AesGcmKw(..))
+                | Encryption(JsonWebEncryptionAlgorithm::Pbes2(..)),
+            ) => true,
+            (Asymmetric(key), alg) => match (&**key, alg) {
+                (
+                    AsymmetricJsonWebKey::Public(Public::Ec(..))
+                    | AsymmetricJsonWebKey::Private(Private::Ec(..)),
+                    Encryption(JsonWebEncryptionAlgorithm::EcDhES(..)),
+                )
+                | (
+                    AsymmetricJsonWebKey::Public(Public::Ec(EcPublic::P256(..)))
+                    | AsymmetricJsonWebKey::Private(Private::Ec(EcPrivate::P256(..))),
+                    Signing(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256)),
+                )
+                | (
+                    AsymmetricJsonWebKey::Public(Public::Ec(EcPublic::P384(..)))
+                    | AsymmetricJsonWebKey::Private(Private::Ec(EcPrivate::P384(..))),
+                    Signing(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es384)),
+                )
+                | (
+                    AsymmetricJsonWebKey::Public(Public::Ec(EcPublic::Secp256k1(..)))
+                    | AsymmetricJsonWebKey::Private(Private::Ec(EcPrivate::Secp256k1(..))),
+                    Signing(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256K)),
+                )
+                | (
+                    AsymmetricJsonWebKey::Public(Public::Rsa(..))
+                    | AsymmetricJsonWebKey::Private(Private::Rsa(..)),
+                    Signing(JsonWebSigningAlgorithm::Rsa(..))
+                    | Encryption(JsonWebEncryptionAlgorithm::Rsa1_5)
+                    | Encryption(JsonWebEncryptionAlgorithm::RsaesOaep(..)),
+                ) => true,
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+}
+
 /// A trait for a [`Signer`](crate::jws::Signer) or
 /// [`Verifier`](crate::jws::Verifier) to implement if it can be created from
 /// key material as long as the algorithm is known
@@ -425,14 +491,10 @@ pub trait FromKey<K>: Sized {
     fn from_key(value: K, alg: JsonWebAlgorithm) -> Result<Self, Self::Error>;
 }
 
-///
 pub trait IntoJsonWebKey {
-    ///
     type Algorithm;
 
-    ///
     type Error;
 
-    ///
     fn into_jwk(self, alg: impl Into<Option<Self::Algorithm>>) -> Result<JsonWebKey, Self::Error>;
 }
