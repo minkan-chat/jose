@@ -1,5 +1,4 @@
-use super::{JsonWebKey, JsonWebKeyType, KeyUsage};
-use crate::jwa::JsonWebAlgorithm;
+use super::JsonWebKey;
 
 /// The builder for constructing a [`JsonWebKey`].
 #[derive(Debug, Clone)]

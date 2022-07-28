@@ -100,11 +100,83 @@ pub trait Policy {
     ///
     /// This should return an [`Err`] if key_use and key_ops are inconsistent
     /// with each other
-    fn compare_keyops_and_keyuse(
+    fn compare_key_ops_and_use(
         &self,
         key_use: &KeyUsage,
         key_ops: &HashSet<KeyOperation>,
     ) -> Result<(), Self::Error>;
+
+    /// Checks if a [`JsonWebKey`](crate::jwk::JsonWebKey) with the given
+    /// [`KeyOperation`]s is allowed to perform a certain
+    /// [`CryptographicOperation`]
+    ///
+    /// # Errors
+    ///
+    /// This should return an [`Err`] if the given
+    /// [`JsonWebKey`](crate::jwk::JsonWebKey) with this specific set of
+    /// [`KeyOperation`]s is not allowed to perform the
+    /// [`CryptographicOperation`] For example, this might be the case if
+    /// key_ops only contain [`KeyOperation::Encrypt`] but the
+    /// [`CryptographicOperation`] is [`Sign`](CryptographicOperation::Sign).
+    fn may_perform_operation_key_ops(
+        &self,
+        operation: CryptographicOperation,
+        key_ops: &HashSet<KeyOperation>,
+    ) -> Result<(), Self::Error>;
+
+    /// Checks if a [`JsonWebKey`](crate::jwk::JsonWebKey) with the given
+    /// [`KeyUsage`] parameter is allowed to perform a certain
+    /// [`CryptographicOperation`]
+    ///
+    /// # Errors
+    ///
+    /// This should return an [`Err`] if the given
+    /// [`JsonWebKey`](crate::jwk::JsonWebKey) with this specific [`KeyUsage`]
+    /// is not allowed to perform the [`CryptographicOperation`]
+    fn may_perform_operation_key_use(
+        &self,
+        operation: CryptographicOperation,
+        key_use: &KeyUsage,
+    ) -> Result<(), Self::Error>;
+
+    // TODO: same methods (can_sign_key_ops/use) for verify, encrypt and decrypt
+    // operations
+
+    /// Checks both [`KeyUsage`] and [`KeyOperation`] for the given
+    /// [`CryptographicOperation`]
+    ///
+    /// The default implementation just calls
+    /// [`may_perform_operation_key_ops`](Self::may_perform_operation_key_ops)
+    /// and [`may_perform_operation_key_use`](Self::may_perform_operation_key_use).
+    ///
+    /// # Errors
+    ///
+    /// This should return an [`Err`] if the [`KeyUsage`] and [`KeyOperation`]
+    /// do not allow for the [`CryptographicOperation`]
+    fn may_perform_operation(
+        &self,
+        operation: CryptographicOperation,
+        key_use: &KeyUsage,
+        key_ops: &HashSet<KeyOperation>,
+    ) -> Result<(), Self::Error> {
+        self.may_perform_operation_key_ops(operation, key_ops)?;
+        self.may_perform_operation_key_use(operation, key_use)
+    }
+}
+
+/// An enum used to specify a cryptographic operation
+#[non_exhaustive]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub enum CryptographicOperation {
+    /// Create a signature (used in JWS)
+    Sign,
+    /// Verify a signature (used in JWS)
+    Verify,
+    /// Encrypt something (used in JWE)
+    Encrypt,
+    /// Decrypt some ciphertext (used in JWE)
+    Decrypt,
+    // TODO: possibly add derive key and derive bits in case they are ever needed (maybe in JWE?)
 }
 
 impl<P: Policy> Policy for &P {
@@ -114,12 +186,28 @@ impl<P: Policy> Policy for &P {
         P::algorithm(self, alg)
     }
 
-    fn compare_keyops_and_keyuse(
+    fn compare_key_ops_and_use(
         &self,
         key_use: &KeyUsage,
         key_ops: &HashSet<KeyOperation>,
     ) -> Result<(), Self::Error> {
-        P::compare_keyops_and_keyuse(self, key_use, key_ops)
+        P::compare_key_ops_and_use(self, key_use, key_ops)
+    }
+
+    fn may_perform_operation_key_ops(
+        &self,
+        operation: CryptographicOperation,
+        key_ops: &HashSet<KeyOperation>,
+    ) -> Result<(), Self::Error> {
+        P::may_perform_operation_key_ops(self, operation, key_ops)
+    }
+
+    fn may_perform_operation_key_use(
+        &self,
+        operation: CryptographicOperation,
+        key_use: &KeyUsage,
+    ) -> Result<(), Self::Error> {
+        P::may_perform_operation_key_use(self, operation, key_use)
     }
 }
 

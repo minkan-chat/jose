@@ -7,12 +7,12 @@ use super::{
         hmac::{self, HmacKey},
         FromOctetSequenceError,
     },
-    AsymmetricJsonWebKey, JsonWebKeyType, Private, SymmetricJsonWebKey,
+    AsymmetricJsonWebKey, FromKey, JsonWebKeyType, Private, SymmetricJsonWebKey,
 };
 use crate::{
     jwa::{EcDSA, Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jws::{IntoSigner, InvalidSigningAlgorithmError, Signer},
-    policy::Checked,
+    policy::{Checked, CryptographicOperation, Policy},
     JsonWebKey,
 };
 
@@ -147,7 +147,10 @@ impl Signer<Vec<u8>> for JwkSigner {
     }
 }
 
-impl<T, P> TryFrom<Checked<JsonWebKey<T>, P>> for JwkSigner {
+impl<T, P> TryFrom<Checked<JsonWebKey<T>, P>> for JwkSigner
+where
+    P: Policy,
+{
     type Error = FromJwkError;
 
     /// Create a [`JwkSigner`] from a [`JsonWebKey`]
@@ -156,24 +159,58 @@ impl<T, P> TryFrom<Checked<JsonWebKey<T>, P>> for JwkSigner {
     ///
     /// This conversion fails if [`JsonWebKey::algorithm`] is [`None`]
     fn try_from(jwk: Checked<JsonWebKey<T>, P>) -> Result<Self, Self::Error> {
-        let jwk = jwk.into_type();
-        let alg = match jwk.algorithm().ok_or(InvalidSigningAlgorithmError)? {
-            JsonWebAlgorithm::Encryption(_) => Err(InvalidSigningAlgorithmError)?,
-            JsonWebAlgorithm::Signing(alg) => alg,
-        };
-        let mut signer = JwkSigner::new(jwk.key_type, alg)?;
-        signer.key_id = jwk.kid;
+        let alg = jwk.algorithm().ok_or(FromJwkError::InvalidAlgorithm)?;
+        let kid = jwk.kid.clone();
+        let mut signer = JwkSigner::from_key(jwk, alg)?;
+        signer.key_id = kid;
         Ok(signer)
     }
 }
+
+impl<T, P> FromKey<Checked<JsonWebKey<T>, P>> for JwkSigner
+where
+    P: Policy,
+{
+    type Error = FromJwkError;
+
+    /// Create a [`JwkSigner`] from a [`JsonWebKey`] overwriting
+    /// [`JsonWebKey::algorithm`] with `alg`.
+    fn from_key(
+        jwk: Checked<JsonWebKey<T>, P>,
+        alg: JsonWebAlgorithm,
+    ) -> Result<Self, Self::Error> {
+        if let Some(usage) = jwk.key_usage() {
+            jwk.policy()
+                .may_perform_operation_key_use(CryptographicOperation::Sign, usage)
+                .map_err(|_| FromJwkError::OperationNotAllowed)?
+        }
+
+        if let Some(ops) = jwk.key_operations() {
+            jwk.policy()
+                .may_perform_operation_key_ops(CryptographicOperation::Sign, ops)
+                .map_err(|_| FromJwkError::OperationNotAllowed)?
+        }
+
+        match alg {
+            JsonWebAlgorithm::Encryption(..) => Err(InvalidSigningAlgorithmError.into()),
+            JsonWebAlgorithm::Signing(alg) => Self::new(jwk.into_type().key_type, alg),
+        }
+    }
+}
+
 /// An error returned when creating a [`JwkSigner`] from a [`JsonWebKeyType`]
 /// (or indirectly via [`JsonWebKey`])
 #[derive(Debug, thiserror_no_std::Error)]
 #[non_exhaustive]
 pub enum FromJwkError {
+    /// A [`JsonWebKey`] has either the `use` or `key_ops` parameter set and one
+    /// of these parameters indicates that this key MAY NOT be used for signing
+    /// or verifying
+    #[error("key not allowed for signing")]
+    OperationNotAllowed,
     /// The algorithm can't be used with the provided [`JsonWebKeyType`]
-    #[error(transparent)]
-    InvalidAlgorithm(#[from] InvalidSigningAlgorithmError),
+    #[error("this algorithm can't be used together with this JsonWebKey")]
+    InvalidAlgorithm,
     /// The provided [`JsonWebKeyType`] did not contain a [private
     /// key](super::Private) which is needed by [`JwkSigner`] to create
     /// signatures.
@@ -185,6 +222,12 @@ pub enum FromJwkError {
     /// since the key already exists at this point.
     #[error(transparent)]
     OctetSequence(#[from] FromOctetSequenceError),
+}
+
+impl From<InvalidSigningAlgorithmError> for FromJwkError {
+    fn from(_: InvalidSigningAlgorithmError) -> Self {
+        Self::InvalidAlgorithm
+    }
 }
 
 /// Abstract type with a variant for each [`Signer`]

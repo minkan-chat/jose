@@ -3,13 +3,13 @@ use super::{
         p256::P256Verifier, p384::P384Verifier, secp256k1::Secp256k1Verifier, EcPrivate, EcPublic,
     },
     symmetric::{self, hmac::HmacKey},
-    AsymmetricJsonWebKey, FromJwkError, Private, Public, SymmetricJsonWebKey,
+    AsymmetricJsonWebKey, FromJwkError, FromKey, Private, Public, SymmetricJsonWebKey,
 };
 use crate::{
     jwa::{Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::JsonWebKeyType,
     jws::{IntoVerifier, InvalidSigningAlgorithmError, Verifier},
-    policy::Checked,
+    policy::{Checked, CryptographicOperation, Policy},
     JsonWebKey,
 };
 #[derive(Debug)]
@@ -81,7 +81,41 @@ impl Verifier for JwkVerifier {
     }
 }
 
-impl<T, P> TryFrom<Checked<JsonWebKey<T>, P>> for JwkVerifier {
+impl<T, P> FromKey<Checked<JsonWebKey<T>, P>> for JwkVerifier
+where
+    P: Policy,
+{
+    type Error = FromJwkError;
+
+    /// Create a [`JwkVerifier`] form a [`JsonWebKey`] overwriting
+    /// [`JsonWebKey::algorithm`] with `alg`.
+    fn from_key(
+        jwk: Checked<JsonWebKey<T>, P>,
+        alg: JsonWebAlgorithm,
+    ) -> Result<Self, Self::Error> {
+        if let Some(usage) = jwk.key_usage() {
+            jwk.policy()
+                .may_perform_operation_key_use(CryptographicOperation::Verify, usage)
+                .map_err(|_| FromJwkError::OperationNotAllowed)?
+        }
+
+        if let Some(ops) = jwk.key_operations() {
+            jwk.policy()
+                .may_perform_operation_key_ops(CryptographicOperation::Verify, ops)
+                .map_err(|_| FromJwkError::OperationNotAllowed)?
+        }
+
+        match alg {
+            JsonWebAlgorithm::Encryption(..) => Err(FromJwkError::InvalidAlgorithm),
+            JsonWebAlgorithm::Signing(alg) => Self::new(jwk.into_type().key_type, alg),
+        }
+    }
+}
+
+impl<T, P> TryFrom<Checked<JsonWebKey<T>, P>> for JwkVerifier
+where
+    P: Policy,
+{
     type Error = FromJwkError;
 
     /// Create a [`JwkVerifier`] from a [`JsonWebKey`]
@@ -90,12 +124,8 @@ impl<T, P> TryFrom<Checked<JsonWebKey<T>, P>> for JwkVerifier {
     ///
     /// This conversion fails if [`JsonWebKey::algorithm`] is [`None`]
     fn try_from(jwk: Checked<JsonWebKey<T>, P>) -> Result<Self, Self::Error> {
-        let jwk = jwk.into_type();
-        let alg = match jwk.algorithm().ok_or(InvalidSigningAlgorithmError)? {
-            JsonWebAlgorithm::Encryption(_) => Err(InvalidSigningAlgorithmError)?,
-            JsonWebAlgorithm::Signing(alg) => alg,
-        };
-        JwkVerifier::new(jwk.key_type, alg)
+        let alg = jwk.algorithm().ok_or(FromJwkError::InvalidAlgorithm)?;
+        JwkVerifier::from_key(jwk, alg)
     }
 }
 /// Abstract type with a variant for each [`Verifier`]

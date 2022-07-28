@@ -4,7 +4,7 @@ use core::fmt::Display;
 use hashbrown::HashSet;
 use thiserror_no_std::Error;
 
-use super::{Policy, PolicyError};
+use super::{CryptographicOperation, Policy, PolicyError};
 use crate::{
     jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::{KeyOperation, KeyUsage},
@@ -13,6 +13,10 @@ use crate::{
 /// Reasons a [`StandardPolicy`] can deny a JWK.
 #[derive(Debug, Error)]
 pub enum StandardPolicyFail {
+    /// A [`JsonWebKey`](crate::jwk::JsonWebKey) may not perform a
+    /// [`CryptographicOperation`]
+    #[error("this key mat not perform this cryptographic operation")]
+    OperationNotAllowed,
     /// The [`JsonWebSigningAlgorithm::None`] algorithm is not allowed as this
     /// indicates an unverified/unencrypted JWS/JWE.
     #[error("`none` algorithm is not allowed")]
@@ -77,7 +81,7 @@ impl Policy for StandardPolicy {
         Ok(())
     }
 
-    fn compare_keyops_and_keyuse(
+    fn compare_key_ops_and_use(
         &self,
         key_use: &KeyUsage,
         key_ops: &HashSet<KeyOperation>,
@@ -92,5 +96,39 @@ impl Policy for StandardPolicy {
 
         // TODO: check that the typed variants of KeyUsage and KeyOperation
         Ok(())
+    }
+
+    fn may_perform_operation_key_ops(
+        &self,
+        operation: CryptographicOperation,
+        key_ops: &HashSet<KeyOperation>,
+    ) -> Result<(), Self::Error> {
+        match match operation {
+            CryptographicOperation::Decrypt => key_ops.contains(&KeyOperation::Decrypt),
+            CryptographicOperation::Encrypt => key_ops.contains(&KeyOperation::Encrypt),
+            CryptographicOperation::Sign => key_ops.contains(&KeyOperation::Sign),
+            CryptographicOperation::Verify => key_ops.contains(&KeyOperation::Verify),
+        } {
+            true => Ok(()),
+            false => Err(StandardPolicyFail::OperationNotAllowed),
+        }
+    }
+
+    fn may_perform_operation_key_use(
+        &self,
+        operation: CryptographicOperation,
+        key_use: &KeyUsage,
+    ) -> Result<(), Self::Error> {
+        match match operation {
+            CryptographicOperation::Decrypt | CryptographicOperation::Encrypt => {
+                matches!(key_use, &KeyUsage::Encryption)
+            }
+            CryptographicOperation::Sign | CryptographicOperation::Verify => {
+                matches!(key_use, &KeyUsage::Signing)
+            }
+        } {
+            true => Ok(()),
+            false => Err(StandardPolicyFail::OperationNotAllowed),
+        }
     }
 }

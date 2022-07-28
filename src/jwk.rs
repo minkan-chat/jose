@@ -7,8 +7,7 @@ use hashbrown::HashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
-    jws::IntoSigner,
+    jwa::JsonWebAlgorithm,
     policy::{Checkable, Checked, Policy},
 };
 
@@ -362,15 +361,6 @@ impl<T> JsonWebKey<T> {
     }
 }
 
-impl<T, P> IntoSigner<JwkSigner, Vec<u8>> for Checked<JsonWebKey<T>, P> {
-    type Error = <JwkSigner as TryFrom<Self>>::Error;
-
-    /// Turn a [`JsonWebKey`] into a [`Signer`](crate::jws::Signer) by
-    /// overwriting [`JsonWebKey::algorithm`] with `alg`
-    fn into_signer(self, alg: JsonWebSigningAlgorithm) -> Result<JwkSigner, Self::Error> {
-        JwkSigner::new(self.into_type().key_type, alg)
-    }
-}
 impl<T> Checkable for JsonWebKey<T>
 where
     T: Checkable,
@@ -383,7 +373,7 @@ where
         }
 
         if let (Some(key_use), Some(key_ops)) = (self.key_usage(), self.key_operations()) {
-            if let Err(e) = policy.compare_keyops_and_keyuse(key_use, key_ops) {
+            if let Err(e) = policy.compare_key_ops_and_use(key_use, key_ops) {
                 return Err((self, e));
             }
         }
