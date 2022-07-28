@@ -15,7 +15,7 @@ use crate::{
 pub enum StandardPolicyFail {
     /// A [`JsonWebKey`](crate::jwk::JsonWebKey) may not perform a
     /// [`CryptographicOperation`]
-    #[error("this key mat not perform this cryptographic operation")]
+    #[error("this key may not perform this cryptographic operation")]
     OperationNotAllowed,
     /// The [`JsonWebSigningAlgorithm::None`] algorithm is not allowed as this
     /// indicates an unverified/unencrypted JWS/JWE.

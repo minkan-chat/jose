@@ -139,9 +139,6 @@ pub trait Policy {
         key_use: &KeyUsage,
     ) -> Result<(), Self::Error>;
 
-    // TODO: same methods (can_sign_key_ops/use) for verify, encrypt and decrypt
-    // operations
-
     /// Checks both [`KeyUsage`] and [`KeyOperation`] for the given
     /// [`CryptographicOperation`]
     ///
