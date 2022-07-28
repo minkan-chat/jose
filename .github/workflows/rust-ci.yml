@@ -18,7 +18,9 @@ jobs:
                 os: [ubuntu-latest]
                 toolchain: [nightly]
                 mode: [release, debug]
-        name: cargo-build ${{ matrix.os }}-${{ matrix.toolchain}} ${{ matrix.mode }}
+                # keep this in sync with features in Cargo.toml!
+                feature: ["none", "std"]
+        name: "cargo-build ${{ matrix.os }}-${{ matrix.toolchain}} ${{ matrix.mode }} feature=${{ matrix.feature }}"
         runs-on: ${{ matrix.os }}
         steps:
             - uses: actions/checkout@v2
@@ -29,6 +31,12 @@ jobs:
                   if [ ${{matrix.mode}} = "release" ] ; then
                     echo "MODE=--release" >> $GITHUB_ENV
                   fi
+            - name: set features
+              shell: bash
+              run: |
+                  if [ ${{ matrix.feature}} != "none" ] ; then
+                    echo "FEATURES=${{ matrix.feature }}" >> $GITHUB_ENV
+                  fi
             - uses: actions-rs/toolchain@v1
               with:
                   profile: minimal
@@ -37,7 +45,7 @@ jobs:
             - uses: actions-rs/cargo@v1
               with:
                   command: build
-                  args: ${{ env.MODE }} --verbose
+                  args: ${{ env.MODE }} --verbose --no-default-features --features=${{ env.FEATURES }}
     doc:
         strategy:
             matrix:
@@ -70,11 +78,24 @@ jobs:
                 os: [ubuntu-latest]
                 toolchain: [nightly]
                 mode: [release, debug]
-        name: cargo-test ${{ matrix.os }}-${{ matrix.toolchain}} ${{ matrix.mode }}
+                # keep this in sync with features in Cargo.toml!
+                feature: ["none", "std"]
+        name: "cargo-test ${{ matrix.os }}-${{ matrix.toolchain}} ${{ matrix.mode }} feature=${{ matrix.feature }}"
         runs-on: ${{ matrix.os }}
         steps:
             - uses: actions/checkout@v2
-
+            - name: set compile mode
+              shell: bash
+              run: |
+                  if [ ${{matrix.mode}} = "release" ] ; then
+                    echo "MODE=--release" >> $GITHUB_ENV
+                  fi
+            - name: set features
+              shell: bash
+              run: |
+                  if [ ${{ matrix.feature}} != "none" ] ; then
+                    echo "FEATURES=${{ matrix.feature }}" >> $GITHUB_ENV
+                  fi
             - uses: actions-rs/toolchain@v1
               with:
                   profile: minimal
@@ -84,7 +105,7 @@ jobs:
             - uses: actions-rs/cargo@v1
               with:
                   command: test
-                  args: ${{ env.MODE }} --verbose
+                  args: ${{ env.MODE }} --verbose --no-default-features --features=${{ env.FEATURES }}
     fmt:
         name: cargo-fmt
         runs-on: ubuntu-latest
@@ -108,6 +129,8 @@ jobs:
                 os: [ubuntu-latest]
                 toolchain: [nightly]
                 mode: [release, debug]
+                # keep this in sync with the features in Cargo.toml!
+                feature: ["none", "std"]
         name: cargo-clippy
         runs-on: ${{ matrix.os }}
         steps:
@@ -119,6 +142,12 @@ jobs:
                   if [ ${{matrix.mode}} = "release" ] ; then
                     echo "MODE=--release" >> $GITHUB_ENV
                   fi
+            - name: set features
+              shell: bash
+              run: |
+                  if [ ${{ matrix.feature}} != "none" ] ; then
+                    echo "FEATURES=${{ matrix.feature }}" >> $GITHUB_ENV
+                  fi
             - uses: actions-rs/toolchain@v1
               with:
                   profile: minimal
@@ -128,7 +157,7 @@ jobs:
             - uses: actions-rs/clippy-check@v1
               with:
                   token: ${{ secrets.GITHUB_TOKEN }}
-                  args: ${{ env.MODE }} --verbose
+                  args: ${{ env.MODE }} --verbose --no-default-features --features=${{ env.FEATURES }}
     rust-ci-done:
         needs:
             - build

@@ -2,6 +2,8 @@
 
 mod signer_verifier;
 
+use alloc::string::String;
+
 use num_bigint_dig::ModInverse;
 use num_traits::One;
 use rsa::{BigUint, PublicKeyParts};
