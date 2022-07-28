@@ -174,6 +174,9 @@ impl<H: HmacVariant> FromKey<&OctetSequence> for HmacKey<H> {
 
                 let key = &value.0 .0;
 
+                // This check is not required for normal Hmac implementations based on RFC 2104
+                // but RFC 7518 section 3.2 requires this check and forbids keys with a length <
+                // output
                 if key.len() < <<H::HmacType as OutputSizeUser>::OutputSize as Unsigned>::USIZE {
                     return Err(digest::InvalidLength.into());
                 }
