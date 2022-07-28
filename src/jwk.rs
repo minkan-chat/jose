@@ -1,6 +1,6 @@
 //! [`JsonWebKey`] and connected things
 
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{boxed::Box, string::String, vec, vec::Vec};
 use core::{fmt::Debug, ops::Deref};
 
 use hashbrown::HashSet;

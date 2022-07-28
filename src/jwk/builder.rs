@@ -1,3 +1,5 @@
+use alloc::{string::String, vec::Vec};
+
 use hashbrown::HashSet;
 
 use super::{serde_impl::Base64DerCertificate, JsonWebKey, JsonWebKeyType, KeyOperation, KeyUsage};

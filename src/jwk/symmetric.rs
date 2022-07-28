@@ -2,7 +2,7 @@
 
 pub mod hmac;
 
-use alloc::string::String;
+use alloc::{string::String, vec::Vec};
 
 use digest::InvalidLength;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};

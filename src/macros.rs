@@ -26,7 +26,7 @@ macro_rules! impl_ec {
                 self,
                 alg: impl Into<Option<Self::Algorithm>>,
             ) -> Result<crate::JsonWebKey, Self::Error> {
-                let key = crate::jwk::JsonWebKeyType::Asymmetric(Box::new(
+                let key = crate::jwk::JsonWebKeyType::Asymmetric(alloc::boxed::Box::new(
                     crate::jwk::AsymmetricJsonWebKey::Public(crate::jwk::Public::Ec(
                         super::EcPublic::$ec_priv_name(self),
                     )),
@@ -49,7 +49,7 @@ macro_rules! impl_ec {
                 self,
                 alg: impl Into<Option<Self::Algorithm>>,
             ) -> Result<crate::JsonWebKey, Self::Error> {
-                let key = crate::jwk::JsonWebKeyType::Asymmetric(Box::new(
+                let key = crate::jwk::JsonWebKeyType::Asymmetric(alloc::boxed::Box::new(
                     crate::jwk::AsymmetricJsonWebKey::Private(crate::jwk::Private::Ec(
                         super::EcPrivate::$ec_priv_name(self),
                     )),

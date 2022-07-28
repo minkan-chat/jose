@@ -1,5 +1,6 @@
 //! Hmac cryptography.
 
+use alloc::vec::Vec;
 use core::{
     fmt,
     ops::{Deref, DerefMut},
