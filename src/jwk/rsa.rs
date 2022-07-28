@@ -21,6 +21,7 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RsaPublicKey(rsa::RsaPublicKey);
 
+impl crate::sealed::Sealed for RsaPublicKey {}
 impl IntoJsonWebKey for RsaPublicKey {
     type Algorithm = RsaSigning;
     type Error = Infallible;
@@ -113,6 +114,7 @@ impl RsaPrivateKey {
     }
 }
 
+impl crate::sealed::Sealed for RsaPrivateKey {}
 impl IntoJsonWebKey for RsaPrivateKey {
     type Algorithm = RsaSigning;
     type Error = Infallible;

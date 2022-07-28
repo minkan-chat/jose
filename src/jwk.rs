@@ -10,6 +10,7 @@ use crate::{
     jwa::{EcDSA, JsonWebAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
     jwk::ec::{EcPrivate, EcPublic},
     policy::{Checkable, Checked, Policy},
+    sealed::Sealed,
 };
 
 pub mod ec;
@@ -491,10 +492,23 @@ pub trait FromKey<K>: Sized {
     fn from_key(value: K, alg: JsonWebAlgorithm) -> Result<Self, Self::Error>;
 }
 
-pub trait IntoJsonWebKey {
+/// A trait for different key types to implement if they can be converted into a
+/// [`JsonWebKey`].
+///
+/// This trait, and deserialization, is the only public way of creating a
+/// [`JsonWebKey`].
+pub trait IntoJsonWebKey: Sealed {
+    /// One key type may be used for multiple [`JsonWebAlgorithm`]s.
+    ///
+    /// This algorithm can be specified using this type.
     type Algorithm;
 
+    /// The error that can occurr when converting this key into a JWK.
     type Error;
 
+    /// Turns this key mateiral into a [`JsonWebKey`] for the given algorithm.
+    ///
+    /// If the given argument is `None`, the `alg` header field of the resulting
+    /// JWK will be None.
     fn into_jwk(self, alg: impl Into<Option<Self::Algorithm>>) -> Result<JsonWebKey, Self::Error>;
 }

@@ -15,6 +15,7 @@ macro_rules! impl_ec {
             }
         }
 
+        impl crate::sealed::Sealed for $public {}
         impl crate::jwk::IntoJsonWebKey for $public {
             /// Algorithm is `()` because there's only
             /// one algorithm for this key type.
@@ -37,6 +38,7 @@ macro_rules! impl_ec {
             }
         }
 
+        impl crate::sealed::Sealed for $priv {}
         impl crate::jwk::IntoJsonWebKey for $priv {
             /// Algorithm is `()` because there's only
             /// one algorithm for this key type.

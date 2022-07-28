@@ -106,6 +106,7 @@ impl<H: HmacVariant> HmacKey<H> {
     }
 }
 
+impl<H: HmacVariant> Sealed for HmacKey<H> {}
 impl<H: HmacVariant> IntoJsonWebKey for HmacKey<H> {
     type Algorithm = ();
     type Error = core::convert::Infallible;
