@@ -82,7 +82,7 @@ impl<'de> Deserialize<'de> for RsaPublicKey {
         let repr = Repr::deserialize(deserializer)?;
 
         if &*repr.kty != "RSA" {
-            return Err(D::Error::custom("`kty` field is required to be \"RSA\""));
+            return Err(D::Error::custom("`kty` field is required to be `RSA`"));
         }
 
         let n = BigUint::from_bytes_be(&repr.n.0);
@@ -227,7 +227,7 @@ impl<'de> Deserialize<'de> for RsaPrivateKey {
         let repr = Repr::deserialize(deserializer)?;
 
         if &*repr.kty != "RSA" {
-            return Err(D::Error::custom("`kty` field is required to be \"RSA\""));
+            return Err(D::Error::custom("`kty` field is required to be `RSA`"));
         }
 
         let any_prime_present = repr.p.is_some()
@@ -247,7 +247,7 @@ impl<'de> Deserialize<'de> for RsaPrivateKey {
         if any_prime_present {
             if let Some((field, _)) = all_primes_present.into_iter().find(|(_, x)| !x) {
                 return Err(D::Error::custom(alloc::format!(
-                    "expected \"{}\" to be present because all prime fields must be set if one of \
+                    "expected `{}` to be present because all prime fields must be set if one of \
                      them is set",
                     field
                 )));
@@ -262,7 +262,7 @@ impl<'de> Deserialize<'de> for RsaPrivateKey {
         if repr.oth.is_some() {
             // FIXME: Support additional primes
             return Err(D::Error::custom(
-                "RSA private keys with \"oth\" field set are not supported",
+                "RSA private keys with `oth` field set are not supported",
             ));
         }
 
