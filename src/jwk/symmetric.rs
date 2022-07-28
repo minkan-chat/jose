@@ -41,7 +41,7 @@ impl<'de> Deserialize<'de> for OctetSequence {
 
         let repr = Repr::deserialize(deserializer)?;
         if repr.kty != "oct" {
-            return Err(D::Error::custom("`kty` field is required to be \"oct\""));
+            return Err(D::Error::custom("`kty` field is required to be `oct`"));
         }
 
         Ok(Self(repr.k))

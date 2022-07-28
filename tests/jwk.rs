@@ -91,7 +91,7 @@ pub mod rsa {
         let err = serde_json::from_str::<RsaPrivateKey>(json).unwrap_err();
         assert_eq!(
             err.to_string(),
-            "RSA private keys with \"oth\" field set are not supported"
+            "RSA private keys with `oth` field set are not supported"
         );
     }
 
@@ -114,7 +114,7 @@ pub mod rsa {
         let err = serde_json::from_str::<RsaPrivateKey>(json).unwrap_err();
         assert_eq!(
             err.to_string(),
-            "expected \"dp\" to be present because all prime fields must be set if one of them is \
+            "expected `dp` to be present because all prime fields must be set if one of them is \
              set"
         );
     }

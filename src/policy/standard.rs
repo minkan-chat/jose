@@ -24,12 +24,12 @@ pub enum StandardPolicyFail {
     /// [`KeyUsage::Other`] can not be verified by the standard policy, thus
     /// it's simply declined and the user needs to use a custom policy to
     /// check it.
-    #[error("\"use\" contained custom usage which can't be checked")]
+    #[error("`use` contained custom usage which can't be checked")]
     OtherKeyUsage,
     /// [`KeyOperation::Other`] can not be verified by the standard policy, thus
     /// it's simply declined and the user needs to use a custom policy to
     /// check it.
-    #[error("\"key_ops\" contained custom operation which can't be checked")]
+    #[error("`key_ops` contained custom operation which can't be checked")]
     OtherKeyOperation,
     /// Used for the [`PolicyError`] implementation
     #[error("{0}")]
