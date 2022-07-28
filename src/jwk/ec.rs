@@ -5,7 +5,7 @@ pub mod p384;
 pub mod p521;
 pub mod secp256k1;
 
-use alloc::format;
+use alloc::{format, string::String};
 use core::fmt::Display;
 
 use elliptic_curve::{
