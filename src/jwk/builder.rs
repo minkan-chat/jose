@@ -88,6 +88,12 @@ impl<T> JsonWebKeyBuilder<T> {
     }
 
     /// Try to construct the final [`JsonWebKey`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Err`] if any parameter is considered invalid. For example,
+    /// if a [`JsonWebKeyType`] is not compatible with the [`JsonWebAlgorithm`]
+    /// set.
     pub fn build(self) -> Result<JsonWebKey<T>, JsonWebKeyBuildError> {
         let Self {
             key_type,

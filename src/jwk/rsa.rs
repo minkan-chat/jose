@@ -101,6 +101,10 @@ pub struct RsaPrivateKey(rsa::RsaPrivateKey);
 
 impl RsaPrivateKey {
     /// Generate a new RSA key pair of the given bit size.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Err`] if the key generation fails.
     pub fn generate(
         mut rng: impl rand_core::CryptoRng + rand_core::RngCore,
         bit_size: usize,

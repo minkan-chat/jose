@@ -432,6 +432,8 @@ impl JsonWebKeyType {
         use JsonWebAlgorithm::*;
         use JsonWebKeyType::*;
 
+        // it is unreadable with the matches! macro and there's no benefit
+        #[allow(clippy::match_like_matches_macro)]
         match (self, alg) {
             (
                 Symmetric(SymmetricJsonWebKey::OctetSequence(..)),
@@ -510,5 +512,9 @@ pub trait IntoJsonWebKey: Sealed {
     ///
     /// If the given argument is `None`, the `alg` header field of the resulting
     /// JWK will be None.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Err`] if the conversion fails.
     fn into_jwk(self, alg: impl Into<Option<Self::Algorithm>>) -> Result<JsonWebKey, Self::Error>;
 }

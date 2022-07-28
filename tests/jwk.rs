@@ -9,7 +9,7 @@ use jose::{
         AsymmetricJsonWebKey, FromKey, IntoJsonWebKey, JsonWebKey, JsonWebKeyType, JwkSigner,
         Private, Public,
     },
-    jws::{IntoSigner, Signer},
+    jws::Signer,
     policy::{Checkable, Checked, StandardPolicy},
 };
 
