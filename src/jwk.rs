@@ -1,33 +1,38 @@
 //! [`JsonWebKey`] and connected things
 
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{boxed::Box, string::String, vec, vec::Vec};
 use core::{fmt::Debug, ops::Deref};
 
 use hashbrown::HashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
-    jws::IntoSigner,
+    jwa::{EcDSA, JsonWebAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
+    jwk::ec::{EcPrivate, EcPublic},
     policy::{Checkable, Checked, Policy},
+    sealed::Sealed,
 };
 
-mod asymmetric;
 pub mod ec;
+pub mod okp;
+pub mod rsa;
+pub mod symmetric;
+
+mod asymmetric;
+mod builder;
 mod key_ops;
 mod key_use;
-pub mod okp;
 mod private;
 mod public;
-pub mod rsa;
 mod serde_impl;
 mod signer;
-pub mod symmetric;
 mod verifier;
+
 use self::serde_impl::Base64DerCertificate;
 #[doc(inline)]
 pub use self::{
     asymmetric::AsymmetricJsonWebKey,
+    builder::{JsonWebKeyBuildError, JsonWebKeyBuilder},
     key_ops::KeyOperation,
     key_use::KeyUsage,
     private::Private,
@@ -227,7 +232,40 @@ pub struct JsonWebKey<T = ()> {
     additional: T,
 }
 
+impl JsonWebKey<()> {
+    fn new(key_type: JsonWebKeyType) -> Self {
+        Self {
+            key_type,
+            key_use: None,
+            key_operations: None,
+            algorithm: None,
+            kid: None,
+            x509_url: None,
+            x509_certificate_chain: vec![],
+            x509_certificate_sha1_thumbprint: None,
+            x509_certificate_sha256_thumbprint: None,
+            additional: (),
+        }
+    }
+}
+
 impl<T> JsonWebKey<T> {
+    /// Turn this Json Web Key into a builder to modify it's contents.
+    pub fn into_builder(self) -> JsonWebKeyBuilder<T> {
+        JsonWebKeyBuilder {
+            key_type: self.key_type,
+            key_use: self.key_use,
+            key_operations: self.key_operations,
+            algorithm: self.algorithm,
+            kid: self.kid,
+            x509_url: self.x509_url,
+            x509_certificate_chain: self.x509_certificate_chain,
+            x509_certificate_sha1_thumbprint: self.x509_certificate_sha1_thumbprint,
+            x509_certificate_sha256_thumbprint: self.x509_certificate_sha256_thumbprint,
+            additional: self.additional,
+        }
+    }
+
     /// [Section 4.1 of RFC 7517] defines the `kty` (Key Type) Parameter.
     ///
     /// Since the `kty` parameter is used to distinguish different key types, we
@@ -341,15 +379,6 @@ impl<T> JsonWebKey<T> {
     }
 }
 
-impl<T, P> IntoSigner<JwkSigner, Vec<u8>> for Checked<JsonWebKey<T>, P> {
-    type Error = <JwkSigner as TryFrom<Self>>::Error;
-
-    /// Turn a [`JsonWebKey`] into a [`Signer`](crate::jws::Signer) by
-    /// overwriting [`JsonWebKey::algorithm`] with `alg`
-    fn into_signer(self, alg: JsonWebSigningAlgorithm) -> Result<JwkSigner, Self::Error> {
-        JwkSigner::new(self.into_type().key_type, alg)
-    }
-}
 impl<T> Checkable for JsonWebKey<T>
 where
     T: Checkable,
@@ -362,7 +391,7 @@ where
         }
 
         if let (Some(key_use), Some(key_ops)) = (self.key_usage(), self.key_operations()) {
-            if let Err(e) = policy.compare_keyops_and_keyuse(key_use, key_ops) {
+            if let Err(e) = policy.compare_key_ops_and_use(key_use, key_ops) {
                 return Err((self, e));
             }
         }
@@ -398,6 +427,57 @@ pub enum JsonWebKeyType {
     Asymmetric(Box<AsymmetricJsonWebKey>),
 }
 
+impl JsonWebKeyType {
+    pub(self) fn compatible_with(&self, alg: &JsonWebAlgorithm) -> bool {
+        use JsonWebAlgorithm::*;
+        use JsonWebKeyType::*;
+
+        // it is unreadable with the matches! macro and there's no benefit
+        #[allow(clippy::match_like_matches_macro)]
+        match (self, alg) {
+            (
+                Symmetric(SymmetricJsonWebKey::OctetSequence(..)),
+                Signing(JsonWebSigningAlgorithm::Hmac(..))
+                | Encryption(JsonWebEncryptionAlgorithm::Direct)
+                | Encryption(JsonWebEncryptionAlgorithm::AesKw(..))
+                | Encryption(JsonWebEncryptionAlgorithm::AesGcmKw(..))
+                | Encryption(JsonWebEncryptionAlgorithm::Pbes2(..)),
+            ) => true,
+            (Asymmetric(key), alg) => match (&**key, alg) {
+                (
+                    AsymmetricJsonWebKey::Public(Public::Ec(..))
+                    | AsymmetricJsonWebKey::Private(Private::Ec(..)),
+                    Encryption(JsonWebEncryptionAlgorithm::EcDhES(..)),
+                )
+                | (
+                    AsymmetricJsonWebKey::Public(Public::Ec(EcPublic::P256(..)))
+                    | AsymmetricJsonWebKey::Private(Private::Ec(EcPrivate::P256(..))),
+                    Signing(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256)),
+                )
+                | (
+                    AsymmetricJsonWebKey::Public(Public::Ec(EcPublic::P384(..)))
+                    | AsymmetricJsonWebKey::Private(Private::Ec(EcPrivate::P384(..))),
+                    Signing(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es384)),
+                )
+                | (
+                    AsymmetricJsonWebKey::Public(Public::Ec(EcPublic::Secp256k1(..)))
+                    | AsymmetricJsonWebKey::Private(Private::Ec(EcPrivate::Secp256k1(..))),
+                    Signing(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256K)),
+                )
+                | (
+                    AsymmetricJsonWebKey::Public(Public::Rsa(..))
+                    | AsymmetricJsonWebKey::Private(Private::Rsa(..)),
+                    Signing(JsonWebSigningAlgorithm::Rsa(..))
+                    | Encryption(JsonWebEncryptionAlgorithm::Rsa1_5)
+                    | Encryption(JsonWebEncryptionAlgorithm::RsaesOaep(..)),
+                ) => true,
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+}
+
 /// A trait for a [`Signer`](crate::jws::Signer) or
 /// [`Verifier`](crate::jws::Verifier) to implement if it can be created from
 /// key material as long as the algorithm is known
@@ -412,4 +492,29 @@ pub trait FromKey<K>: Sized {
     ///
     /// Returns an error if the conversion failed
     fn from_key(value: K, alg: JsonWebAlgorithm) -> Result<Self, Self::Error>;
+}
+
+/// A trait for different key types to implement if they can be converted into a
+/// [`JsonWebKey`].
+///
+/// This trait, and deserialization, is the only public way of creating a
+/// [`JsonWebKey`].
+pub trait IntoJsonWebKey: Sealed {
+    /// One key type may be used for multiple [`JsonWebAlgorithm`]s.
+    ///
+    /// This algorithm can be specified using this type.
+    type Algorithm;
+
+    /// The error that can occurr when converting this key into a JWK.
+    type Error;
+
+    /// Turns this key mateiral into a [`JsonWebKey`] for the given algorithm.
+    ///
+    /// If the given argument is `None`, the `alg` header field of the resulting
+    /// JWK will be None.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Err`] if the conversion fails.
+    fn into_jwk(self, alg: impl Into<Option<Self::Algorithm>>) -> Result<JsonWebKey, Self::Error>;
 }

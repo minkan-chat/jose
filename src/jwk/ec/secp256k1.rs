@@ -24,6 +24,7 @@ impl_ec!(
     Secp256k1,
     crate::jwa::JsonWebSigningAlgorithm::EcDSA(crate::jwa::EcDSA::Es256K),
     crate::jwa::JsonWebSigningAlgorithm::EcDSA(crate::jwa::EcDSA::Es256K),
+    Secp256k1,
     Secp256k1Verifier,
     Secp256k1PublicKey
 );

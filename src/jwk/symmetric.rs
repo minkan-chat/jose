@@ -2,7 +2,7 @@
 
 pub mod hmac;
 
-use alloc::string::String;
+use alloc::{string::String, vec::Vec};
 
 use digest::InvalidLength;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
@@ -21,6 +21,12 @@ pub enum SymmetricJsonWebKey {
 /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4.1>
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct OctetSequence(pub(self) Base64UrlBytes);
+
+impl OctetSequence {
+    pub(crate) fn new(x: impl Into<Vec<u8>>) -> Self {
+        Self(Base64UrlBytes(x.into()))
+    }
+}
 
 impl<'de> Deserialize<'de> for OctetSequence {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
