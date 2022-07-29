@@ -22,3 +22,9 @@ impl From<AesGcm> for super::JsonWebAlgorithm {
         Self::Encryption(super::JsonWebEncryptionAlgorithm::AesGcmKw(x))
     }
 }
+
+impl From<AesGcm> for super::JsonWebContentEncryptionAlgorithm {
+    fn from(x: AesGcm) -> Self {
+        super::JsonWebContentEncryptionAlgorithm::AesGcm(x)
+    }
+}

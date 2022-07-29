@@ -22,3 +22,9 @@ pub enum AesCbcHs {
     /// [section 5.2.5]: <https://datatracker.ietf.org/doc/html/rfc7518#section-5.2.5>
     Aes256CbcHs512,
 }
+
+impl From<AesCbcHs> for super::JsonWebContentEncryptionAlgorithm {
+    fn from(x: AesCbcHs) -> Self {
+        super::JsonWebContentEncryptionAlgorithm::AesCbcHs(x)
+    }
+}
