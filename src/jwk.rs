@@ -390,18 +390,18 @@ where
             }
 
             let operations = match alg {
-                JsonWebAlgorithm::Encryption(..) => &[
+                JsonWebAlgorithm::Encryption(..) => [
                     CryptographicOperation::Encrypt,
                     CryptographicOperation::Decrypt,
-                ][..],
+                ],
                 JsonWebAlgorithm::Signing(..) => {
-                    &[CryptographicOperation::Sign, CryptographicOperation::Verify][..]
+                    [CryptographicOperation::Sign, CryptographicOperation::Verify]
                 }
             };
 
             if let Some(key_use) = self.key_usage() {
                 for op in operations {
-                    if let Err(e) = policy.may_perform_operation_key_use(*op, key_use) {
+                    if let Err(e) = policy.may_perform_operation_key_use(op, key_use) {
                         return Err((self, e));
                     }
                 }
@@ -409,7 +409,7 @@ where
 
             if let Some(key_ops) = self.key_operations() {
                 for op in operations {
-                    if let Err(e) = policy.may_perform_operation_key_ops(*op, key_ops) {
+                    if let Err(e) = policy.may_perform_operation_key_ops(op, key_ops) {
                         return Err((self, e));
                     }
                 }
