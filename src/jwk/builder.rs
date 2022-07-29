@@ -146,6 +146,9 @@ impl<T> JsonWebKeyBuilder<T> {
     /// Returns an [`Err`] if any parameter is considered invalid, or the policy
     /// check failed. For example, if a [`JsonWebKeyType`] is not compatible
     /// with the [`JsonWebAlgorithm`] set.
+    // We think that this degree of complexity is acceptable and a type alias would make things even
+    // more complex
+    #[allow(clippy::type_complexity)]
     pub fn build_and_check<P: Policy>(
         self,
         policy: P,
