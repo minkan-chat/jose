@@ -77,6 +77,12 @@ pub enum JsonWebSigningAlgorithm {
     None,
 }
 
+impl From<JsonWebSigningAlgorithm> for JsonWebAlgorithm {
+    fn from(x: JsonWebSigningAlgorithm) -> Self {
+        Self::Signing(x)
+    }
+}
+
 // don't judge this macro please.
 // its ugly but it works
 impl_serde_jwa!(
@@ -138,6 +144,12 @@ pub enum JsonWebEncryptionAlgorithm {
     AesGcmKw(AesGcm),
     /// PBES2 Key Encryption
     Pbes2(Pbes2),
+}
+
+impl From<JsonWebEncryptionAlgorithm> for JsonWebAlgorithm {
+    fn from(x: JsonWebEncryptionAlgorithm) -> Self {
+        Self::Encryption(x)
+    }
 }
 
 impl_serde_jwa!(

@@ -11,3 +11,15 @@ pub enum Pbes2 {
     /// PBES2 with HMAC SHA-512 and "A256KW" wrapping
     Hs512Aes256,
 }
+
+impl From<Pbes2> for super::JsonWebEncryptionAlgorithm {
+    fn from(x: Pbes2) -> Self {
+        Self::Pbes2(x)
+    }
+}
+
+impl From<Pbes2> for super::JsonWebAlgorithm {
+    fn from(x: Pbes2) -> Self {
+        Self::Encryption(super::JsonWebEncryptionAlgorithm::Pbes2(x))
+    }
+}

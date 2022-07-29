@@ -10,3 +10,15 @@ pub enum AesKw {
     /// AES Key Wrap with default initial value using 256-bit key
     Aes256,
 }
+
+impl From<AesKw> for super::JsonWebEncryptionAlgorithm {
+    fn from(x: AesKw) -> Self {
+        Self::AesKw(x)
+    }
+}
+
+impl From<AesKw> for super::JsonWebAlgorithm {
+    fn from(x: AesKw) -> Self {
+        Self::Encryption(super::JsonWebEncryptionAlgorithm::AesKw(x))
+    }
+}

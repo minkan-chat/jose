@@ -8,3 +8,15 @@ pub enum RsaesOaep {
     /// RSAES OAEP using SHA-256 and MGF1 with SHA-256
     RsaesOaep256,
 }
+
+impl From<RsaesOaep> for crate::jwa::JsonWebEncryptionAlgorithm {
+    fn from(x: RsaesOaep) -> Self {
+        Self::RsaesOaep(x)
+    }
+}
+
+impl From<RsaesOaep> for crate::jwa::JsonWebAlgorithm {
+    fn from(x: RsaesOaep) -> Self {
+        Self::Encryption(crate::jwa::JsonWebEncryptionAlgorithm::RsaesOaep(x))
+    }
+}

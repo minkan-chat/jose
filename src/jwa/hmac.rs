@@ -10,3 +10,15 @@ pub enum Hmac {
     /// HMAC using SHA-512
     Hs512,
 }
+
+impl From<Hmac> for super::JsonWebSigningAlgorithm {
+    fn from(x: Hmac) -> Self {
+        Self::Hmac(x)
+    }
+}
+
+impl From<Hmac> for super::JsonWebAlgorithm {
+    fn from(x: Hmac) -> Self {
+        Self::Signing(super::JsonWebSigningAlgorithm::Hmac(x))
+    }
+}
