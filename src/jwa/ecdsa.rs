@@ -16,3 +16,15 @@ pub enum EcDSA {
     /// [RFC 8812 section 3]: <https://datatracker.ietf.org/doc/html/rfc8812#section-3>
     Es256K,
 }
+
+impl From<EcDSA> for super::JsonWebSigningAlgorithm {
+    fn from(x: EcDSA) -> Self {
+        Self::EcDSA(x)
+    }
+}
+
+impl From<EcDSA> for super::JsonWebAlgorithm {
+    fn from(x: EcDSA) -> Self {
+        Self::Signing(super::JsonWebSigningAlgorithm::EcDSA(x))
+    }
+}
