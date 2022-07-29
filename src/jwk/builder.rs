@@ -118,8 +118,6 @@ impl<T> JsonWebKeyBuilder<T> {
             additional,
         } = self;
 
-        // FIXME: check if `algorithm` and `use` match
-
         if let Some(ref algorithm) = algorithm {
             if !key_type.compatible_with(algorithm) {
                 return Err(JsonWebKeyBuildError::IncompatibleKeyType);
