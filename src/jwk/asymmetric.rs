@@ -12,3 +12,9 @@ pub enum AsymmetricJsonWebKey {
     /// The public part of an asymmetric key
     Public(Public),
 }
+
+impl From<AsymmetricJsonWebKey> for super::JsonWebKeyType {
+    fn from(x: AsymmetricJsonWebKey) -> Self {
+        super::JsonWebKeyType::Asymmetric(alloc::boxed::Box::new(x))
+    }
+}

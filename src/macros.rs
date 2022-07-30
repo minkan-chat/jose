@@ -15,6 +15,26 @@ macro_rules! impl_ec {
             }
         }
 
+        impl From<$priv> for crate::jwk::JsonWebKeyType {
+            fn from(x: $priv) -> Self {
+                crate::jwk::JsonWebKeyType::Asymmetric(alloc::boxed::Box::new(
+                    crate::jwk::AsymmetricJsonWebKey::Private(
+                        crate::jwk::Private::Ec(crate::jwk::EcPrivate::$ec_priv_name(x))
+                    ),
+                ))
+            }
+        }
+
+        impl From<$public> for crate::jwk::JsonWebKeyType {
+            fn from(x: $public) -> Self {
+                crate::jwk::JsonWebKeyType::Asymmetric(alloc::boxed::Box::new(
+                    crate::jwk::AsymmetricJsonWebKey::Public(
+                        crate::jwk::Public::Ec(crate::jwk::EcPublic::$ec_priv_name(x))
+                    ),
+                ))
+            }
+        }
+
         impl crate::sealed::Sealed for $public {}
         impl crate::jwk::IntoJsonWebKey for $public {
             /// Algorithm is `()` because there's only

@@ -52,51 +52,25 @@ macro_rules! gen_builder_methods {
     };
 }
 
-impl<T> JsonWebKeyBuilder<T> {
-    gen_builder_methods! {
-        key_use: KeyUsage,
-        key_operations: HashSet<KeyOperation>,
-        algorithm: JsonWebAlgorithm,
-        kid: String,
-        x509_url: String,
-        x509_certificate_sha1_thumbprint: [u8; 20],
-        x509_certificate_sha256_thumbprint: [u8; 32],
-    }
-
-    /// Override the `key_type` for this JWK.
-    #[inline]
-    pub fn key_type(mut self, key_type: JsonWebKeyType) -> Self {
-        self.key_type = key_type;
-        self
-    }
-
-    /// Override the `x509_certificate_chain` for this JWK.
-    #[inline]
-    pub fn x509_certificate_chain(mut self, x509_certificate_chain: Vec<Vec<u8>>) -> Self {
-        self.x509_certificate_chain = x509_certificate_chain
-            .into_iter()
-            .map(Base64DerCertificate)
-            .collect();
-        self
-    }
-
-    /// Override the additional parameters for this JWK.
-    #[inline]
-    pub fn additional<NT>(self, additional: NT) -> JsonWebKeyBuilder<NT> {
-        JsonWebKeyBuilder {
-            key_type: self.key_type,
-            key_use: self.key_use,
-            key_operations: self.key_operations,
-            algorithm: self.algorithm,
-            kid: self.kid,
-            x509_url: self.x509_url,
-            x509_certificate_chain: self.x509_certificate_chain,
-            x509_certificate_sha1_thumbprint: self.x509_certificate_sha1_thumbprint,
-            x509_certificate_sha256_thumbprint: self.x509_certificate_sha256_thumbprint,
-            additional,
+impl JsonWebKeyBuilder<()> {
+    /// Create a new [`JsonWebKeyBuilder`] with the given key.
+    pub fn new(key_type: impl Into<JsonWebKeyType>) -> Self {
+        Self {
+            key_type: key_type.into(),
+            key_use: None,
+            key_operations: None,
+            algorithm: None,
+            kid: None,
+            x509_url: None,
+            x509_certificate_chain: alloc::vec![],
+            x509_certificate_sha1_thumbprint: None,
+            x509_certificate_sha256_thumbprint: None,
+            additional: (),
         }
     }
+}
 
+impl<T> JsonWebKeyBuilder<T> {
     /// Try to construct the final [`JsonWebKey`].
     ///
     /// # Errors
@@ -165,5 +139,51 @@ impl<T> JsonWebKeyBuilder<T> {
             })?
             .check(policy)
             .map_err(JsonWebKeyBuildError::PolicyCheckFailed)
+    }
+}
+
+impl<T> JsonWebKeyBuilder<T> {
+    gen_builder_methods! {
+        key_use: KeyUsage,
+        key_operations: HashSet<KeyOperation>,
+        algorithm: JsonWebAlgorithm,
+        kid: String,
+        x509_url: String,
+        x509_certificate_sha1_thumbprint: [u8; 20],
+        x509_certificate_sha256_thumbprint: [u8; 32],
+    }
+
+    /// Override the `key_type` for this JWK.
+    #[inline]
+    pub fn key_type(mut self, key_type: JsonWebKeyType) -> Self {
+        self.key_type = key_type;
+        self
+    }
+
+    /// Override the `x509_certificate_chain` for this JWK.
+    #[inline]
+    pub fn x509_certificate_chain(mut self, x509_certificate_chain: Vec<Vec<u8>>) -> Self {
+        self.x509_certificate_chain = x509_certificate_chain
+            .into_iter()
+            .map(Base64DerCertificate)
+            .collect();
+        self
+    }
+
+    /// Override the additional parameters for this JWK.
+    #[inline]
+    pub fn additional<NT>(self, additional: NT) -> JsonWebKeyBuilder<NT> {
+        JsonWebKeyBuilder {
+            key_type: self.key_type,
+            key_use: self.key_use,
+            key_operations: self.key_operations,
+            algorithm: self.algorithm,
+            kid: self.kid,
+            x509_url: self.x509_url,
+            x509_certificate_chain: self.x509_certificate_chain,
+            x509_certificate_sha1_thumbprint: self.x509_certificate_sha1_thumbprint,
+            x509_certificate_sha256_thumbprint: self.x509_certificate_sha256_thumbprint,
+            additional,
+        }
     }
 }

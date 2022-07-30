@@ -28,6 +28,18 @@ impl OctetSequence {
     }
 }
 
+impl From<SymmetricJsonWebKey> for super::JsonWebKeyType {
+    fn from(x: SymmetricJsonWebKey) -> Self {
+        super::JsonWebKeyType::Symmetric(x)
+    }
+}
+
+impl From<OctetSequence> for super::JsonWebKeyType {
+    fn from(x: OctetSequence) -> Self {
+        super::JsonWebKeyType::Symmetric(SymmetricJsonWebKey::OctetSequence(x))
+    }
+}
+
 impl<'de> Deserialize<'de> for OctetSequence {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

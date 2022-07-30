@@ -17,3 +17,11 @@ pub enum Private {
     // /// curve25519 or curve448 key
     // Okp(OkpPrivate),
 }
+
+impl From<Private> for super::JsonWebKeyType {
+    fn from(x: Private) -> Self {
+        super::JsonWebKeyType::Asymmetric(alloc::boxed::Box::new(
+            super::AsymmetricJsonWebKey::Private(x),
+        ))
+    }
+}
