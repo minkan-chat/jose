@@ -1,7 +1,10 @@
 //! [`JsonWebKey`] and connected things
 
 use alloc::{boxed::Box, string::String, vec, vec::Vec};
-use core::{fmt::Debug, ops::Deref};
+use core::{
+    fmt::Debug,
+    ops::{ControlFlow, Deref},
+};
 
 use hashbrown::HashSet;
 use serde::{Deserialize, Serialize};
@@ -398,19 +401,56 @@ where
                     [CryptographicOperation::Sign, CryptographicOperation::Verify]
                 }
             };
+            debug_assert!(!operations.is_empty());
 
             if let Some(key_use) = self.key_usage() {
-                for op in operations {
-                    if let Err(e) = policy.may_perform_operation_key_use(op, key_use) {
-                        return Err((self, e));
+                // The following ensures that at least one `operation` is allowed with the
+                // current key usage (returns Ok(())). If Ok(()) is returned, it
+                // short-circuits
+                match operations.iter().try_fold(None, |_, operation| {
+                    match policy.may_perform_operation_key_use(*operation, key_use) {
+                        Ok(_) => ControlFlow::Break(()),
+                        Err(err) => ControlFlow::Continue(Some(err)),
+                    }
+                }) {
+                    ControlFlow::Break(_) => (),
+                    ControlFlow::Continue(err) => {
+                        return Err((
+                            self,
+                            // Safety
+                            //
+                            // First of, this could use unwrap_unchecked but doesn't since we
+                            // forbid unsafe code in this crate. However, it would be safe,
+                            // because: the call to the Policy returns
+                            // Result<(), err> and if it's Ok, it
+                            // will break and this branch will never get called. If the call
+                            // failed, the inital state of `None` will be set to
+                            // Continue(Some(err)), which will be the value in this branch
+                            err.expect("at least one call has been made to the Policy"),
+                        ));
                     }
                 }
             }
 
             if let Some(key_ops) = self.key_operations() {
-                for op in operations {
-                    if let Err(e) = policy.may_perform_operation_key_ops(op, key_ops) {
-                        return Err((self, e));
+                // The following ensures tthat at loeast one `operation` is allowed with the
+                // current key operations. If Ok(()) is returned, it short-circuits.
+                // For example, a key might have a signing algorithm, but only
+                // `KeyOperation::Verify` is set since it is a public key and can't perform
+                // signing operations. In this case, it has the same signing algorithm.
+                match operations.iter().try_fold(None, |_, operation| {
+                    match policy.may_perform_operation_key_ops(*operation, key_ops) {
+                        Ok(_) => ControlFlow::Break(()),
+                        Err(err) => ControlFlow::Continue(Some(err)),
+                    }
+                }) {
+                    ControlFlow::Break(_) => (),
+                    ControlFlow::Continue(err) => {
+                        return Err((
+                            self,
+                            // Same rules as for the code with `key_usage` from above apply.
+                            err.expect("at leat one call has been made to the Policy"),
+                        ));
                     }
                 }
             }
