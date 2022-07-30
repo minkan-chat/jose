@@ -1,19 +1,29 @@
 use alloc::{string::String, vec::Vec};
+use core::convert::Infallible;
 
 use hashbrown::HashSet;
 
 use super::{serde_impl::Base64DerCertificate, JsonWebKey, JsonWebKeyType, KeyOperation, KeyUsage};
-use crate::jwa::JsonWebAlgorithm;
+use crate::{
+    jwa::JsonWebAlgorithm,
+    policy::{Checkable, Checked, Policy},
+};
 
 /// Reasons the construction of a `JsonWebKey` via the
 /// [`JsonWebKeyBuilder::build`] method can fail.
 #[derive(Debug, thiserror_no_std::Error)]
-pub enum JsonWebKeyBuildError {
+#[non_exhaustive]
+pub enum JsonWebKeyBuildError<P> {
     /// The [`JsonWebKeyType`] and [`JsonWebAlgorithm`] are not compatible.
     ///
     /// An example is usage of an RSA key with an Hmac Json web algorithm.
     #[error("the `key_type` and `algorithm` are not compatible")]
     IncompatibleKeyType,
+    /// This error can only happen when using the
+    /// [`build_and_check`](JsonWebKeyBuilder::build_and_check) is used and the
+    /// policy check failed.
+    #[error(transparent)]
+    PolicyCheckFailed(P),
 }
 
 /// The builder for modifying a [`JsonWebKey`].
@@ -94,7 +104,7 @@ impl<T> JsonWebKeyBuilder<T> {
     /// Returns an [`Err`] if any parameter is considered invalid. For example,
     /// if a [`JsonWebKeyType`] is not compatible with the [`JsonWebAlgorithm`]
     /// set.
-    pub fn build(self) -> Result<JsonWebKey<T>, JsonWebKeyBuildError> {
+    pub fn build(self) -> Result<JsonWebKey<T>, JsonWebKeyBuildError<Infallible>> {
         let Self {
             key_type,
             key_use,
@@ -107,8 +117,6 @@ impl<T> JsonWebKeyBuilder<T> {
             x509_certificate_sha256_thumbprint,
             additional,
         } = self;
-
-        // FIXME: check if `algorithm` and `use` match
 
         if let Some(ref algorithm) = algorithm {
             if !key_type.compatible_with(algorithm) {
@@ -128,5 +136,34 @@ impl<T> JsonWebKeyBuilder<T> {
             x509_certificate_sha256_thumbprint,
             additional,
         })
+    }
+
+    /// Try to construct the final [`JsonWebKey`], and then validates the
+    /// resulting JWK using the given [`Policy`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Err`] if any parameter is considered invalid, or the policy
+    /// check failed. For example, if a [`JsonWebKeyType`] is not compatible
+    /// with the [`JsonWebAlgorithm`] set.
+    // We think that this degree of complexity is acceptable and a type alias would make things even
+    // more complex
+    #[allow(clippy::type_complexity)]
+    pub fn build_and_check<P: Policy>(
+        self,
+        policy: P,
+    ) -> Result<Checked<JsonWebKey<T>, P>, JsonWebKeyBuildError<(JsonWebKey<T>, P::Error)>>
+    where
+        T: Checkable,
+    {
+        self.build()
+            .map_err(|e| match e {
+                JsonWebKeyBuildError::IncompatibleKeyType => {
+                    JsonWebKeyBuildError::IncompatibleKeyType
+                }
+                JsonWebKeyBuildError::PolicyCheckFailed(x) => match x {},
+            })?
+            .check(policy)
+            .map_err(JsonWebKeyBuildError::PolicyCheckFailed)
     }
 }

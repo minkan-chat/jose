@@ -103,14 +103,13 @@ impl Policy for StandardPolicy {
         operation: CryptographicOperation,
         key_ops: &HashSet<KeyOperation>,
     ) -> Result<(), Self::Error> {
-        match match operation {
-            CryptographicOperation::Decrypt => key_ops.contains(&KeyOperation::Decrypt),
-            CryptographicOperation::Encrypt => key_ops.contains(&KeyOperation::Encrypt),
-            CryptographicOperation::Sign => key_ops.contains(&KeyOperation::Sign),
-            CryptographicOperation::Verify => key_ops.contains(&KeyOperation::Verify),
-        } {
-            true => Ok(()),
-            false => Err(StandardPolicyFail::OperationNotAllowed),
+        use CryptographicOperation::*;
+        match operation {
+            Encrypt if key_ops.contains(&KeyOperation::Encrypt) => Ok(()),
+            Decrypt if key_ops.contains(&KeyOperation::Encrypt) => Ok(()),
+            Sign if key_ops.contains(&KeyOperation::Sign) => Ok(()),
+            Verify if key_ops.contains(&KeyOperation::Verify) => Ok(()),
+            _ => Err(StandardPolicyFail::OperationNotAllowed),
         }
     }
 
@@ -119,16 +118,11 @@ impl Policy for StandardPolicy {
         operation: CryptographicOperation,
         key_use: &KeyUsage,
     ) -> Result<(), Self::Error> {
-        match match operation {
-            CryptographicOperation::Decrypt | CryptographicOperation::Encrypt => {
-                matches!(key_use, &KeyUsage::Encryption)
-            }
-            CryptographicOperation::Sign | CryptographicOperation::Verify => {
-                matches!(key_use, &KeyUsage::Signing)
-            }
-        } {
-            true => Ok(()),
-            false => Err(StandardPolicyFail::OperationNotAllowed),
+        use CryptographicOperation::*;
+        match operation {
+            Decrypt | Encrypt if key_use == &KeyUsage::Encryption => Ok(()),
+            Sign | Verify if key_use == &KeyUsage::Signing => Ok(()),
+            _ => Err(StandardPolicyFail::OperationNotAllowed),
         }
     }
 }
