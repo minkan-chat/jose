@@ -107,6 +107,14 @@ impl<H: HmacVariant> HmacKey<H> {
     }
 }
 
+impl<H: HmacVariant> From<HmacKey<H>> for jwk::JsonWebKeyType {
+    fn from(key: HmacKey<H>) -> Self {
+        jwk::JsonWebKeyType::Symmetric(jwk::SymmetricJsonWebKey::OctetSequence(OctetSequence::new(
+            key.key,
+        )))
+    }
+}
+
 impl<H: HmacVariant> Sealed for HmacKey<H> {}
 impl<H: HmacVariant> IntoJsonWebKey for HmacKey<H> {
     type Algorithm = ();
@@ -117,7 +125,7 @@ impl<H: HmacVariant> IntoJsonWebKey for HmacKey<H> {
         alg: impl Into<Option<Self::Algorithm>>,
     ) -> Result<crate::JsonWebKey, Self::Error> {
         let key = jwk::JsonWebKeyType::Symmetric(jwk::SymmetricJsonWebKey::OctetSequence(
-            OctetSequence::new(self.key.to_vec()),
+            OctetSequence::new(self.key),
         ));
 
         let mut jwk = crate::JsonWebKey::new(key);

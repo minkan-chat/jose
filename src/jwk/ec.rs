@@ -43,6 +43,14 @@ pub enum EcPublic {
     Secp256k1(Secp256k1PublicKey),
 }
 
+impl From<EcPublic> for super::JsonWebKeyType {
+    fn from(x: EcPublic) -> Self {
+        super::JsonWebKeyType::Asymmetric(alloc::boxed::Box::new(
+            super::AsymmetricJsonWebKey::Public(super::Public::Ec(x)),
+        ))
+    }
+}
+
 impl_internally_tagged_deserialize!(EcPublic, "crv", "EcCurve", [
     "P-256" => P256,
     "P-384" => P384,
@@ -66,6 +74,14 @@ pub enum EcPrivate {
     // P521(P521PrivateKey),
     /// Private part of the secp251k1 curve
     Secp256k1(Secp256k1PrivateKey),
+}
+
+impl From<EcPrivate> for super::JsonWebKeyType {
+    fn from(x: EcPrivate) -> Self {
+        super::JsonWebKeyType::Asymmetric(alloc::boxed::Box::new(
+            super::AsymmetricJsonWebKey::Private(super::Private::Ec(x)),
+        ))
+    }
 }
 
 impl_internally_tagged_deserialize!(EcPrivate, "crv", "EcCurve", [

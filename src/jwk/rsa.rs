@@ -21,6 +21,14 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RsaPublicKey(rsa::RsaPublicKey);
 
+impl From<RsaPublicKey> for super::JsonWebKeyType {
+    fn from(x: RsaPublicKey) -> Self {
+        super::JsonWebKeyType::Asymmetric(Box::new(super::AsymmetricJsonWebKey::Public(
+            super::Public::Rsa(x),
+        )))
+    }
+}
+
 impl crate::sealed::Sealed for RsaPublicKey {}
 impl IntoJsonWebKey for RsaPublicKey {
     type Algorithm = RsaSigning;
@@ -98,6 +106,14 @@ impl<'de> Deserialize<'de> for RsaPublicKey {
 // INTERNAL NOTE: the inner RsaPrivateKey **MUST** contain exactly two prime factors (p, q)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RsaPrivateKey(rsa::RsaPrivateKey);
+
+impl From<RsaPrivateKey> for super::JsonWebKeyType {
+    fn from(x: RsaPrivateKey) -> Self {
+        super::JsonWebKeyType::Asymmetric(Box::new(super::AsymmetricJsonWebKey::Private(
+            super::Private::Rsa(Box::new(x)),
+        )))
+    }
+}
 
 impl RsaPrivateKey {
     /// Generate a new RSA key pair of the given bit size.
