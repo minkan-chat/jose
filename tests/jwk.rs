@@ -1,5 +1,5 @@
 use jose::{
-    jwa::{self, EcDSA, Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
+    jwa::{EcDSA, Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::{
         ec::{EcPrivate, EcPublic},
         symmetric::{
