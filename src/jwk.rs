@@ -252,12 +252,14 @@ impl JsonWebKey<()> {
     }
 }
 
-impl<T> JsonWebKey<T> {
+impl JsonWebKey<()> {
     /// Create a [`JsonWebKeyBuilder`] to construct a new JWK.
     pub fn builder(key_type: impl Into<JsonWebKeyType>) -> JsonWebKeyBuilder<()> {
         JsonWebKeyBuilder::new(key_type)
     }
+}
 
+impl<T> JsonWebKey<T> {
     /// Turn this Json Web Key into a builder to modify it's contents.
     pub fn into_builder(self) -> JsonWebKeyBuilder<T> {
         JsonWebKeyBuilder {

@@ -1,13 +1,12 @@
 use jose::{
-    jwa::{EcDSA, Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
+    jwa::{self, EcDSA, Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::{
         ec::{EcPrivate, EcPublic},
         symmetric::{
             hmac::{HmacKey, Hs256},
             FromOctetSequenceError, OctetSequence,
         },
-        AsymmetricJsonWebKey, FromKey, IntoJsonWebKey, JsonWebKey, JsonWebKeyType, JwkSigner,
-        Private, Public,
+        AsymmetricJsonWebKey, FromKey, JsonWebKey, JsonWebKeyType, JwkSigner, Private, Public,
     },
     jws::Signer,
     policy::{Checkable, Checked, StandardPolicy},
@@ -271,17 +270,4 @@ fn deny_hmac_key_with_short_key() {
         hmac.unwrap_err(),
         FromOctetSequenceError::InvalidLength(digest::InvalidLength)
     );
-}
-
-#[test]
-fn generate_hmac_jwk() -> Result<(), Box<dyn std::error::Error>> {
-    let rng = rand::thread_rng();
-
-    let key = HmacKey::<Hs256>::generate(rng);
-    let jwk = key.into_jwk(())?;
-    let jwk = serde_json::to_string(&jwk)?;
-
-    std::fs::write("/tmp/jose-hmac.json", jwk)?;
-
-    Ok(())
 }

@@ -45,8 +45,8 @@ macro_rules! gen_builder_methods {
     ($($field:ident: $T:ty,)*) => {
         $(#[doc = concat!("Override the `", stringify!($field), "` for this JWK.")]
         #[inline]
-        pub fn $field(mut self, $field: impl Into<Option<$T>>) -> Self {
-            self.$field = $field.into();
+        pub fn $field(mut self, $field: Option<impl Into<$T>>) -> Self {
+            self.$field = $field.map(Into::into);
             self
         })*
     };
