@@ -17,7 +17,7 @@ use crate::{
     format::{Compact, FromFormat, IntoFormat, JsonFlattened},
     jwa::JsonWebSigningAlgorithm,
     sealed::Sealed,
-    JsonWebKey,
+    Base64UrlString, JsonWebKey,
 };
 
 mod sign;
@@ -30,27 +30,35 @@ pub use {sign::*, verify::*};
 // FIXME: Appendix F: Detached Content
 // FIXME: protected headers
 
+/// Different interpretations of a JWS payload.
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum PayloadKind {
+    /// The given base64 string will just be used as the payload.
+    Standard(Base64UrlString),
+}
+
 /// Everything that can be used as a payload for a [`JsonWebSignature`].
 pub trait Payload: Sized {
-    /// The type that contains the raw bytes.
-    type Buf: AsRef<[u8]>;
-
-    /// The error that can occurr while converting
-    /// this payload into it's byte representation.
-    type IntoError;
+    /// The error that can occurr while providing the payload in the
+    /// [`Self::provide_payload`] method.
+    type ProvideError;
 
     /// The error that can occurr while converting
     /// a raw byte sequence into this payload type.
     type FromError;
 
-    /// Turn `self` into it's raw byte representation that will
-    /// be put into a [`JsonWebSignature`].
+    /// First, this method must insert the raw bytes representation of this
+    /// payload into the given `digest`, which is later used for creating the
+    /// signature. Then the method must return the [kind of
+    /// payload](PayloadKind) to use in the resulting JWS.
     ///
     /// # Errors
     ///
-    /// Returns an error if it failed to convert `self` into it's byte
-    /// representation.
-    fn into_bytes(self) -> Result<Self::Buf, Self::IntoError>;
+    /// Returns an error if it failed to provide the payload.
+    fn provide_payload<D: digest::Update>(
+        self,
+        digest: &mut D,
+    ) -> Result<PayloadKind, Self::ProvideError>;
 
     /// Convert a raw byte sequence into this payload.
     ///
@@ -61,27 +69,31 @@ pub trait Payload: Sized {
     fn from_bytes(input: Vec<u8>) -> Result<Self, Self::FromError>;
 }
 
-impl Payload for Vec<u8> {
-    type Buf = Vec<u8>;
-    type FromError = Infallible;
-    type IntoError = Infallible;
+// impl Payload for Vec<u8> {
+//     type Buf = Vec<u8>;
+//     type FromError = Infallible;
+//     type IntoError = Infallible;
 
-    fn into_bytes(self) -> Result<Self::Buf, Self::IntoError> {
-        Ok(self)
-    }
+//     fn into_bytes(self) -> Result<Self::Buf, Self::IntoError> {
+//         Ok(self)
+//     }
 
-    fn from_bytes(input: Vec<u8>) -> Result<Self, Self::FromError> {
-        Ok(input)
-    }
-}
+//     fn from_bytes(input: Vec<u8>) -> Result<Self, Self::FromError> {
+//         Ok(input)
+//     }
+// }
 
 impl Payload for String {
-    type Buf = Vec<u8>;
     type FromError = alloc::string::FromUtf8Error;
-    type IntoError = Infallible;
+    type ProvideError = Infallible;
 
-    fn into_bytes(self) -> Result<Self::Buf, Self::IntoError> {
-        Ok(self.into_bytes())
+    fn provide_payload<D: digest::Update>(
+        self,
+        digest: &mut D,
+    ) -> Result<PayloadKind, Self::ProvideError> {
+        let s = Base64UrlString::encode(self.into_bytes());
+        digest.update(s.as_bytes());
+        Ok(PayloadKind::Standard(s))
     }
 
     fn from_bytes(input: Vec<u8>) -> Result<Self, Self::FromError> {
@@ -345,24 +357,30 @@ where
     pub fn sign<S: AsRef<[u8]>, D: digest::Update>(
         mut self,
         signer: &mut dyn Signer<S, Digest = D>,
-    ) -> Result<Signed<S>, SignError<T::IntoError>> {
+    ) -> Result<Signed<S>, SignError<T::ProvideError>> {
         self.header.signing_algorithm = signer.algorithm();
         self.header.key_id = signer.key_id().map(|s| s.to_string());
 
         let header = serde_json::to_value(&self.header).map_err(SignError::SerializeHeader)?;
         let header = Base64UrlUnpadded::encode_string(header.to_string().as_bytes());
 
-        let payload = self.payload.into_bytes().map_err(SignError::Payload)?;
-        let payload = Base64UrlUnpadded::encode_string(payload.as_ref());
-
         let mut digest = signer.new_digest();
         digest.update(header.as_bytes());
         digest.update(b".");
-        digest.update(payload.as_bytes());
+
+        let payload = self
+            .payload
+            .provide_payload(&mut digest)
+            .map_err(SignError::Payload)?;
         let signature = signer.finalize(digest).map_err(SignError::Sign)?;
 
         Ok(Signed {
-            value: JsonWebSignatureValue { header, payload },
+            value: JsonWebSignatureValue {
+                header,
+                payload: match payload {
+                    PayloadKind::Standard(s) => s.into_inner(),
+                },
+            },
             signature,
         })
     }

@@ -38,6 +38,8 @@ pub mod jws;
 mod jwt;
 pub mod policy;
 
+pub use base64_url::Base64UrlString;
+
 #[doc(inline)]
 pub use self::{jwk::JsonWebKey, jws::JsonWebSignature, jwt::JsonWebToken};
 

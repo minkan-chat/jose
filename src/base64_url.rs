@@ -1,11 +1,39 @@
 //! Helpers for base64 urlsafe encoded stuff
 
 use alloc::{string::String, vec::Vec};
+use core::ops::Deref;
 
 use base64ct::{Base64UrlUnpadded, Encoding};
 use elliptic_curve::{bigint::ArrayEncoding, Curve, FieldBytes};
 use generic_array::{ArrayLength, GenericArray};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
+
+/// A wrapper around a [`String`] that guarantees that the inner string is a
+/// valid Base64Url string.
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct Base64UrlString(String);
+
+impl Base64UrlString {
+    /// Encode the given bytes using Base64Url format.
+    #[inline]
+    pub fn encode(x: impl AsRef<[u8]>) -> Self {
+        Base64UrlString(Base64UrlUnpadded::encode_string(x.as_ref()))
+    }
+
+    /// Return the inner string.
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl Deref for Base64UrlString {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub(crate) struct Base64UrlBytes(pub(crate) Vec<u8>);
