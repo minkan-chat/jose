@@ -88,8 +88,14 @@ macro_rules! impl_ec {
 
         #[allow(unused_qualifications)]
         impl crate::jws::Signer<ecdsa::Signature<$crv>> for $signer {
-            fn sign(&mut self, msg: &[u8]) -> Result<ecdsa::Signature<$crv>, signature::Error> {
-                signature::Signer::try_sign(&self.0, msg)
+            type Digest = <$crv as ecdsa::hazmat::DigestPrimitive>::Digest;
+
+            fn new_digest(&self) -> Self::Digest {
+                Self::Digest::default()
+            }
+
+            fn finalize(&mut self, digest: Self::Digest) -> Result<ecdsa::Signature<$crv>, signature::Error> {
+                signature::DigestSigner::try_sign_digest(&self.0, digest)
             }
 
             fn algorithm(&self) -> crate::jwa::JsonWebSigningAlgorithm {

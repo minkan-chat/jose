@@ -6,7 +6,7 @@ use core::{
     ops::{Deref, DerefMut},
 };
 
-use digest::{FixedOutputReset, KeyInit, Output, OutputSizeUser, Update};
+use digest::{FixedOutput, FixedOutputReset, KeyInit, Output, OutputSizeUser, Update};
 use typenum::Unsigned;
 
 use super::{FromOctetSequenceError, OctetSequence};
@@ -23,7 +23,7 @@ pub trait HmacVariant: Sealed {
     const ALGORITHM: JsonWebSigningAlgorithm;
 
     /// The [`hmac::Hmac`] type for this variant.
-    type HmacType: KeyInit + FixedOutputReset + Update + fmt::Debug;
+    type HmacType: Clone + KeyInit + FixedOutput + FixedOutputReset + Update + fmt::Debug;
 }
 
 /// Marker type that represents Hmac using the Sha256 digest.
@@ -157,9 +157,14 @@ impl<H: HmacVariant> Verifier for HmacKey<H> {
 }
 
 impl<H: HmacVariant> Signer<HmacSignature<H>> for HmacKey<H> {
-    fn sign(&mut self, msg: &[u8]) -> Result<HmacSignature<H>, signature::Error> {
-        self.alg.update(msg);
-        let out = self.alg.finalize_fixed_reset();
+    type Digest = H::HmacType;
+
+    fn new_digest(&self) -> Self::Digest {
+        self.alg.clone()
+    }
+
+    fn finalize(&mut self, digest: Self::Digest) -> Result<HmacSignature<H>, signature::Error> {
+        let out = digest.finalize_fixed();
         Ok(HmacSignature(out))
     }
 

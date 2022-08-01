@@ -39,21 +39,35 @@ impl<S: AsRef<[u8]>> Signed<S> {
 /// This trait represents anything that can be used to sign a JWS, JWE, or
 /// whatever.
 ///
-/// To be able to be used as a [`Signer`], one must provide the [sign operation]
+/// A message is signed using a [`Signer`] by first getting an instance of a
+/// digest using the [`new_digest`] method. Then the whole message is put into
+/// the returned digest using the [`digest::Update`] trait bound, and to finally
+/// get the signature, one uses the [`finalize`] method.
+///
+/// To be able to be used as a [`Signer`], one must provide the sign operation
 /// itself, and also needs to [specify the algorithm] used for signing. The
 /// algorithm will be used as the value for the `alg` field inside the
 /// [`JoseHeader`](crate::jws::JoseHeader) for the signed type.
 ///
-/// [sign operation]: Signer::sign
+/// [`new_digest`]: Signer::new_digest
+/// [`finalize`]: Signer::finalize
 /// [specify the algorithm]: Signer::algorithm
 pub trait Signer<S: AsRef<[u8]>> {
-    /// Sign the given bytestring using this signer and return the signature.
-    ///
+    /// The [`Digest`](digest::Digest) for this signer that will be used to
+    /// create the hash.
+    type Digest: digest::Update;
+
+    /// Create a new instance of digest for this signer.
+    fn new_digest(&self) -> Self::Digest;
+
+    /// Takes a [`Digest`](Self::Digest) and finalizes it into the resulting
+    /// signature by signing the original message.
+
     /// # Errors
     ///
     /// Returns an error if the signing operation fails.
     /// An error usually only appears when communicating with external signers.
-    fn sign(&mut self, msg: &[u8]) -> Result<S, signature::Error>;
+    fn finalize(&mut self, digest: Self::Digest) -> Result<S, signature::Error>;
 
     /// Return the type of signing algorithm used by this signer.
     fn algorithm(&self) -> JsonWebSigningAlgorithm;

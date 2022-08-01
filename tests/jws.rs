@@ -20,8 +20,14 @@ use jose::{
 
 struct NoneKey;
 impl Signer<&'static [u8]> for NoneKey {
-    fn sign(&mut self, _: &[u8]) -> Result<&'static [u8], signature::Error> {
-        Ok(&[])
+    type Digest = sha2::Sha256;
+
+    fn new_digest(&self) -> Self::Digest {
+        todo!()
+    }
+
+    fn finalize(&mut self, _digest: Self::Digest) -> Result<&'static [u8], signature::Error> {
+        todo!()
     }
 
     fn algorithm(&self) -> JsonWebSigningAlgorithm {
@@ -99,7 +105,6 @@ fn sign_jws_using_p256() {
         .unwrap();
 
     let jws = JWS::builder()
-        .critical(vec![String::from("foo")])
         .build(String::from("abc"))
         .sign(&mut signer)
         .unwrap();

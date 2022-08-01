@@ -342,9 +342,9 @@ where
     ///
     ///  This method returns an error if the serialization of the header `H`
     /// fails or if the [`Signer`] returns an error.
-    pub fn sign<S: AsRef<[u8]>>(
+    pub fn sign<S: AsRef<[u8]>, D: digest::Update>(
         mut self,
-        signer: &mut dyn Signer<S>,
+        signer: &mut dyn Signer<S, Digest = D>,
     ) -> Result<Signed<S>, SignError<T::IntoError>> {
         self.header.signing_algorithm = signer.algorithm();
         self.header.key_id = signer.key_id().map(|s| s.to_string());
@@ -355,8 +355,11 @@ where
         let payload = self.payload.into_bytes().map_err(SignError::Payload)?;
         let payload = Base64UrlUnpadded::encode_string(payload.as_ref());
 
-        let msg = alloc::format!("{}.{}", header, payload);
-        let signature = signer.sign(msg.as_bytes()).map_err(SignError::Sign)?;
+        let mut digest = signer.new_digest();
+        digest.update(header.as_bytes());
+        digest.update(b".");
+        digest.update(payload.as_bytes());
+        let signature = signer.finalize(digest).map_err(SignError::Sign)?;
 
         Ok(Signed {
             value: JsonWebSignatureValue { header, payload },
