@@ -18,16 +18,21 @@ use jose::{
     JsonWebKey, JWS,
 };
 
+struct DummyDigest;
+impl digest::Update for DummyDigest {
+    fn update(&mut self, _data: &[u8]) {}
+}
+
 struct NoneKey;
-impl Signer<&'static [u8]> for NoneKey {
-    type Digest = sha2::Sha256;
+impl Signer<[u8; 0]> for NoneKey {
+    type Digest = DummyDigest;
 
     fn new_digest(&self) -> Self::Digest {
-        todo!()
+        DummyDigest
     }
 
-    fn finalize(&mut self, _digest: Self::Digest) -> Result<&'static [u8], signature::Error> {
-        todo!()
+    fn finalize(&mut self, _digest: Self::Digest) -> Result<[u8; 0], signature::Error> {
+        Ok([])
     }
 
     fn algorithm(&self) -> JsonWebSigningAlgorithm {
