@@ -163,7 +163,7 @@ impl<H: HmacVariant> Signer<HmacSignature<H>> for HmacKey<H> {
         self.alg.clone()
     }
 
-    fn finalize(&mut self, digest: Self::Digest) -> Result<HmacSignature<H>, signature::Error> {
+    fn sign_digest(&mut self, digest: Self::Digest) -> Result<HmacSignature<H>, signature::Error> {
         let out = digest.finalize_fixed();
         Ok(HmacSignature(out))
     }

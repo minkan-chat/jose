@@ -165,18 +165,18 @@ impl Signer<Vec<u8>> for JwkSigner {
         JwkSigningDigest(inner)
     }
 
-    fn finalize(&mut self, digest: Self::Digest) -> Result<Vec<u8>, signature::Error> {
+    fn sign_digest(&mut self, digest: Self::Digest) -> Result<Vec<u8>, signature::Error> {
         use JwkDigestInner::*;
 
         // FIXME: try to avoid this double match and the `unreachable!` panic
         match (&mut self.inner, digest.0) {
-            (InnerSigner::Rsa(s), Rsa(x)) => s.finalize(x),
-            (InnerSigner::Hs256(s), Hs256(x)) => s.finalize(x).map(|x| x.to_vec()),
-            (InnerSigner::Hs384(s), Hs384(x)) => s.finalize(x).map(|x| x.to_vec()),
-            (InnerSigner::Hs512(s), Hs512(x)) => s.finalize(x).map(|x| x.to_vec()),
-            (InnerSigner::Es256(s), Es256(x)) => s.finalize(x).map(|x| x.to_vec()),
-            (InnerSigner::Es384(s), Es384(x)) => s.finalize(x).map(|x| x.to_vec()),
-            (InnerSigner::Secp256k1(s), Secp256k1(x)) => s.finalize(x).map(|x| x.to_vec()),
+            (InnerSigner::Rsa(s), Rsa(x)) => s.sign_digest(x),
+            (InnerSigner::Hs256(s), Hs256(x)) => s.sign_digest(x).map(|x| x.to_vec()),
+            (InnerSigner::Hs384(s), Hs384(x)) => s.sign_digest(x).map(|x| x.to_vec()),
+            (InnerSigner::Hs512(s), Hs512(x)) => s.sign_digest(x).map(|x| x.to_vec()),
+            (InnerSigner::Es256(s), Es256(x)) => s.sign_digest(x).map(|x| x.to_vec()),
+            (InnerSigner::Es384(s), Es384(x)) => s.sign_digest(x).map(|x| x.to_vec()),
+            (InnerSigner::Secp256k1(s), Secp256k1(x)) => s.sign_digest(x).map(|x| x.to_vec()),
             _ => unreachable!(),
         }
     }

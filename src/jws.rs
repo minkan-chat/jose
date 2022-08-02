@@ -372,7 +372,7 @@ where
             .payload
             .provide_payload(&mut digest)
             .map_err(SignError::Payload)?;
-        let signature = signer.finalize(digest).map_err(SignError::Sign)?;
+        let signature = signer.sign_digest(digest).map_err(SignError::Sign)?;
 
         Ok(Signed {
             value: JsonWebSignatureValue {

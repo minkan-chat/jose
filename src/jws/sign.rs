@@ -60,14 +60,14 @@ pub trait Signer<S: AsRef<[u8]>> {
     /// Create a new instance of digest for this signer.
     fn new_digest(&self) -> Self::Digest;
 
-    /// Takes a [`Digest`](Self::Digest) and finalizes it into the resulting
-    /// signature by signing the original message.
-
+    /// Signs a pre-hashed message that was created using the digest for this
+    /// siger.
+    ///
     /// # Errors
     ///
     /// Returns an error if the signing operation fails.
     /// An error usually only appears when communicating with external signers.
-    fn finalize(&mut self, digest: Self::Digest) -> Result<S, signature::Error>;
+    fn sign_digest(&mut self, digest: Self::Digest) -> Result<S, signature::Error>;
 
     /// Return the type of signing algorithm used by this signer.
     fn algorithm(&self) -> JsonWebSigningAlgorithm;

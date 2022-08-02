@@ -31,7 +31,7 @@ impl Signer<[u8; 0]> for NoneKey {
         DummyDigest
     }
 
-    fn finalize(&mut self, _digest: Self::Digest) -> Result<[u8; 0], signature::Error> {
+    fn sign_digest(&mut self, _digest: Self::Digest) -> Result<[u8; 0], signature::Error> {
         Ok([])
     }
 

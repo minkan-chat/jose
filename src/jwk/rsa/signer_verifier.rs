@@ -83,7 +83,7 @@ impl Signer<Vec<u8>> for RsaSigner {
         RsaSigningDigest(inner)
     }
 
-    fn finalize(&mut self, digest: Self::Digest) -> Result<Vec<u8>, signature::Error> {
+    fn sign_digest(&mut self, digest: Self::Digest) -> Result<Vec<u8>, signature::Error> {
         let key = &mut self.key;
         let hashed = digest.finalize();
         let mut rng = OsRng::default();

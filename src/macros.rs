@@ -94,7 +94,7 @@ macro_rules! impl_ec {
                 Self::Digest::default()
             }
 
-            fn finalize(&mut self, digest: Self::Digest) -> Result<ecdsa::Signature<$crv>, signature::Error> {
+            fn sign_digest(&mut self, digest: Self::Digest) -> Result<ecdsa::Signature<$crv>, signature::Error> {
                 signature::DigestSigner::try_sign_digest(&self.0, digest)
             }
 
