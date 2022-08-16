@@ -3,7 +3,7 @@
 /// 7518]
 ///
 /// [section 5.2 of RFC 7518]: <https://datatracker.ietf.org/doc/html/rfc7518#section-5.2>
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AesCbcHs {
     /// AES_128_CBC_HMAC_SHA_256 authenticated encryption as defined in [section
     /// 5.2.3]
