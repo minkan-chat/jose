@@ -3,17 +3,14 @@
 //!
 //! Currently, the only two formats are [`Compact`] and [`JsonFlattened`].
 
-use alloc::{
-    string::{String, ToString},
-    vec::Vec,
-};
+use alloc::{string::ToString, vec::Vec};
 use core::{fmt, str::FromStr};
 
 use base64ct::{Base64UrlUnpadded, Encoding};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{jws::Unverified, sealed::Sealed};
+use crate::{jws::Unverified, sealed::Sealed, Base64UrlString};
 
 /// Conversion of a raw input format (e.g., [`Compact`], [`JsonFlattened`], etc)
 /// to this type.
@@ -67,9 +64,11 @@ impl AppendSignature for JsonFlattened {
 
 /// The compact representation is essentially a list of Base64Url
 /// strings that are separated by `.`.
+// FIXME: refactor `Compact` struct to not only contain Base64Url strings
+// since there is the option for an unencoded payload
 #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Compact {
-    parts: Vec<String>,
+    parts: Vec<Base64UrlString>,
 }
 
 impl Compact {
@@ -79,12 +78,8 @@ impl Compact {
         }
     }
 
-    pub(crate) fn part(&self, idx: usize) -> Option<Vec<u8>> {
-        let part = self.parts.get(idx)?;
-        Some(
-            Base64UrlUnpadded::decode_vec(part)
-                .expect("`Compact` type can only contain valid Base64Url strings"),
-        )
+    pub(crate) fn part(&self, idx: usize) -> Option<&Base64UrlString> {
+        self.parts.get(idx)
     }
 
     pub(crate) fn len(&self) -> usize {
@@ -92,12 +87,10 @@ impl Compact {
     }
 
     pub(crate) fn push(&mut self, part: impl AsRef<[u8]>) {
-        let encoded = Base64UrlUnpadded::encode_string(part.as_ref());
-        self.parts.push(encoded);
+        self.parts.push(Base64UrlString::encode(part));
     }
 
-    /// WARNING: DO NOT PUSH A STRING THAT IS NOT VALID BASE64URL
-    pub(crate) fn push_base64url(&mut self, raw: String) {
+    pub(crate) fn push_base64url(&mut self, raw: Base64UrlString) {
         self.parts.push(raw);
     }
 }
@@ -122,7 +115,7 @@ impl FromStr for Compact {
                         || *c == b'_'
                         || *c == b'-'
                 }) {
-                    Ok(s.to_string())
+                    Ok(Base64UrlString::new(s.to_string()))
                 } else {
                     Err(NoBase64UrlString)
                 }

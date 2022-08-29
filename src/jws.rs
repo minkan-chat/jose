@@ -43,8 +43,7 @@ pub trait Payload: Sized {
     /// [`Self::provide_payload`] method.
     type ProvideError;
 
-    /// The error that can occurr while converting
-    /// a raw byte sequence into this payload type.
+    /// The error that can occurr while creating a new instance of this payload.
     type FromError;
 
     /// First, this method must insert the raw bytes representation of this
@@ -60,13 +59,12 @@ pub trait Payload: Sized {
         digest: &mut D,
     ) -> Result<PayloadKind, Self::ProvideError>;
 
-    /// Convert a raw byte sequence into this payload.
+    /// Converts a raw [`PayloadKind`] enum into this payload type.
     ///
     /// # Errors
     ///
-    /// Returns an error if it failed to convert the byte representation to this
-    /// type.
-    fn from_bytes(input: Vec<u8>) -> Result<Self, Self::FromError>;
+    /// Returns an error if the operation failed.
+    fn from_raw_payload(payload: PayloadKind) -> Result<Self, Self::FromError>;
 }
 
 // impl Payload for Vec<u8> {
@@ -96,8 +94,10 @@ impl Payload for String {
         Ok(PayloadKind::Standard(s))
     }
 
-    fn from_bytes(input: Vec<u8>) -> Result<Self, Self::FromError> {
-        String::from_utf8(input)
+    fn from_raw_payload(payload: PayloadKind) -> Result<Self, Self::FromError> {
+        match payload {
+            PayloadKind::Standard(x) => String::from_utf8(x.decode()),
+        }
     }
 }
 
@@ -295,8 +295,8 @@ impl<T: Payload, H: DeserializeOwned> FromFormat<Compact> for JsonWebSignature<T
 
         let (header, raw_header) = {
             let raw = input.part(0).expect("`len()` is checked above to be 3");
-            let json =
-                String::from_utf8(raw).map_err(|_| ParseCompactError::InvalidUtf8Encoding)?;
+            let json = String::from_utf8(raw.decode())
+                .map_err(|_| ParseCompactError::InvalidUtf8Encoding)?;
             let header = serde_json::from_str::<JoseHeader<H>>(&json)
                 .map_err(|_| ParseCompactError::InvalidJson)?;
             (header, json)
@@ -309,8 +309,9 @@ impl<T: Payload, H: DeserializeOwned> FromFormat<Compact> for JsonWebSignature<T
 
         let (payload, raw_payload) = {
             let raw = input.part(1).expect("`len()` is checked above to be 3");
-            let payload = T::from_bytes(raw.clone()).map_err(ParseCompactError::Payload)?;
-            (payload, raw)
+            let payload = PayloadKind::Standard(raw.clone());
+            let payload = T::from_raw_payload(payload).map_err(ParseCompactError::Payload)?;
+            (payload, raw.decode())
         };
 
         let signature = input.part(2).expect("`len()` is checked above to be 3");
@@ -322,7 +323,7 @@ impl<T: Payload, H: DeserializeOwned> FromFormat<Compact> for JsonWebSignature<T
 
         Ok(Unverified {
             value: JsonWebSignature { header, payload },
-            signature,
+            signature: signature.decode(),
             msg: msg.into_bytes(),
         })
     }
@@ -335,8 +336,8 @@ impl<T: Payload, H: DeserializeOwned> FromFormat<Compact> for JsonWebSignature<T
 //#[doc(hidden)]
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct JsonWebSignatureValue {
-    header: String,
-    payload: String,
+    header: Base64UrlString,
+    payload: Base64UrlString,
 }
 
 impl Sealed for JsonWebSignatureValue {}
@@ -362,7 +363,7 @@ where
         self.header.key_id = signer.key_id().map(|s| s.to_string());
 
         let header = serde_json::to_value(&self.header).map_err(SignError::SerializeHeader)?;
-        let header = Base64UrlUnpadded::encode_string(header.to_string().as_bytes());
+        let header = Base64UrlString::encode(header.to_string().as_bytes());
 
         let mut digest = signer.new_digest();
         digest.update(header.as_bytes());
@@ -378,7 +379,7 @@ where
             value: JsonWebSignatureValue {
                 header,
                 payload: match payload {
-                    PayloadKind::Standard(s) => s.into_inner(),
+                    PayloadKind::Standard(s) => s,
                 },
             },
             signature,
@@ -399,8 +400,8 @@ impl IntoFormat<JsonFlattened> for JsonWebSignatureValue {
     fn into_format(self) -> JsonFlattened {
         let mut value = Value::Object(serde_json::Map::new());
 
-        value["protected"] = Value::String(self.header);
-        value["payload"] = Value::String(self.payload);
+        value["payload"] = Value::String(self.payload.into_inner());
+        value["protected"] = Value::String(self.header.into_inner());
 
         JsonFlattened { value }
     }

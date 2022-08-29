@@ -1,7 +1,7 @@
 //! Helpers for base64 urlsafe encoded stuff
 
 use alloc::{string::String, vec::Vec};
-use core::ops::Deref;
+use core::{fmt, ops::Deref};
 
 use base64ct::{Base64UrlUnpadded, Encoding};
 use elliptic_curve::{bigint::ArrayEncoding, Curve, FieldBytes};
@@ -14,11 +14,29 @@ use serde::{de::Error, Deserialize, Deserializer, Serialize};
 #[repr(transparent)]
 pub struct Base64UrlString(String);
 
+impl fmt::Display for Base64UrlString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
+
 impl Base64UrlString {
+    // DO NOT CALL THIS METHOD WITH AN INVALID BASE64URL STRING
+    pub(crate) fn new(x: String) -> Self {
+        Self(x)
+    }
+
     /// Encode the given bytes using Base64Url format.
     #[inline]
     pub fn encode(x: impl AsRef<[u8]>) -> Self {
         Base64UrlString(Base64UrlUnpadded::encode_string(x.as_ref()))
+    }
+
+    /// Decodes this Base64Url string into it's raw byte representation.
+    #[inline]
+    pub fn decode(&self) -> Vec<u8> {
+        Base64UrlUnpadded::decode_vec(&self.0)
+            .expect("Base64UrlString is guaranteed to be a valid base64 string")
     }
 
     /// Return the inner string.
