@@ -6,7 +6,6 @@ use alloc::{
     string::{String, ToString},
     vec::Vec,
 };
-use core::convert::Infallible;
 
 use base64ct::{Base64UrlUnpadded, Encoding};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -38,14 +37,11 @@ pub enum PayloadKind {
     Standard(Base64UrlString),
 }
 
-/// Everything that can be used as a payload for a [`JsonWebSignature`].
-pub trait Payload: Sized {
+///
+pub trait ProvidePayload {
     /// The error that can occurr while providing the payload in the
     /// [`Self::provide_payload`] method.
-    type ProvideError;
-
-    /// The error that can occurr while creating a new instance of this payload.
-    type FromError;
+    type Error;
 
     /// First, this method must insert the raw bytes representation of this
     /// payload into the given `digest`, which is later used for creating the
@@ -55,51 +51,21 @@ pub trait Payload: Sized {
     /// # Errors
     ///
     /// Returns an error if it failed to provide the payload.
-    fn provide_payload<D: digest::Update>(
-        self,
-        digest: &mut D,
-    ) -> Result<PayloadKind, Self::ProvideError>;
+    fn provide_payload<D: digest::Update>(self, digest: &mut D)
+        -> Result<PayloadKind, Self::Error>;
+}
+
+///
+pub trait FromRawPayload: Sized {
+    ///
+    type Error;
 
     /// Converts a raw [`PayloadKind`] enum into this payload type.
     ///
     /// # Errors
     ///
     /// Returns an error if the operation failed.
-    fn from_raw_payload(payload: PayloadKind) -> Result<Self, Self::FromError>;
-}
-
-// impl Payload for Vec<u8> {
-//     type Buf = Vec<u8>;
-//     type FromError = Infallible;
-//     type IntoError = Infallible;
-
-//     fn into_bytes(self) -> Result<Self::Buf, Self::IntoError> {
-//         Ok(self)
-//     }
-
-//     fn from_bytes(input: Vec<u8>) -> Result<Self, Self::FromError> {
-//         Ok(input)
-//     }
-// }
-
-impl Payload for String {
-    type FromError = alloc::string::FromUtf8Error;
-    type ProvideError = Infallible;
-
-    fn provide_payload<D: digest::Update>(
-        self,
-        digest: &mut D,
-    ) -> Result<PayloadKind, Self::ProvideError> {
-        let s = Base64UrlString::encode(self.into_bytes());
-        digest.update(s.as_bytes());
-        Ok(PayloadKind::Standard(s))
-    }
-
-    fn from_raw_payload(payload: PayloadKind) -> Result<Self, Self::FromError> {
-        match payload {
-            PayloadKind::Standard(x) => String::from_utf8(x.decode()),
-        }
-    }
+    fn from_raw_payload(payload: PayloadKind) -> Result<Self, Self::Error>;
 }
 
 /// Different kinds of errors that can occurr while signing a JWS.
@@ -286,8 +252,8 @@ pub enum ParseCompactError<P> {
     Payload(P),
 }
 
-impl<T: Payload, H: DeserializeOwned> FromFormat<Compact> for JsonWebSignature<T, H> {
-    type Error = ParseCompactError<T::FromError>;
+impl<T: FromRawPayload, H: DeserializeOwned> FromFormat<Compact> for JsonWebSignature<T, H> {
+    type Error = ParseCompactError<T::Error>;
 
     fn from_format(input: Compact) -> Result<Unverified<Self>, Self::Error> {
         if input.len() != 3 {
@@ -344,9 +310,9 @@ pub struct JsonWebSignatureValue {
 impl Sealed for JsonWebSignatureValue {}
 impl<T, H> Sealed for JsonWebSignature<T, H> {}
 
-impl<T: Payload, H: Serialize> JsonWebSignature<T, H>
+impl<T, H> JsonWebSignature<T, H>
 where
-    T: Payload,
+    T: ProvidePayload,
     H: Serialize,
 {
     /// Create a signature over the contents of this [`JsonWebSignature`] with
@@ -359,7 +325,7 @@ where
     pub fn sign<S: AsRef<[u8]>, D: digest::Update>(
         mut self,
         signer: &mut dyn Signer<S, Digest = D>,
-    ) -> Result<Signed<S>, SignError<T::ProvideError>> {
+    ) -> Result<Signed<S>, SignError<T::Error>> {
         self.header.signing_algorithm = signer.algorithm();
         self.header.key_id = signer.key_id().map(|s| s.to_string());
 
