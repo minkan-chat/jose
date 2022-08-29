@@ -31,6 +31,7 @@ pub use {sign::*, verify::*};
 // FIXME: protected headers
 
 /// Different interpretations of a JWS payload.
+// FIXME: unencoded payload (IMPORTANT: check that string is all ascii, except `.` character)
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum PayloadKind {
     /// The given base64 string will just be used as the payload.

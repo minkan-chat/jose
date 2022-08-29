@@ -1,12 +1,26 @@
 //! Helpers for base64 urlsafe encoded stuff
 
-use alloc::{string::String, vec::Vec};
-use core::{fmt, ops::Deref};
+use alloc::{borrow::ToOwned, string::String, vec::Vec};
+use core::{fmt, ops::Deref, str::FromStr};
 
 use base64ct::{Base64UrlUnpadded, Encoding};
 use elliptic_curve::{bigint::ArrayEncoding, Curve, FieldBytes};
 use generic_array::{ArrayLength, GenericArray};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
+
+/// Error type indicating that one part of the compact
+/// representation was an invalid Base64Url string.
+#[derive(Debug, Clone, Copy)]
+pub struct NoBase64UrlString;
+
+impl fmt::Display for NoBase64UrlString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("the string is not a valid Base64Url representation")
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for NoBase64UrlString {}
 
 /// A wrapper around a [`String`] that guarantees that the inner string is a
 /// valid Base64Url string.
@@ -20,12 +34,25 @@ impl fmt::Display for Base64UrlString {
     }
 }
 
-impl Base64UrlString {
-    // DO NOT CALL THIS METHOD WITH AN INVALID BASE64URL STRING
-    pub(crate) fn new(x: String) -> Self {
-        Self(x)
-    }
+impl FromStr for Base64UrlString {
+    type Err = NoBase64UrlString;
 
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.as_bytes().iter().all(|c| {
+            (b'A'..=b'Z').contains(c)
+                || (b'a'..=b'z').contains(c)
+                || (b'0'..=b'9').contains(c)
+                || *c == b'_'
+                || *c == b'-'
+        }) {
+            Ok(Base64UrlString(s.to_owned()))
+        } else {
+            Err(NoBase64UrlString)
+        }
+    }
+}
+
+impl Base64UrlString {
     /// Encode the given bytes using Base64Url format.
     #[inline]
     pub fn encode(x: impl AsRef<[u8]>) -> Self {

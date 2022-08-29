@@ -3,14 +3,14 @@
 //!
 //! Currently, the only two formats are [`Compact`] and [`JsonFlattened`].
 
-use alloc::{string::ToString, vec::Vec};
+use alloc::vec::Vec;
 use core::{fmt, str::FromStr};
 
 use base64ct::{Base64UrlUnpadded, Encoding};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{jws::Unverified, sealed::Sealed, Base64UrlString};
+use crate::{base64_url::NoBase64UrlString, jws::Unverified, sealed::Sealed, Base64UrlString};
 
 /// Conversion of a raw input format (e.g., [`Compact`], [`JsonFlattened`], etc)
 /// to this type.
@@ -95,11 +95,6 @@ impl Compact {
     }
 }
 
-/// Error type indicating that one part of the compact
-/// representation was an invalid Base64Url string.
-#[derive(Debug, Clone, Copy)]
-pub struct NoBase64UrlString;
-
 impl FromStr for Compact {
     type Err = NoBase64UrlString;
 
@@ -107,19 +102,7 @@ impl FromStr for Compact {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts = s
             .split('.')
-            .map(|s| {
-                if s.as_bytes().iter().all(|c| {
-                    (b'A'..=b'Z').contains(c)
-                        || (b'a'..=b'z').contains(c)
-                        || (b'0'..=b'9').contains(c)
-                        || *c == b'_'
-                        || *c == b'-'
-                }) {
-                    Ok(Base64UrlString::new(s.to_string()))
-                } else {
-                    Err(NoBase64UrlString)
-                }
-            })
+            .map(|s| Base64UrlString::from_str(s))
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Self { parts })
     }
