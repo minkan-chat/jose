@@ -38,10 +38,10 @@ impl ProvidePayload for StringPayload {
     type Error = Infallible;
 
     fn provide_payload<D: digest::Update>(
-        self,
+        &mut self,
         digest: &mut D,
     ) -> Result<PayloadKind, Self::Error> {
-        let s = Base64UrlString::encode(self.0);
+        let s = Base64UrlString::encode(&self.0);
         digest.update(s.as_bytes());
         Ok(PayloadKind::Standard(s))
     }

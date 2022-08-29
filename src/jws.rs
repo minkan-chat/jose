@@ -51,8 +51,21 @@ pub trait ProvidePayload {
     /// # Errors
     ///
     /// Returns an error if it failed to provide the payload.
-    fn provide_payload<D: digest::Update>(self, digest: &mut D)
-        -> Result<PayloadKind, Self::Error>;
+    fn provide_payload<D: digest::Update>(
+        &mut self,
+        digest: &mut D,
+    ) -> Result<PayloadKind, Self::Error>;
+}
+
+impl<P: ProvidePayload> ProvidePayload for &mut P {
+    type Error = P::Error;
+
+    fn provide_payload<D: digest::Update>(
+        &mut self,
+        digest: &mut D,
+    ) -> Result<PayloadKind, Self::Error> {
+        <P as ProvidePayload>::provide_payload(self, digest)
+    }
 }
 
 ///
