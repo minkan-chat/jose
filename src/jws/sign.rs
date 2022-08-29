@@ -42,7 +42,7 @@ impl<S: AsRef<[u8]>> Signed<S> {
 /// A message is signed using a [`Signer`] by first getting an instance of a
 /// digest using the [`new_digest`] method. Then the whole message is put into
 /// the returned digest using the [`digest::Update`] trait bound, and to finally
-/// get the signature, one uses the [`finalize`] method.
+/// get the signature, one uses the [`sign_digest`] method.
 ///
 /// To be able to be used as a [`Signer`], one must provide the sign operation
 /// itself, and also needs to [specify the algorithm] used for signing. The
@@ -50,7 +50,7 @@ impl<S: AsRef<[u8]>> Signed<S> {
 /// [`JoseHeader`](crate::jws::JoseHeader) for the signed type.
 ///
 /// [`new_digest`]: Signer::new_digest
-/// [`finalize`]: Signer::finalize
+/// [`sign_digest`]: Signer::sign_digest
 /// [specify the algorithm]: Signer::algorithm
 pub trait Signer<S: AsRef<[u8]>> {
     /// The [`Digest`](digest::Digest) for this signer that will be used to
