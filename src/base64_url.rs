@@ -1,11 +1,84 @@
 //! Helpers for base64 urlsafe encoded stuff
 
-use alloc::{string::String, vec::Vec};
+use alloc::{borrow::ToOwned, string::String, vec::Vec};
+use core::{fmt, ops::Deref, str::FromStr};
 
 use base64ct::{Base64UrlUnpadded, Encoding};
 use elliptic_curve::{bigint::ArrayEncoding, Curve, FieldBytes};
 use generic_array::{ArrayLength, GenericArray};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
+
+/// Error type indicating that one part of the compact
+/// representation was an invalid Base64Url string.
+#[derive(Debug, Clone, Copy)]
+pub struct NoBase64UrlString;
+
+impl fmt::Display for NoBase64UrlString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("the string is not a valid Base64Url representation")
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for NoBase64UrlString {}
+
+/// A wrapper around a [`String`] that guarantees that the inner string is a
+/// valid Base64Url string.
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct Base64UrlString(String);
+
+impl fmt::Display for Base64UrlString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl FromStr for Base64UrlString {
+    type Err = NoBase64UrlString;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.as_bytes().iter().all(|c| {
+            (b'A'..=b'Z').contains(c)
+                || (b'a'..=b'z').contains(c)
+                || (b'0'..=b'9').contains(c)
+                || *c == b'_'
+                || *c == b'-'
+        }) {
+            Ok(Base64UrlString(s.to_owned()))
+        } else {
+            Err(NoBase64UrlString)
+        }
+    }
+}
+
+impl Base64UrlString {
+    /// Encode the given bytes using Base64Url format.
+    #[inline]
+    pub fn encode(x: impl AsRef<[u8]>) -> Self {
+        Base64UrlString(Base64UrlUnpadded::encode_string(x.as_ref()))
+    }
+
+    /// Decodes this Base64Url string into it's raw byte representation.
+    #[inline]
+    pub fn decode(&self) -> Vec<u8> {
+        Base64UrlUnpadded::decode_vec(&self.0)
+            .expect("Base64UrlString is guaranteed to be a valid base64 string")
+    }
+
+    /// Return the inner string.
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl Deref for Base64UrlString {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub(crate) struct Base64UrlBytes(pub(crate) Vec<u8>);

@@ -3,7 +3,7 @@
 // - additional (private, public) headers
 // - for supporting all MUST BE UNDERSTOOD params
 
-use std::{str::FromStr, string::FromUtf8Error};
+use std::{convert::Infallible, str::FromStr, string::FromUtf8Error};
 
 use jose::{
     format::Compact,
@@ -13,15 +13,55 @@ use jose::{
         symmetric::hmac::{HmacKey, Hs256},
         JwkSigner, SymmetricJsonWebKey,
     },
-    jws::{IntoSigner, ParseCompactError, Signer, Unverified, Verifier},
+    jws::{
+        FromRawPayload, IntoSigner, ParseCompactError, PayloadKind, ProvidePayload, Signer,
+        Unverified, Verifier,
+    },
     policy::{Checkable, StandardPolicy},
-    JsonWebKey, JWS,
+    Base64UrlString, JsonWebKey, JWS,
 };
 
+#[derive(Debug)]
+struct StringPayload(String);
+
+impl FromRawPayload for StringPayload {
+    type Error = FromUtf8Error;
+
+    fn from_raw_payload(payload: PayloadKind) -> Result<Self, Self::Error> {
+        match payload {
+            PayloadKind::Standard(s) => String::from_utf8(s.decode()).map(StringPayload),
+        }
+    }
+}
+
+impl ProvidePayload for StringPayload {
+    type Error = Infallible;
+
+    fn provide_payload<D: digest::Update>(
+        &mut self,
+        digest: &mut D,
+    ) -> Result<PayloadKind, Self::Error> {
+        let s = Base64UrlString::encode(&self.0);
+        digest.update(s.as_bytes());
+        Ok(PayloadKind::Standard(s))
+    }
+}
+
+struct DummyDigest;
+impl digest::Update for DummyDigest {
+    fn update(&mut self, _data: &[u8]) {}
+}
+
 struct NoneKey;
-impl Signer<&'static [u8]> for NoneKey {
-    fn sign(&mut self, _: &[u8]) -> Result<&'static [u8], signature::Error> {
-        Ok(&[])
+impl Signer<[u8; 0]> for NoneKey {
+    type Digest = DummyDigest;
+
+    fn new_digest(&self) -> Self::Digest {
+        DummyDigest
+    }
+
+    fn sign_digest(&mut self, _digest: Self::Digest) -> Result<[u8; 0], signature::Error> {
+        Ok([])
     }
 
     fn algorithm(&self) -> JsonWebSigningAlgorithm {
@@ -40,12 +80,12 @@ impl Verifier for NoneVerifier {
 fn deny_jws_with_unsupported_crit_header() {
     let jws = JWS::builder()
         .critical(vec!["foo".into()])
-        .build(String::from(""))
+        .build(StringPayload(String::from("")))
         .sign(&mut NoneKey)
         .unwrap();
     let jws = jws.encode::<Compact>();
 
-    let err = Unverified::<JWS<String>>::decode(jws).unwrap_err();
+    let err = Unverified::<JWS<StringPayload>>::decode(jws).unwrap_err();
     assert_eq!(
         err,
         ParseCompactError::<FromUtf8Error>::UnsupportedCriticalHeader
@@ -56,17 +96,17 @@ fn deny_jws_with_unsupported_crit_header() {
 fn allow_jws_with_empty_crit_header() {
     let jws = JWS::builder()
         .critical(vec![])
-        .build(String::from(""))
+        .build(StringPayload(String::from("")))
         .sign(&mut NoneKey)
         .unwrap();
     let jws = jws.encode::<Compact>();
 
-    Unverified::<JWS<String>>::decode(jws).unwrap();
+    Unverified::<JWS<StringPayload>>::decode(jws).unwrap();
 }
 
 #[test]
 fn smoke() {
-    let jws = JWS::builder().build(String::from("abc"));
+    let jws = JWS::builder().build(StringPayload(String::from("abc")));
 
     let c = jws.sign(&mut NoneKey).unwrap().encode::<Compact>();
 
@@ -78,7 +118,7 @@ fn verify() {
     let raw = "eyJhbGciOiJub25lIn0.YWJj.";
     let input = Compact::from_str(raw).unwrap();
 
-    let jws = Unverified::<JWS<String>>::decode(input)
+    let jws = Unverified::<JWS<StringPayload>>::decode(input)
         .unwrap()
         .verify(&mut NoneVerifier)
         .unwrap();
@@ -99,8 +139,7 @@ fn sign_jws_using_p256() {
         .unwrap();
 
     let jws = JWS::builder()
-        .critical(vec![String::from("foo")])
-        .build(String::from("abc"))
+        .build(StringPayload(String::from("abc")))
         .sign(&mut signer)
         .unwrap();
 
@@ -123,7 +162,7 @@ fn sign_jws_using_hs256() {
                 .into_signer(JsonWebSigningAlgorithm::Hmac(Hmac::Hs256))
                 .unwrap();
             let jws = JWS::builder()
-                .build("Here be dragons".to_string())
+                .build(StringPayload("Here be dragons".to_string()))
                 .sign(&mut signer)
                 .unwrap();
 
@@ -149,7 +188,7 @@ fn sign_jws_using_rsa() {
     let mut signer: JwkSigner = key.try_into().unwrap();
 
     let jws = JWS::builder()
-        .build("Here be dragons".to_string())
+        .build(StringPayload("Here be dragons".to_string()))
         .sign(&mut signer)
         .unwrap();
 
