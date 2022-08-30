@@ -102,7 +102,7 @@ impl FromStr for Compact {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts = s
             .split('.')
-            .map(|s| Base64UrlString::from_str(s))
+            .map(Base64UrlString::from_str)
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Self { parts })
     }
