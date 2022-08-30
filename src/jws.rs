@@ -37,7 +37,10 @@ pub enum PayloadKind {
     Standard(Base64UrlString),
 }
 
+/// Represents anything that can be serialized to a raw payload.
 ///
+/// This is required to be implemented when trying to sign a JWS, or encrypt a
+/// JWE.
 pub trait ProvidePayload {
     /// The error that can occurr while providing the payload in the
     /// [`Self::provide_payload`] method.
@@ -68,9 +71,12 @@ impl<P: ProvidePayload> ProvidePayload for &mut P {
     }
 }
 
+/// Represents anything that can be parsed from a raw payload.
 ///
+/// This is required to be implemented when trying to decoe a JWS, or encrypt a
+/// JWE, from it's format representation.
 pub trait FromRawPayload: Sized {
-    ///
+    /// The error that can occurr in the [`Self::from_raw_payload`] method.
     type Error;
 
     /// Converts a raw [`PayloadKind`] enum into this payload type.
