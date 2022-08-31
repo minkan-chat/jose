@@ -137,11 +137,7 @@ impl<A> AsRef<A> for Jwe<A> {
         &self.additional
     }
 }
-impl<A> AsMut<A> for Jwe<A> {
-    fn as_mut(&mut self) -> &mut A {
-        &mut self.additional
-    }
-}
+
 /// Header parameters that are specific to signatures
 #[derive(Debug, Hash, PartialEq, Eq, Serialize, Deserialize, Clone)]
 #[non_exhaustive]
@@ -165,11 +161,6 @@ pub struct Jws<A> {
 impl<A> AsRef<A> for Jws<A> {
     fn as_ref(&self) -> &A {
         &self.additional
-    }
-}
-impl<A> AsMut<A> for Jws<A> {
-    fn as_mut(&mut self) -> &mut A {
-        &mut self.additional
     }
 }
 
@@ -237,11 +228,6 @@ impl<A> JweHeader<Unprotected, A> {
 impl<T, A> AsRef<A> for JoseHeader<T, A> {
     fn as_ref(&self) -> &A {
         &self.additional
-    }
-}
-impl<T, A> AsMut<A> for JoseHeader<T, A> {
-    fn as_mut(&mut self) -> &mut A {
-        &mut self.additional
     }
 }
 
