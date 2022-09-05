@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// A builder to create a [`JoseHeader`]
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JoseHeaderBuilder<T = (), A = ()> {
     /// `alg` parameter defined in section 4.1.1 in both JWE and JWS
     algorithm: Option<JsonWebAlgorithm>,
@@ -38,16 +38,29 @@ pub struct JoseHeaderBuilder<T = (), A = ()> {
     /// JWE
     content_type: Option<MediaTypeBuf>,
     additional: A,
-    header_typ: T,
+    header_typ: Option<T>,
 }
 
 impl<T, A> JoseHeaderBuilder<T, A> {
     /// Create a new [`JoseHeader`] builder from scratch.
-    pub fn new() -> JoseHeaderBuilder {
-        Default::default()
+    pub fn new() -> JoseHeaderBuilder<T, ()> {
+        JoseHeaderBuilder {
+            algorithm: None,
+            jwk_set_url: None,
+            json_web_key: None,
+            key_id: None,
+            x509_url: None,
+            x509_certificate_chain: Vec::new(),
+            x509_certificate_sha1_thumbprint: None,
+            x509_certificate_sha256_thumbprint: None,
+            typ: None,
+            content_type: None,
+            additional: (),
+            header_typ: None,
+        }
     }
 
-    /// Set the [algorithm][JsonWebAlgorithm] used in this JWE or JWS.
+    /// Set the [algorithm](JsonWebAlgorithm) used in this JWE or JWS.
     pub fn algorithm(self, algorithm: impl Into<JsonWebAlgorithm>) -> Self {
         Self {
             algorithm: Some(algorithm.into()),
@@ -73,9 +86,9 @@ impl<T, A> JoseHeaderBuilder<T, A> {
             typ: self.typ,
             content_type: self.content_type,
             additional: self.additional,
-            header_typ: Protected {
+            header_typ: Some(Protected {
                 critical_headers: Vec::new(),
-            },
+            }),
         }
     }
 
@@ -95,7 +108,7 @@ impl<T, A> JoseHeaderBuilder<T, A> {
             typ: self.typ,
             content_type: self.content_type,
             additional: self.additional,
-            header_typ: Unprotected {},
+            header_typ: Some(Unprotected {}),
         }
     }
 }
@@ -127,7 +140,9 @@ where
             typ: self.typ,
             content_type: self.content_type,
             additional: self.additional,
-            header_type: self.header_typ,
+            header_type: self
+                .header_typ
+                .ok_or(JoseHeaderBuilderError::MissingHeaderType)?,
         })
     }
 }
@@ -153,7 +168,8 @@ impl<T, A> JoseHeaderBuilder<T, Jws<A>> {
     /// Whether or not the payload of this JWS should be base64 encoded. The
     /// default for this parameter is `true`.
     ///
-    /// If you use a detached payload, you'll probably set this to false.
+    /// If you use a detached payload, you'll probably want to set this to
+    /// false.
     pub fn encode_paylod_base64(self, base64: bool) -> Self {
         Self {
             additional: Jws {
@@ -166,20 +182,20 @@ impl<T, A> JoseHeaderBuilder<T, Jws<A>> {
 }
 
 impl<T, A> From<JoseHeader<T, A>> for JoseHeaderBuilder<T, A> {
-    fn from(key: JoseHeader<T, A>) -> Self {
+    fn from(header: JoseHeader<T, A>) -> Self {
         JoseHeaderBuilder {
-            algorithm: Some(key.algorithm),
-            jwk_set_url: key.jwk_set_url,
-            json_web_key: key.json_web_key,
-            key_id: key.key_id,
-            x509_url: key.x509_url,
-            x509_certificate_chain: key.x509_certificate_chain,
-            x509_certificate_sha1_thumbprint: key.x509_certificate_sha1_thumbprint,
-            x509_certificate_sha256_thumbprint: key.x509_certificate_sha256_thumbprint,
-            typ: key.typ,
-            content_type: key.content_type,
-            additional: key.additional,
-            header_typ: key.header_type,
+            algorithm: Some(header.algorithm),
+            jwk_set_url: header.jwk_set_url,
+            json_web_key: header.json_web_key,
+            key_id: header.key_id,
+            x509_url: header.x509_url,
+            x509_certificate_chain: header.x509_certificate_chain,
+            x509_certificate_sha1_thumbprint: header.x509_certificate_sha1_thumbprint,
+            x509_certificate_sha256_thumbprint: header.x509_certificate_sha256_thumbprint,
+            typ: header.typ,
+            content_type: header.content_type,
+            additional: header.additional,
+            header_typ: Some(header.header_type),
         }
     }
 }
@@ -191,4 +207,8 @@ pub enum JoseHeaderBuilderError {
     /// build.
     #[error("The JOSE header is missing the `algorithm` parameter which is REQUIRED.")]
     MissingAlgorithm,
+    /// There was no call made to [`JoseHeaderBuilder::protected`] or
+    /// [`JoseHeaderBuikder::unprotected`].
+    #[error("The JOSE header type is missing. It must be `Protected` or `Unprotected`.")]
+    MissingHeaderType,
 }
