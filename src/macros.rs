@@ -305,9 +305,9 @@ macro_rules! impl_serde_jwa {
             where
                 D: serde::Deserializer<'de>,
             {
-                let name = <&str as serde::Deserialize>::deserialize(deserializer)?;
+                let name = <alloc::borrow::Cow<'_, str> as serde::Deserialize>::deserialize(deserializer)?;
 
-                Ok(match name {
+                Ok(match name.as_ref() {
                     $($name => $val,)*
                     $err => return Err(<D::Error as serde::de::Error>::custom($get_err)),
                 })
