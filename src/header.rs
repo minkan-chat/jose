@@ -16,10 +16,10 @@ use crate::{
     JsonWebKey,
 };
 
-// mod builder;
+mod builder;
 mod serde_;
-//#[doc(inline)]
-// pub use builder::{JoseHeaderBuilder, JoseHeaderBuilderError};
+#[doc(inline)]
+pub use builder::{BuilderError, JoseHeaderBuilder};
 
 use self::serde_::HeaderReprOwned;
 
@@ -51,7 +51,31 @@ use self::serde_::HeaderReprOwned;
 /// you don't specify it, there are no additional header parameters. You can
 /// read more about how to use additional header parameters in [`JwsHeader<T,
 /// A>::additional`].
-// TODO: builder type for jose header
+///
+/// # Examples
+///
+/// Build a protected header for a JSON Web Signature:
+///
+/// ```
+/// # use jose::header::BuilderError;
+/// # fn main() -> Result<(), BuilderError> {
+/// use jose::{jwa::{EcDSA, JsonWebSigningAlgorithm}, header::JwsHeader};
+/// use mediatype::{MediaTypeBuf, MediaType, names};
+///
+/// let jws_header = JwsHeader::builder()
+///     .protected()
+///     .algorithm(EcDSA::Es256)
+///     // set some parameters
+///     .typ(Some(MediaTypeBuf::new(names::APPLICATION, names::JOSE)))
+///     .content_type(Some(MediaTypeBuf::new(names::TEXT, names::PLAIN)))
+///     // build the header
+///     .build()?;
+///
+/// assert_eq!(jws_header.algorithm(), JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256));
+/// assert_eq!(jws_header.typ(), Some(MediaType::parse("application/jose").unwrap()));
+/// assert_eq!(jws_header.content_type(), Some(MediaType::parse("text/plain").unwrap()));
+/// # Ok(())
+/// # }
 // FIXME: can't derive `Hash` because `JsonWebKey` does not implement it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -132,9 +156,9 @@ pub struct Jws<A = ()> {
 }
 
 /// A [`JoseHeader`] used with Json Web Signatures
-pub type JwsHeader<T, A = ()> = JoseHeader<T, Jws<A>>;
+pub type JwsHeader<T = (), A = ()> = JoseHeader<T, Jws<A>>;
 /// A [`JoseHeader`] used with Json Web Encryption
-pub type JweHeader<T, A = ()> = JoseHeader<T, Jwe<A>>;
+pub type JweHeader<T = (), A = ()> = JoseHeader<T, Jwe<A>>;
 
 // general implementation for protected and unprotected headers in both jwe and
 // jws
@@ -143,24 +167,14 @@ where
     T: HeaderMarker,
     A: TypeMarker,
 {
-    // /// Create a new [`JoseHeaderBuilder`]
-    // pub fn builder() -> JoseHeaderBuilder<T, ()> {
-    // JoseHeaderBuilder::<_, ()>::new()
-    // }
-
-    // /// Convert this [`JoseHeader`] to a [`JoseHeaderBuilder`]
-    // pub fn into_builder(self) -> JoseHeaderBuilder<T, A> {
-    // JoseHeaderBuilder::from(self)
-    // }
-
     /// Returns a url containing a link to a JSON Web Key Set as defined in
-    /// [section 5 of RFC7517].
+    /// [section 5 of RFC 7517].
     ///
     /// This parameter is serialized as `jku` and defined in [section 4.1.2 of
-    /// RFC 7517].
+    /// RFC 7515].
     ///
     /// [section 4.1.2 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.2>
-    /// [section 5 of RFC7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-5>
+    /// [section 5 of RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-5>
     // FIXME: use url type instead
     pub fn jwk_set_url(&self) -> Option<&str> {
         self.inner.jwk_set_url.as_deref()
@@ -302,10 +316,16 @@ where
     /// [`jwt`]: <mediatype::names::JWT>
     /// [section 5.2 of RFC 7519]: <https://datatracker.ietf.org/doc/html/rfc7519#section-5.2>
     pub fn content_type(&self) -> Option<MediaType<'_>> {
-        self.inner.typ.as_ref().map(|f| f.to_ref())
+        self.inner.content_type.as_ref().map(|f| f.to_ref())
     }
 }
 
+impl JwsHeader {
+    /// Create a [`JoseHeaderBuilder`] to build a [`JwsHeader`].
+    pub fn builder() -> JoseHeaderBuilder<(), Jws> {
+        JoseHeaderBuilder::default()
+    }
+}
 impl<T, A> JwsHeader<T, A>
 where
     T: HeaderMarker,
@@ -480,6 +500,12 @@ impl<A> JwsHeader<Unprotected, A> {
     // Empty.
 }
 
+impl JweHeader {
+    /// Create a [`JoseHeaderBuilder`] to build a [`JweHeader`].
+    pub fn builder() -> JoseHeaderBuilder<(), Jwe> {
+        JoseHeaderBuilder::default()
+    }
+}
 // implementation for protected and unprotected headers in jwe
 impl<T, A> JweHeader<T, A>
 where

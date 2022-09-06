@@ -254,6 +254,7 @@ where
     }
 }
 
+#[inline(always)]
 fn deserialize_mediatype<'de, D>(deserializer: D) -> Result<Option<MediaTypeBuf>, D::Error>
 where
     D: Deserializer<'de>,
@@ -278,6 +279,7 @@ where
             .map(Some),
     }
 }
+#[inline(always)]
 fn serialize_mediatype<S>(typ: &Option<MediaTypeBuf>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
@@ -287,11 +289,12 @@ where
         // this branch should be unreachable, because Option::None is not serialized
         None => return <Option<&MediaTypeBuf> as Serialize>::serialize(&None, serializer),
     };
-    let typ = typ.as_str().split_once('/');
-    match typ {
-        // if the typ starts with `application/`, strip it if the part after `application/` does not
+    let typ = typ.as_str();
+
+    match typ.split_once('/') {
+        // if the typ starts with `application`, strip it if the part after `application` does not
         // contain any other slashes(`/`)
-        Some(("application/", right)) if !right.contains('/') => right.serialize(serializer),
+        Some(("application", right)) if !right.contains('/') => right.serialize(serializer),
         // if it doesn't start with `application/` or it contains other slashes, keep the original
         _ => typ.serialize(serializer),
     }
