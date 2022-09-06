@@ -1,10 +1,38 @@
 use hashbrown::HashSet;
+use serde::{de::Error as _, ser::Error as _};
 use serde_json::{Map, Value};
 
 use super::*;
 use crate::jwa::{JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm};
 
 // deserialization
+
+// <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.11>:
+// > [...] Producers MUST NOT include Header Parameter names
+// > defined by this specification or JWA for use with JWS [...]
+// This list contains headers defined in JWS and JWA
+const DISALLOWED_CRITICAL_HEADERS_JWS: &[&str] = &[
+    // JWS section 4.1
+    "alg", "jku", "jwk", "kid", "x5u", "x5c", "x5t", "x5t#S256", "typ", "cty", "crit",
+    // JWA section 4.1
+    "epk", "apu", "apv", "iv", "tag", "p2s",
+    "p2c",
+    // JWE section 4.1 omitted because this is the JWS implementation
+];
+
+// <https://datatracker.ietf.org/doc/html/rfc7516/#section-4.1.13> refers to:
+// <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.11>:
+// > [...] Producers MUST NOT include Header Parameter names
+// > defined by this specification or JWA for use with JWS [...]
+// This list contains headers defined in JWE and JWA
+const DISALLOWED_CRITICAL_HEADERS_JWE: &[&str] = &[
+    // JWE section 4.1
+    "alg", "enc", "zip", "jku", "jwk", "kid", "x5u", "x5c", "x5t", "x5t#S256", "typ", "cty",
+    "crit", // JWA section 4.1
+    "epk", "apu", "apv", "iv", "tag", "p2s",
+    "p2c",
+    // JWS section 4.1 omitted because this is the JWE implementation
+];
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub(super) struct HeaderReprOwned<T, A> {
@@ -110,19 +138,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        // <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.11>:
-        // > [...] Producers MUST NOT include Header Parameter names
-        // > defined by this specification or JWA for use with JWS [...]
-        // This list contains headers defined in JWS and JWA
-        const DISALLOWED_CRITICAL_HEADERS: &[&str] = &[
-            // JWS section 4.1
-            "alg", "jku", "jwk", "kid", "x5u", "x5c", "x5t", "x5t#S256", "typ", "cty", "crit",
-            // JWA section 4.1
-            "epk", "apu", "apv", "iv", "tag", "p2s",
-            "p2c",
-            // JWE section 4.1 omitted because this is the JWS implementation
-        ];
-        let value = deserialize_protected_header(deserializer, DISALLOWED_CRITICAL_HEADERS)?;
+        let value = deserialize_protected_header(deserializer, DISALLOWED_CRITICAL_HEADERS_JWS)?;
         let repr: HeaderReprOwned<ProtectedReprOwned, JwsReprOwned<A>> =
             HeaderReprOwned::deserialize(value).map_err(D::Error::custom)?;
         let repr: HeaderReprOwned<Protected, Jws<A>> = HeaderReprOwned {
@@ -185,20 +201,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        // <https://datatracker.ietf.org/doc/html/rfc7516/#section-4.1.13> refers to:
-        // <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.11>:
-        // > [...] Producers MUST NOT include Header Parameter names
-        // > defined by this specification or JWA for use with JWS [...]
-        // This list contains headers defined in JWE and JWA
-        const DISALLOWED_CRITICAL_HEADERS: &[&str] = &[
-            // JWE section 4.1
-            "alg", "enc", "zip", "jku", "jwk", "kid", "x5u", "x5c", "x5t", "x5t#S256", "typ", "cty",
-            "crit", // JWA section 4.1
-            "epk", "apu", "apv", "iv", "tag", "p2s",
-            "p2c",
-            // JWS section 4.1 omitted because this is the JWE implementation
-        ];
-        let value = deserialize_protected_header(deserializer, DISALLOWED_CRITICAL_HEADERS)?;
+        let value = deserialize_protected_header(deserializer, DISALLOWED_CRITICAL_HEADERS_JWE)?;
         let repr: HeaderReprOwned<ProtectedReprOwned, JweReprOwned<A>> =
             HeaderReprOwned::deserialize(value).map_err(D::Error::custom)?;
         let repr: HeaderReprOwned<Protected, Jwe<A>> = HeaderReprOwned {
@@ -461,6 +464,42 @@ struct JweReprRef<'a, A> {
     additional: &'a A,
 }
 
+#[inline(always)]
+fn ensure_critical_headers<S>(
+    value: Value,
+    disallowed_critical_headers: &'static [&'static str],
+) -> Result<Value, S::Error>
+where
+    S: Serializer,
+{
+    let actual_parameters = value.as_object().expect("is always serialized as struct");
+    if let Some(crits) = value.pointer("/crit") {
+        let crits = crits
+            .as_array()
+            .expect("`crit` is always serialized as array");
+        let disallowed: HashSet<&'static str> = disallowed_critical_headers
+            .iter()
+            .map(Deref::deref)
+            .collect();
+        for crit in crits {
+            let crit = crit.as_str().expect("`crit` array only contains strings");
+            if disallowed.contains(&crit) {
+                return Err(S::Error::custom(
+                    "found critical header that is not allowed to be critical",
+                ));
+            }
+
+            // `crit` must only contain parameter names that are in the actual header
+            if !actual_parameters.contains_key(crit) {
+                return Err(S::Error::custom(
+                    "found critical header that does not actually exist as parameter",
+                ));
+            }
+        }
+    }
+    Ok(value)
+}
+
 impl<A> Serialize for JwsHeader<Protected, A>
 where
     A: Serialize,
@@ -470,7 +509,7 @@ where
         S: Serializer,
     {
         let i = &self.inner;
-        HeaderReprRef {
+        let value = serde_json::to_value(HeaderReprRef {
             additional: &JwsReprRef {
                 additional: &i.additional.additional,
                 alg: &i.additional.algorithm,
@@ -488,8 +527,10 @@ where
             x509_certificate_sha1_thumbprint: &i.x509_certificate_sha1_thumbprint,
             x509_certificate_sha256_thumbprint: &i.x509_certificate_sha256_thumbprint,
             x509_url: &i.x509_url,
-        }
-        .serialize(serializer)
+        })
+        .map_err(S::Error::custom)?;
+
+        ensure_critical_headers::<S>(value, DISALLOWED_CRITICAL_HEADERS_JWS)?.serialize(serializer)
     }
 }
 impl<A> Serialize for JwsHeader<Unprotected, A>
@@ -501,7 +542,7 @@ where
         S: Serializer,
     {
         let i = &self.inner;
-        HeaderReprRef {
+        let value = serde_json::to_value(HeaderReprRef {
             additional: &JwsReprRef {
                 additional: &i.additional.additional,
                 alg: &i.additional.algorithm,
@@ -517,8 +558,9 @@ where
             x509_certificate_sha1_thumbprint: &i.x509_certificate_sha1_thumbprint,
             x509_certificate_sha256_thumbprint: &i.x509_certificate_sha256_thumbprint,
             x509_url: &i.x509_url,
-        }
-        .serialize(serializer)
+        })
+        .map_err(S::Error::custom)?;
+        ensure_critical_headers::<S>(value, DISALLOWED_CRITICAL_HEADERS_JWE)?.serialize(serializer)
     }
 }
 impl<A> Serialize for JweHeader<Protected, A>

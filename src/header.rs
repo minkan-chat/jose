@@ -330,6 +330,11 @@ impl<T, A> JwsHeader<T, A>
 where
     T: HeaderMarker,
 {
+    /// Convert this [`JwsHeader`] back to a [`JoseHeaderBuilder`].
+    pub fn into_builder(self) -> JoseHeaderBuilder<T, Jws<A>, A> {
+        self.into()
+    }
+
     /// The [`JsonWebSigningAlgorithm`] used in this [`Jws`].
     pub fn algorithm(&self) -> JsonWebSigningAlgorithm {
         self.inner.additional.algorithm
@@ -404,6 +409,11 @@ impl<T, A> JweHeader<T, A>
 where
     T: HeaderMarker,
 {
+    /// Convert this [`JwsHeader`] back to a [`JoseHeaderBuilder`].
+    pub fn into_builder(self) -> JoseHeaderBuilder<T, Jwe<A>, A> {
+        self.into()
+    }
+
     /// The [`JsonWebEncryptionAlgorithm`] used in this [`Jwe`] to encrypt the
     /// content encryption key (CEK).
     pub fn algorithm(&self) -> JsonWebEncryptionAlgorithm {

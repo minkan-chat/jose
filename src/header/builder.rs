@@ -1,4 +1,7 @@
-use alloc::{string::String, vec::Vec};
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 use core::marker::PhantomData;
 
 use hashbrown::HashSet;
@@ -104,7 +107,61 @@ impl Default for JoseHeaderBuilder<(), Jwe> {
     }
 }
 
-impl<T, U> JoseHeaderBuilder<T, U>
+impl<T, A> From<JwsHeader<T, A>> for JoseHeaderBuilder<T, Jws<A>, A>
+where
+    T: HeaderMarker,
+{
+    fn from(header: JwsHeader<T, A>) -> Self {
+        let inner = header.inner;
+        Self {
+            jwk_set_url: inner.jwk_set_url,
+            json_web_key: inner.json_web_key,
+            key_id: inner.key_id,
+            x509_url: inner.x509_url,
+            x509_certificate_chain: inner.x509_certificate_chain,
+            x509_certificate_sha1_thumbprint: inner.x509_certificate_sha1_thumbprint,
+            x509_certificate_sha256_thumbprint: inner.x509_certificate_sha256_thumbprint,
+            typ: inner.typ,
+            content_type: inner.content_type,
+            partial_additional: PartialType::Jws {
+                alg: Some(inner.additional.algorithm),
+                b64: inner.additional.payload_base64_url_encoded,
+                additional: inner.additional.additional,
+            },
+            header_typ: Some(inner.header_type),
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T, A> From<JweHeader<T, A>> for JoseHeaderBuilder<T, Jwe<A>, A>
+where
+    T: HeaderMarker,
+{
+    fn from(header: JweHeader<T, A>) -> Self {
+        let inner = header.inner;
+        Self {
+            jwk_set_url: inner.jwk_set_url,
+            json_web_key: inner.json_web_key,
+            key_id: inner.key_id,
+            x509_url: inner.x509_url,
+            x509_certificate_chain: inner.x509_certificate_chain,
+            x509_certificate_sha1_thumbprint: inner.x509_certificate_sha1_thumbprint,
+            x509_certificate_sha256_thumbprint: inner.x509_certificate_sha256_thumbprint,
+            typ: inner.typ,
+            content_type: inner.content_type,
+            partial_additional: PartialType::Jwe {
+                alg: Some(inner.additional.algorithm),
+                enc: Some(inner.additional.content_encryption_algorithm),
+                additional: inner.additional.additional,
+            },
+            header_typ: Some(inner.header_type),
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T, U, A> JoseHeaderBuilder<T, U, A>
 where
     U: TypeMarker,
 {
@@ -193,7 +250,7 @@ where
 
     /// Turn this builder into a builder for a [`Protected`] [`JoseHeader`].
     /// Values in the old header type are discarded.
-    pub fn protected(self) -> JoseHeaderBuilder<Protected, U> {
+    pub fn protected(self) -> JoseHeaderBuilder<Protected, U, A> {
         JoseHeaderBuilder {
             jwk_set_url: self.jwk_set_url,
             json_web_key: self.json_web_key,
@@ -214,7 +271,7 @@ where
 
     /// Turn this builder into a builder for an [`Unprotected`] [`JoseHeader`].
     /// Values in the old header type are discarded.
-    pub fn unprotected(self) -> JoseHeaderBuilder<Unprotected, U> {
+    pub fn unprotected(self) -> JoseHeaderBuilder<Unprotected, U, A> {
         JoseHeaderBuilder {
             jwk_set_url: self.jwk_set_url,
             json_web_key: self.json_web_key,
@@ -358,7 +415,7 @@ impl<T, A> JoseHeaderBuilder<T, Jwe<A>, A> {
     }
 }
 
-impl<U> JoseHeaderBuilder<Protected, U>
+impl<U, A> JoseHeaderBuilder<Protected, U, A>
 where
     U: TypeMarker,
 {
@@ -367,28 +424,65 @@ where
     /// Each [`Item`](Iterator::Item) must be the serialized parameter name
     /// (e.g. `cty` instead of
     /// [`content_type`](JoseHeaderBuilder::content_type)).
+    ///
+    /// You have to make sure that you only put header names here that are
+    /// actually in the header later (via [`additional`](Self::additional)) or
+    /// otherwise you produce an invalid header. You must also make sure that
+    /// you set none of the following headers critical:
+    ///
+    /// * `alg`
+    /// * `enc`
+    /// * `zip`
+    /// * `jku`
+    /// * `jwk`
+    /// * `kid`
+    /// * `x5u`
+    /// * `x5c`
+    /// * `x5t`
+    /// * `x5t#S256`
+    /// * `typ`
+    /// * `cty`
+    /// * `crit`
+    /// * `epk`
+    /// * `apu`
+    /// * `apv`
+    /// * `iv`
+    /// * `tag`
+    /// * `p2s`
+    /// * `p2c`
     pub fn critical_headers(self, critical_headers: impl Iterator<Item = String>) -> Self {
+        let mut collected: HashSet<_> = critical_headers.collect();
+        // we discare other critical headers but if the `b64` is set, we make sure to
+        // put it into critical headers again, since it MUST be critical
+        if let Some(header) = self.header_typ {
+            if header.critical_headers.contains("b64") {
+                collected.insert("b64".to_string());
+            }
+        }
+
         Self {
             header_typ: Some(Protected {
-                critical_headers: critical_headers.collect(),
+                critical_headers: collected,
             }),
             ..self
         }
     }
 }
-impl<U> JoseHeaderBuilder<Unprotected, U>
+impl<U, A> JoseHeaderBuilder<Unprotected, U, A>
 where
     U: TypeMarker,
 {
     // Empty.
 }
 
-impl<A> JoseHeaderBuilder<Protected, Jws<A>> {
+impl<A> JoseHeaderBuilder<Protected, Jws<A>, A> {
     /// Overwrite the [`JwsHeader<Protected>::payload_base64_url_encoded`]
     /// parameter.
     ///
-    /// If set to `false`, the payload will not be base64url-encoded.
-    pub fn payload_base64_url_encoded(self, encode_base64_url: bool) -> Self {
+    /// If set to `false`, the payload will not be base64url-encoded. If set to
+    /// [`None`], the default will be assumed and the header will not be
+    /// included.
+    pub fn payload_base64_url_encoded(self, encode_base64_url: impl Into<Option<bool>>) -> Self {
         Self {
             partial_additional: match self.partial_additional {
                 PartialType::Jws {
@@ -397,23 +491,33 @@ impl<A> JoseHeaderBuilder<Protected, Jws<A>> {
                     additional,
                 } => PartialType::Jws {
                     alg,
-                    b64: Some(encode_base64_url),
+                    b64: encode_base64_url.into(),
                     additional,
                 },
                 _ => unreachable!(),
             },
+            // `b64` header MUST always be critical
+            header_typ: Some(match self.header_typ {
+                Some(mut header) => {
+                    header.critical_headers.insert("b64".to_string());
+                    header
+                }
+                None => Protected {
+                    critical_headers: core::iter::once("b64".to_string()).collect(),
+                },
+            }),
             ..self
         }
     }
 }
-impl<A> JoseHeaderBuilder<Unprotected, Jws<A>> {
+impl<A> JoseHeaderBuilder<Unprotected, Jws<A>, A> {
     // Empty.
 }
 
-impl<A> JoseHeaderBuilder<Protected, Jwe<A>> {
+impl<A> JoseHeaderBuilder<Protected, Jwe<A>, A> {
     // Empty.
 }
-impl<A> JoseHeaderBuilder<Unprotected, Jwe<A>> {
+impl<A> JoseHeaderBuilder<Unprotected, Jwe<A>, A> {
     // Empty.
 }
 
