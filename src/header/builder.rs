@@ -619,6 +619,7 @@ where
 
 /// The error returned by [`JoseHeaderBuilder::build`].
 #[derive(Debug, thiserror_no_std::Error)]
+#[non_exhaustive]
 pub enum BuilderError {
     /// The [`JoseHeader::algorithm`] wasn't set.
     #[error("algorithm not set")]
