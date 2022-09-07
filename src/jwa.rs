@@ -185,7 +185,7 @@ impl_serde_jwa!(
 ///
 /// [RFC 7518 section 5]: <https://datatracker.ietf.org/doc/html/rfc7518#section-5>
 /// [section 5.1]: <https://datatracker.ietf.org/doc/html/rfc7518#section-5.1>
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum JsonWebContentEncryptionAlgorithm {
     /// Content Encryption using AES in CBC mode with HMAC

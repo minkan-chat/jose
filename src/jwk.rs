@@ -27,7 +27,7 @@ mod key_ops;
 mod key_use;
 mod private;
 mod public;
-mod serde_impl;
+pub(crate) mod serde_impl;
 mod signer;
 mod verifier;
 

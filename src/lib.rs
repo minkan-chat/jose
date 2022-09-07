@@ -31,6 +31,7 @@ pub(crate) mod tagged_visitor;
 pub(crate) mod sealed;
 
 pub mod format;
+pub mod header;
 pub mod jwa;
 mod jwe;
 pub mod jwk;
@@ -41,7 +42,7 @@ pub mod policy;
 pub use base64_url::Base64UrlString;
 
 #[doc(inline)]
-pub use self::{jwk::JsonWebKey, jws::JsonWebSignature, jwt::JsonWebToken};
+pub use self::{header::JoseHeader, jwk::JsonWebKey, jws::JsonWebSignature, jwt::JsonWebToken};
 
 /// Type alias to make `JsonWebSignature` easier to access.
 pub type JWS<T, H = ()> = JsonWebSignature<T, H>;
