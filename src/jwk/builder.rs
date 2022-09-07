@@ -122,7 +122,7 @@ impl<T> JsonWebKeyBuilder<T> {
     /// with the [`JsonWebAlgorithm`] set.
     // We think that this degree of complexity is acceptable and a type alias would make things even
     // more complex
-    #[allow(clippy::type_complexity)]
+    #[allow(clippy::type_complexity, clippy::result_large_err)]
     pub fn build_and_check<P: Policy>(
         self,
         policy: P,
