@@ -361,6 +361,22 @@ where
                 "found critical headers that are not allowed to be critical.",
             ));
         }
+
+        for critical in &criticals {
+            if !fields.contains_key(*critical) {
+                return Err(D::Error::custom(
+                    "found header name marked as critical which is not part of the header",
+                ));
+            }
+        }
+
+        // if there are more headers that most be marked as critical, consider a const
+        // array like with disallowed header parameters
+        if fields.contains_key("b64") && !criticals.contains("b64") {
+            return Err(D::Error::custom(
+                "found `b64` which must be marked as critical but it was not",
+            ));
+        }
     }
 
     Ok(fields.into())

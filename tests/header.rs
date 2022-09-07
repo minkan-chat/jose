@@ -1,4 +1,7 @@
-use jose::{header::JwsHeader, jwa::JsonWebSigningAlgorithm};
+use jose::{
+    header::{JwsHeader, Protected},
+    jwa::JsonWebSigningAlgorithm,
+};
 
 #[test]
 fn critical_headers() {
@@ -26,7 +29,7 @@ fn critical_headers() {
     serde_json::to_string(&header)
         .expect_err("should fail because `foo` is not in the actual header");
 
-    #[derive(serde::Serialize)]
+    #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
     struct Additional {
         foo: bool,
     }
@@ -38,9 +41,36 @@ fn critical_headers() {
         .build()
         .expect("this is a valid header, foo is critical and included via additional");
 
-    let header = serde_json::to_string(&header).unwrap();
     assert_eq!(
-        r#"{"alg":"EdDSA","b64":true,"crit":["foo","b64"],"foo":true}"#,
-        &header
+        serde_json::from_str::<JwsHeader<Protected, Additional>>(
+            r#"{"alg":"EdDSA","b64":true,"crit":["foo","b64"],"foo":true}"#
+        )
+        .unwrap(),
+        header
+    );
+}
+
+#[test]
+fn deserialize_ensure_valid_header() {
+    serde_json::from_str::<JwsHeader<Protected>>(
+        r#"{"alg":"EdDSA","b64":true,"crit":["foo","b64"]}"#,
+    )
+    .expect_err("`foo` header is marked as critical but is not part of the header");
+
+    serde_json::from_str::<JwsHeader<Protected>>(
+        r#"{"alg":"EdDSA","b64":true,"crit":["foo","b64","alg"],"foo":true}"#,
+    )
+    .expect_err("`alg` is not allowed to be critical");
+
+    // using serde_json::Value is an easy way to keep all parameters
+    let header: JwsHeader<Protected> =
+        serde_json::from_str(r#"{"alg":"EdDSA","b64":true,"crit":["foo","b64"],"foo":true}"#)
+            .expect("this is valid");
+    assert_eq!(
+        serde_json::from_str::<JwsHeader<Protected>>(
+            r#"{"alg":"EdDSA","b64":true,"crit":["b64","foo"],"foo":true}"#
+        )
+        .unwrap(),
+        header
     );
 }
