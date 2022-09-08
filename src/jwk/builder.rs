@@ -28,7 +28,7 @@ pub enum JsonWebKeyBuildError<P> {
 
 /// The builder for modifying a [`JsonWebKey`].
 #[derive(Debug, Clone)]
-pub struct JsonWebKeyBuilder<T> {
+pub struct JsonWebKeyBuilder<A> {
     pub(super) key_type: JsonWebKeyType,
     pub(super) key_use: Option<KeyUsage>,
     pub(super) key_operations: Option<HashSet<KeyOperation>>,
@@ -38,7 +38,7 @@ pub struct JsonWebKeyBuilder<T> {
     pub(super) x509_certificate_chain: Vec<Base64DerCertificate>,
     pub(super) x509_certificate_sha1_thumbprint: Option<[u8; 20]>,
     pub(super) x509_certificate_sha256_thumbprint: Option<[u8; 32]>,
-    pub(super) additional: T,
+    pub(super) additional: A,
 }
 
 macro_rules! gen_builder_methods {
@@ -70,7 +70,7 @@ impl JsonWebKeyBuilder<()> {
     }
 }
 
-impl<T> JsonWebKeyBuilder<T> {
+impl<A> JsonWebKeyBuilder<A> {
     /// Try to construct the final [`JsonWebKey`].
     ///
     /// # Errors
@@ -78,7 +78,7 @@ impl<T> JsonWebKeyBuilder<T> {
     /// Returns an [`Err`] if any parameter is considered invalid. For example,
     /// if a [`JsonWebKeyType`] is not compatible with the [`JsonWebAlgorithm`]
     /// set.
-    pub fn build(self) -> Result<JsonWebKey<T>, JsonWebKeyBuildError<Infallible>> {
+    pub fn build(self) -> Result<JsonWebKey<A>, JsonWebKeyBuildError<Infallible>> {
         let Self {
             key_type,
             key_use,
@@ -126,9 +126,9 @@ impl<T> JsonWebKeyBuilder<T> {
     pub fn build_and_check<P: Policy>(
         self,
         policy: P,
-    ) -> Result<Checked<JsonWebKey<T>, P>, JsonWebKeyBuildError<(JsonWebKey<T>, P::Error)>>
+    ) -> Result<Checked<JsonWebKey<A>, P>, JsonWebKeyBuildError<(JsonWebKey<A>, P::Error)>>
     where
-        T: Checkable,
+        A: Checkable,
     {
         self.build()
             .map_err(|e| match e {
@@ -142,7 +142,7 @@ impl<T> JsonWebKeyBuilder<T> {
     }
 }
 
-impl<T> JsonWebKeyBuilder<T> {
+impl<A> JsonWebKeyBuilder<A> {
     gen_builder_methods! {
         key_use: KeyUsage,
         key_operations: HashSet<KeyOperation>,
@@ -172,7 +172,7 @@ impl<T> JsonWebKeyBuilder<T> {
 
     /// Override the additional parameters for this JWK.
     #[inline]
-    pub fn additional<NT>(self, additional: NT) -> JsonWebKeyBuilder<NT> {
+    pub fn additional<N>(self, additional: N) -> JsonWebKeyBuilder<N> {
         JsonWebKeyBuilder {
             key_type: self.key_type,
             key_use: self.key_use,

@@ -88,8 +88,8 @@ pub use self::{
 /// ## Additional parameters
 ///
 /// The spec allows custom/additional parameters that are not registered in the
-/// [IANA `JSON Web Key Parameters` registry]. The `T` generic parameter of
-/// [`JsonWebKey<T>`] allows you to bring your own type to do just that.
+/// [IANA `JSON Web Key Parameters` registry]. The `A` generic parameter of
+/// [`JsonWebKey<A>`] allows you to bring your own type to do just that.
 ///
 /// To do so, create a container type that holds all your parameters (and maybe
 /// even another container).
@@ -172,7 +172,14 @@ pub use self::{
 /// [section 6 of RFC 7518]: <https://datatracker.ietf.org/doc/html/rfc7518#section-6>
 /// [IANA `Json Web Key Parameters` registry]: <https://www.iana.org/assignments/jose/jose.xhtml#web-key-parameters>
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone)]
-pub struct JsonWebKey<T = ()> {
+pub struct JsonWebKey<A = ()> {
+    /// Additional members in the JWK as permitted by the fourth paragraph of
+    /// [section 4]
+    ///
+    /// [section 4]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4>
+    // Note: `A` is first because otherwise it is possible to overwrite parameters set by us
+    #[serde(flatten)]
+    additional: A,
     /// `kty` parameter section 4.1
     /// Note that the [`JsonWebKeyType`] enum does way more than just
     /// checking/storing the `kty` parameter
@@ -227,12 +234,6 @@ pub struct JsonWebKey<T = ()> {
         skip_serializing_if = "Option::is_none"
     )]
     x509_certificate_sha256_thumbprint: Option<[u8; 32]>,
-    /// Additional members in the JWK as permitted by the fourth paragraph of
-    /// [section 4]
-    ///
-    /// [section 4]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4>
-    #[serde(flatten)]
-    additional: T,
 }
 
 impl JsonWebKey<()> {
