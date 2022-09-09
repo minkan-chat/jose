@@ -4,6 +4,7 @@ use super::{
     ec::{
         p256::P256Verifier, p384::P384Verifier, secp256k1::Secp256k1Verifier, EcPrivate, EcPublic,
     },
+    rsa::RsaVerifier,
     symmetric::{self, hmac::HmacKey},
     AsymmetricJsonWebKey, FromJwkError, FromKey, Private, Public, SymmetricJsonWebKey,
 };
@@ -42,7 +43,7 @@ impl JwkVerifier {
                                 InnerVerifier::Secp256k1(key.into_verifier(alg)?)
                             }
                         },
-                        Public::Rsa(_) => todo!(),
+                        Public::Rsa(key) => InnerVerifier::Rsa(key.into_verifier(alg)?),
                     },
                     AsymmetricJsonWebKey::Private(key) => match key {
                         Private::Ec(key) => match key {
@@ -52,7 +53,7 @@ impl JwkVerifier {
                                 InnerVerifier::Secp256k1(key.into_verifier(alg)?)
                             }
                         },
-                        Private::Rsa(_) => todo!(),
+                        Private::Rsa(key) => InnerVerifier::Rsa((*key).into_verifier(alg)?),
                     },
                 },
                 JsonWebKeyType::Symmetric(key) => match key {
@@ -76,6 +77,7 @@ impl Verifier for JwkVerifier {
             InnerVerifier::Hs256(verifier) => verifier.verify(msg, signature),
             InnerVerifier::Hs384(verifier) => verifier.verify(msg, signature),
             InnerVerifier::Hs512(verifier) => verifier.verify(msg, signature),
+            InnerVerifier::Rsa(verifier) => verifier.verify(msg, signature),
             InnerVerifier::Es256(verifier) => verifier.verify(msg, signature),
             InnerVerifier::Es384(verifier) => verifier.verify(msg, signature),
             InnerVerifier::Secp256k1(verifier) => verifier.verify(msg, signature),
@@ -141,7 +143,7 @@ enum InnerVerifier {
     Hs384(HmacKey<symmetric::hmac::Hs384>),
     Hs512(HmacKey<symmetric::hmac::Hs512>),
     // asymmetric algorithms
-    // RSA not implemented yet
+    Rsa(RsaVerifier),
     Es256(P256Verifier),
     Es384(P384Verifier),
     Secp256k1(Secp256k1Verifier),
