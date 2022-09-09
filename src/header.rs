@@ -71,7 +71,7 @@ use self::serde_::HeaderReprOwned;
 ///     // build the header
 ///     .build()?;
 ///
-/// assert_eq!(jws_header.algorithm(), JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256));
+/// assert_eq!(jws_header.algorithm(), &JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256));
 /// assert_eq!(jws_header.typ(), Some(MediaType::parse("application/jose").unwrap()));
 /// assert_eq!(jws_header.content_type(), Some(MediaType::parse("text/plain").unwrap()));
 /// # Ok(())
@@ -336,8 +336,8 @@ where
     }
 
     /// The [`JsonWebSigningAlgorithm`] used in this [`Jws`].
-    pub fn algorithm(&self) -> JsonWebSigningAlgorithm {
-        self.inner.additional.algorithm
+    pub fn algorithm(&self) -> &JsonWebSigningAlgorithm {
+        &self.inner.additional.algorithm
     }
 
     /// Additional parameters in this [`JoseHeader`] defined by the generic type
@@ -416,8 +416,8 @@ where
 
     /// The [`JsonWebEncryptionAlgorithm`] used in this [`Jwe`] to encrypt the
     /// content encryption key (CEK).
-    pub fn algorithm(&self) -> JsonWebEncryptionAlgorithm {
-        self.inner.additional.algorithm
+    pub fn algorithm(&self) -> &JsonWebEncryptionAlgorithm {
+        &self.inner.additional.algorithm
     }
 
     /// The [`JsonWebContentEncryptionAlgorithm`] used to encrypt the payload of

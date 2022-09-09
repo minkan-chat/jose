@@ -6,7 +6,7 @@ use thiserror_no_std::Error;
 
 use super::{CryptographicOperation, Policy, PolicyError};
 use crate::{
-    jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
+    jwa::{JsonWebAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
     jwk::{KeyOperation, KeyUsage},
 };
 
@@ -31,6 +31,18 @@ pub enum StandardPolicyFail {
     /// check it.
     #[error("`key_ops` contained custom operation which can't be checked")]
     OtherKeyOperation,
+    /// If any of [`JsonWebSigningAlgorithm`] or [`JsonWebEncryptionAlgorithm`]
+    /// contains the `Other` variant, this error will be raised by the
+    /// [`StandardPolicy`] because it is not understood by the implementations
+    /// provided by this library.
+    ///
+    /// If you use custom implementations (for example, via your own
+    /// [`Signer`](crate::jws::Signer) type) and use custom values for your
+    /// algorithm identification, you should provide our own [`Policy`] that
+    /// compares the `Other` variants against values understood by your
+    /// implementation.
+    #[error("`alg` header contains an unknown value")]
+    OtherAlgorithm,
     /// Used for the [`PolicyError`] implementation
     #[error("{0}")]
     Custom(String),
@@ -71,14 +83,18 @@ impl StandardPolicy {
 impl Policy for StandardPolicy {
     type Error = StandardPolicyFail;
 
-    fn algorithm(&self, alg: JsonWebAlgorithm) -> Result<(), Self::Error> {
-        if let JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::None) = alg {
-            return Err(StandardPolicyFail::NoneAlgorithm);
-        }
-        // TODO: match the Other variant against possible prohibited algorithms which
-        // are not typed out in the api. See the IANA registry for a list
+    fn algorithm(&self, alg: &JsonWebAlgorithm) -> Result<(), Self::Error> {
+        match alg {
+            JsonWebAlgorithm::Encryption(JsonWebEncryptionAlgorithm::Other(_))
+            | JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::Other(_)) => {
+                Err(StandardPolicyFail::OtherAlgorithm)
+            }
 
-        Ok(())
+            JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::None) => {
+                Err(StandardPolicyFail::NoneAlgorithm)
+            }
+            _ => Ok(()),
+        }
     }
 
     fn compare_key_ops_and_use(

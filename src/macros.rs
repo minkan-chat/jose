@@ -297,8 +297,21 @@ macro_rules! impl_serde_ec {
 macro_rules! impl_serde_jwa {
     ($T:ty, [
         $($name:literal => $val:expr; $valp:pat,)*
-        err: $err:ident => $get_err:expr, $(,)?
+
+        $(contrary: <$contrary:ty>::$contrary_variant:ident,)?
+
+        expected: $expected:literal,
+        got: $got:literal,
     ]) => {
+
+        impl core::fmt::Display for $T {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                match &self {
+                    $($valp => write!(f, "{}", $name),)*
+                    Self::Other(other) => write!(f, "{}", other),
+                }
+            }
+        }
         #[allow(unused_qualifications)]
         impl<'de> serde::Deserialize<'de> for $T {
             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -309,7 +322,23 @@ macro_rules! impl_serde_jwa {
 
                 Ok(match name.as_ref() {
                     $($name => $val,)*
-                    $err => return Err(<D::Error as serde::de::Error>::custom($get_err)),
+                    _ => {
+                        $(
+                            use $contrary as _Contrary;
+                            let de: serde::de::value::CowStrDeserializer<'_, D::Error> = serde::de::value::CowStrDeserializer::new(name);
+                            let variant: $contrary = <$contrary>::deserialize(de)?;
+                            if let _Contrary::$contrary_variant(name) = variant {
+                                return Ok(Self::Other(name));
+                            } else {
+                                let fmt = alloc::format!("{} `{}`", $got, variant);
+                                let unexpected = serde::de::Unexpected::Str(&fmt);
+                                return Err(<D::Error as serde::de::Error>::invalid_value(unexpected, &$expected));
+                            }
+                        )*
+                        // this will be reachable if contrary is not present
+                        #[allow(unreachable_code)]
+                        Self::Other(name.into_owned())
+                    },
                 })
             }
         }
@@ -322,6 +351,7 @@ macro_rules! impl_serde_jwa {
             {
                 let name = match self {
                     $($valp => $name,)*
+                    Self::Other(custom) => custom,
                 };
                 <&str as serde::Serialize>::serialize(&name, serializer)
             }
