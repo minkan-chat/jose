@@ -1,3 +1,5 @@
+use alloc::borrow::ToOwned;
+
 use super::{
     ec::{
         p256::P256Verifier, p384::P384Verifier, secp256k1::Secp256k1Verifier, EcPrivate, EcPublic,
@@ -124,7 +126,10 @@ where
     ///
     /// This conversion fails if [`JsonWebKey::algorithm`] is [`None`]
     fn try_from(jwk: Checked<JsonWebKey<T>, P>) -> Result<Self, Self::Error> {
-        let alg = jwk.algorithm().ok_or(FromJwkError::InvalidAlgorithm)?;
+        let alg = jwk
+            .algorithm()
+            .ok_or(FromJwkError::InvalidAlgorithm)?
+            .to_owned();
         JwkVerifier::from_key(jwk, alg)
     }
 }

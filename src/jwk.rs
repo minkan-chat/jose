@@ -313,8 +313,8 @@ impl<T> JsonWebKey<T> {
     /// See the documentation of [`JsonWebAlgorithm`] for details.
     ///
     /// [Section 4.4 of RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4.4>
-    pub fn algorithm(&self) -> Option<JsonWebAlgorithm> {
-        self.algorithm
+    pub fn algorithm(&self) -> Option<&JsonWebAlgorithm> {
+        self.algorithm.as_ref()
     }
 
     /// [Section 4.5 of RFC 7517] defines the `kid` (Key ID) Parameter.

@@ -1,4 +1,4 @@
-use alloc::{string::String, vec::Vec};
+use alloc::{borrow::ToOwned, string::String, vec::Vec};
 
 use digest::Update;
 
@@ -210,7 +210,10 @@ where
     ///
     /// This conversion fails if [`JsonWebKey::algorithm`] is [`None`]
     fn try_from(jwk: Checked<JsonWebKey<T>, P>) -> Result<Self, Self::Error> {
-        let alg = jwk.algorithm().ok_or(FromJwkError::InvalidAlgorithm)?;
+        let alg = jwk
+            .algorithm()
+            .ok_or(FromJwkError::InvalidAlgorithm)?
+            .to_owned();
         let kid = jwk.kid.clone();
         let mut signer = JwkSigner::from_key(jwk, alg)?;
         signer.key_id = kid;

@@ -11,6 +11,8 @@ mod hmac;
 mod pbes2;
 mod rsa;
 
+use alloc::string::String;
+
 use serde::{Deserialize, Serialize};
 
 #[doc(inline)]
@@ -30,7 +32,7 @@ pub use self::{
 /// `JSON Web Signature and Encryption Algorithms` registry][1].
 ///
 /// [1]: <https://www.iana.org/assignments/jose/jose.xhtml#web-signature-encryption-algorithms>
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum JsonWebAlgorithm {
     /// Signing algorithm.
@@ -47,8 +49,7 @@ pub enum JsonWebAlgorithm {
 ///
 /// [RFC 7518 section 3]: <https://datatracker.ietf.org/doc/html/rfc7518#section-3>
 /// [section 3.1]: <https://datatracker.ietf.org/doc/html/rfc7518#section-3.1>
-// FIXME: `alg` header supports custom algorithms
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum JsonWebSigningAlgorithm {
     /// HMAC with SHA-2 Functions
@@ -75,6 +76,13 @@ pub enum JsonWebSigningAlgorithm {
     ///
     /// [section 3.6 of RFC 7518]: <https://datatracker.ietf.org/doc/html/rfc7518#section-3.6>
     None,
+    /// JSON Web Algorithms that are not recognised by this implementation.
+    ///
+    /// If you want to implement custom algorithms via a custom
+    /// [`Signer`](crate::jws::Signer) and [`Verifier`](crate::jws::Verifier)
+    /// type, you should use this type to define an identifier for your
+    /// algorithm.
+    Other(String),
 }
 
 impl From<JsonWebSigningAlgorithm> for JsonWebAlgorithm {
@@ -110,7 +118,10 @@ impl_serde_jwa!(
 
         "none" => Self::None; Self::None,
 
-        err: name => alloc::format!("invalid JSON Web Signing Algorithm: {}", name),
+        contrary: <JsonWebEncryptionAlgorithm>::Other,
+
+        expected: "a JSON Web Signing Algorithm",
+        got: "JSON Web Encryption Algorithm",
     ]
 );
 
@@ -122,7 +133,7 @@ impl_serde_jwa!(
 ///
 /// [RFC 7518 section 4]: <https://datatracker.ietf.org/doc/html/rfc7518#section-4>
 /// [section 4.1]: <https://datatracker.ietf.org/doc/html/rfc7518#section-4.1>
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum JsonWebEncryptionAlgorithm {
     /// Key Encryption with RSAES-PKCS1-v1_5 as defined in [section 4.2]
@@ -144,6 +155,16 @@ pub enum JsonWebEncryptionAlgorithm {
     AesGcmKw(AesGcm),
     /// PBES2 Key Encryption
     Pbes2(Pbes2),
+    /// JSON Web Algorithms that are not recognised by this implementation.
+    ///
+    /// If you want to implement custom algorithms for use in JSON Web
+    /// encryption, you should use this variant to identify your algorithm.
+    ///
+    /// Note: When you deserialize the `alg` header parameter via the
+    /// [`JsonWebAlgorithm`] enum, this variant will probably never be
+    /// constructed, because it matches [`JsonWebSigningAlgorithm::Other`]
+    /// first.
+    Other(String),
 }
 
 impl From<JsonWebEncryptionAlgorithm> for JsonWebAlgorithm {
@@ -173,7 +194,10 @@ impl_serde_jwa!(
         "PBES2-HS384+A192KW" => Self::Pbes2(Pbes2::Hs384Aes192); Self::Pbes2(Pbes2::Hs384Aes192),
         "PBES2-HS512+A256KW" => Self::Pbes2(Pbes2::Hs512Aes256); Self::Pbes2(Pbes2::Hs512Aes256),
 
-        err: name => alloc::format!("invalid JSON Web Encryption Algorithm: {}", name),
+        contrary: <JsonWebSigningAlgorithm>::Other,
+
+        expected: "a JSON Web Encryption Algorithm",
+        got: "JSON Web Signing Algorithm",
     ]
 );
 
@@ -192,6 +216,11 @@ pub enum JsonWebContentEncryptionAlgorithm {
     AesCbcHs(AesCbcHs),
     /// Content Encryption using AES GCM
     AesGcm(AesGcm),
+    /// JSON Web Algorithms that are not recognised by this implementation.
+    ///
+    /// Use this variant if you want to implement a custom content encryption
+    /// algorithm.
+    Other(String),
 }
 
 impl_serde_jwa!(
@@ -205,6 +234,19 @@ impl_serde_jwa!(
         "A192GCM" => Self::AesGcm(AesGcm::Aes192); Self::AesGcm(AesGcm::Aes192),
         "A256GCM" => Self::AesGcm(AesGcm::Aes256); Self::AesGcm(AesGcm::Aes256),
 
-        err: name => alloc::format!("invalid JSON Web Content Encryption Algorithm: {}", name),
+        expected: "JSON Web Content Encryption Algorithm",
+        got: "an invalid variant",
     ]
 );
+
+#[test]
+fn test_others_not_stealing() {
+    use alloc::string::ToString;
+    let jwe = "dir";
+    let jwa: JsonWebAlgorithm =
+        serde_json::from_value(serde_json::Value::String(jwe.to_string())).unwrap();
+    assert!(matches!(
+        jwa,
+        JsonWebAlgorithm::Encryption(JsonWebEncryptionAlgorithm::Direct)
+    ));
+}
