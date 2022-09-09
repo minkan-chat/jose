@@ -37,6 +37,10 @@ const DISALLOWED_CRITICAL_HEADERS_JWE: &[&str] = &[
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub(super) struct HeaderReprOwned<T, A> {
     // Shared parameters between JWS and JWE
+    /// Additional parameters defined by the generic parameter `A`
+    // Note: this parameter is first because this way `A` can't overwrite parameters set by us
+    #[serde(flatten)]
+    pub additional: A,
     // `alg` parameter defined in section 4.1.1 in both JWE and JWS
     // alg parameter moved to JwsRepr and JweRepr
     //#[serde(rename = "alg")]
@@ -96,9 +100,6 @@ pub(super) struct HeaderReprOwned<T, A> {
         default
     )]
     pub content_type: Option<MediaTypeBuf>,
-    /// Additional parameters defined by the generic parameter `A`
-    #[serde(flatten)]
-    pub additional: A,
     /// Additional parameters which are only present in a specific type of
     /// header ([`Protected`] and [`Unprotected`])
     #[serde(flatten)]
@@ -114,20 +115,20 @@ struct ProtectedReprOwned {
 struct UnprotectedReprOwned {}
 #[derive(Debug, Deserialize)]
 struct JwsReprOwned<A> {
+    #[serde(flatten)]
+    additional: A,
     alg: JsonWebSigningAlgorithm,
     // only include this header if it is explictly set
     #[serde(skip_serializing_if = "Option::is_none")]
     b64: Option<bool>,
-    #[serde(flatten)]
-    additional: A,
 }
 #[derive(Debug, Deserialize)]
 struct JweReprOwned<A> {
+    #[serde(flatten)]
+    additional: A,
     alg: JsonWebEncryptionAlgorithm,
     // content encryption algorithm
     enc: JsonWebContentEncryptionAlgorithm,
-    #[serde(flatten)]
-    additional: A,
 }
 
 impl<'de, A> Deserialize<'de> for JwsHeader<Protected, A>
@@ -387,6 +388,9 @@ where
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub(super) struct HeaderReprRef<'a, T, A> {
     // Shared parameters between JWS and JWE
+    /// Additional parameters defined by the generic parameter `A`
+    #[serde(flatten)]
+    pub additional: &'a A,
     // `alg` parameter defined in section 4.1.1 in both JWE and JWS
     // alg parameter moved to JwsRepr and JweRepr
     //#[serde(rename = "alg")]
@@ -446,9 +450,6 @@ pub(super) struct HeaderReprRef<'a, T, A> {
         default
     )]
     pub content_type: &'a Option<MediaTypeBuf>,
-    /// Additional parameters defined by the generic parameter `A`
-    #[serde(flatten)]
-    pub additional: &'a A,
     /// Additional parameters which are only present in a specific type of
     /// header ([`Protected`] and [`Unprotected`])
     #[serde(flatten)]
@@ -464,20 +465,20 @@ struct ProtectedReprRef<'a> {
 struct UnprotectedReprRef {}
 #[derive(Debug, Serialize)]
 struct JwsReprRef<'a, A> {
+    #[serde(flatten)]
+    additional: &'a A,
     alg: &'a JsonWebSigningAlgorithm,
     // only include this header if it is explictly set
     #[serde(skip_serializing_if = "Option::is_none")]
     b64: &'a Option<bool>,
-    #[serde(flatten)]
-    additional: &'a A,
 }
 #[derive(Debug, Serialize)]
 struct JweReprRef<'a, A> {
+    #[serde(flatten)]
+    additional: &'a A,
     alg: &'a JsonWebEncryptionAlgorithm,
     // content encryption algorithm
     enc: &'a JsonWebContentEncryptionAlgorithm,
-    #[serde(flatten)]
-    additional: &'a A,
 }
 
 #[inline(always)]
