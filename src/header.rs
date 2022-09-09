@@ -1,7 +1,7 @@
 //! [`JoseHeader`] and associated abstractions as defined in [section 4 of RFC
 //! 7515].
 //!
-//! [section 4 of RFC7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4>
+//! [section 4 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4>
 use alloc::{borrow::Cow, format, string::String, vec::Vec};
 use core::{hash::Hash, ops::Deref, str::FromStr};
 
