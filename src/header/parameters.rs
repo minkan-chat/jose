@@ -1,4 +1,8 @@
-use alloc::{collections::BTreeSet, string::String, vec::Vec};
+use alloc::{
+    collections::{BTreeMap, BTreeSet},
+    string::String,
+    vec::Vec,
+};
 
 use mediatype::MediaTypeBuf;
 use serde_json::Value;
@@ -35,4 +39,6 @@ pub struct Parameters<T> {
     pub(crate) content_type: Option<HeaderValue<MediaTypeBuf>>,
     // additional parameters specific to JWS or JWE (e.g. `enc` in JWE)
     pub(crate) specific: T,
+    // an untyped list of other values that are not understood by this implementation
+    pub(crate) additional: BTreeMap<String, HeaderValue<Value>>,
 }

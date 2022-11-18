@@ -1,14 +1,7 @@
 use core::ops::Deref;
 
-use sealed::NotFoundError;
-
 use crate::sealed::Sealed;
 
-pub(crate) mod sealed {
-    pub trait NotFoundError {
-        fn not_found() -> Self;
-    }
-}
 #[derive(Debug)]
 pub enum HeaderValue<T> {
     Protected(T),
@@ -58,6 +51,13 @@ impl<T> HeaderValue<T> {
             _ => None,
         }
     }
+
+    pub fn inner(self) -> T {
+        match self {
+            Self::Protected(t) => t,
+            Self::Unprotected(t) => t,
+        }
+    }
 }
 
 impl<T> HeaderValue<Option<T>> {
@@ -67,65 +67,5 @@ impl<T> HeaderValue<Option<T>> {
             HeaderValue::Protected(p) => HeaderValue::Protected(p?),
             HeaderValue::Unprotected(u) => HeaderValue::Unprotected(u?),
         })
-    }
-}
-pub trait HeaderSecurity: Sealed {
-    type Output<T>: NotFoundError;
-
-    fn from_value<T>(value: HeaderValue<T>) -> Self::Output<T>;
-}
-
-/// Marker for protected header parameters
-#[derive(Debug)]
-#[non_exhaustive]
-pub struct Protected;
-impl Sealed for Protected {}
-impl HeaderSecurity for Protected {
-    type Output<T> = Result<T, Error>;
-
-    fn from_value<T>(value: HeaderValue<T>) -> Self::Output<T> {
-        match value {
-            HeaderValue::Protected(p) => Ok(p),
-            _ => Err(Error::InvalidHeader),
-        }
-    }
-}
-
-#[derive(Debug)]
-#[non_exhaustive]
-pub struct Unprotected;
-impl Sealed for Unprotected {}
-impl HeaderSecurity for Unprotected {
-    type Output<T> = Result<T, Error>;
-
-    fn from_value<T>(value: HeaderValue<T>) -> Self::Output<T> {
-        match value {
-            HeaderValue::Unprotected(p) => Ok(p),
-            _ => Err(Error::InvalidHeader),
-        }
-    }
-}
-
-#[derive(Debug, thiserror_no_std::Error)]
-#[non_exhaustive]
-pub enum Error {
-    #[error("the header parameter exists but does not match the requested security level")]
-    InvalidHeader,
-    #[error("the header parameter does not exist")]
-    NotFound,
-}
-
-impl Sealed for Error {}
-impl NotFoundError for Error {
-    fn not_found() -> Self {
-        Self::NotFound
-    }
-}
-impl<T, E> NotFoundError for Result<T, E>
-where
-    E: NotFoundError,
-{
-    fn not_found() -> Self {
-        Err(E::not_found())
     }
 }
