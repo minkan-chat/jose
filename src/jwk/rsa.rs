@@ -299,7 +299,8 @@ impl<'de> Deserialize<'de> for RsaPrivateKey {
                 .0,
         );
 
-        let key = rsa::RsaPrivateKey::from_components(n, e, d, alloc::vec![p, q]);
+        let key = rsa::RsaPrivateKey::from_components(n, e, d, alloc::vec![p, q])
+            .map_err(D::Error::custom)?;
         Ok(Self(key))
     }
 }
