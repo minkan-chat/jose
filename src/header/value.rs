@@ -52,7 +52,7 @@ impl<T> HeaderValue<T> {
         }
     }
 
-    pub fn inner(self) -> T {
+    pub fn into_inner(self) -> T {
         match self {
             Self::Protected(t) => t,
             Self::Unprotected(t) => t,

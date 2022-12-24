@@ -2,8 +2,10 @@
 //! 7515].
 //!
 //! [section 4 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4>
-#![allow(missing_docs)]
-use alloc::{collections::BTreeSet, string::String};
+use alloc::{
+    collections::{BTreeMap, BTreeSet},
+    string::{String, ToString},
+};
 use core::{marker::PhantomData, ops::Deref};
 
 use mediatype::{MediaType, MediaTypeBuf};
@@ -276,12 +278,65 @@ where
     }
 }
 
-struct HeaderDeserializer {
+impl<F, T> JoseHeader<F, T>
+where
+    F: Format,
+    T: Type,
+{
+    pub(crate) fn from_values(protected: Value, unprotected: Value) -> Result<Self, Error> {
+        let de = HeaderDeserializer::from_values(protected, unprotected)?;
+        let (specific, mut de) = T::from_deserializer(de).map_err(|(e, _)| e)?;
+        Ok(Self {
+            parameters: Parameters {
+                critical_headers: de
+                    .deserialize_field("crit")
+                    .transpose()?
+                    .map(|v| v.protected().ok_or(Error::ExpectedProtected))
+                    .transpose()?
+                    .map(|v: BTreeSet<_>| {
+                        // RFC 7515
+                        // `crit` must not be an empty list,
+                        // must not contain header names specified by the specification
+                        // PROBLEM: `crit` wenn es in JWE genutzt wird, darf andere Paramter nicht
+                        // enthalten, wie wenn es in JWE genutzt wird. Eventuell kommen auch noch
+                        // Spezialfälle je nach serialization Format dazu, diese können hier so
+                        // nicht berücksichtigt werden
+                        if v.is_empty() {
+                            return Err(Error::EmptyCriticalHeaders);
+                        }
+                        for forbidden in T::forbidden_critical_headers() {
+                            if v.contains(*forbidden) {
+                                return Err(Error::ForbiddenHeader(forbidden.to_string()));
+                            }
+                        }
+                        Ok(v)
+                    })
+                    .transpose()?,
+                jwk_set_url: de.deserialize_field("jku").transpose()?,
+                json_web_key: de.deserialize_field("jwk").transpose()?,
+                key_id: de.deserialize_field("kid").transpose()?,
+                x509_url: de.deserialize_field("x5u").transpose()?,
+                x509_certificate_chain: de.deserialize_field("x5c").transpose()?,
+                x509_certificate_sha1_thumbprint: de.deserialize_field("x5t").transpose()?,
+                x509_certificate_sha256_thumbprint: de.deserialize_field("x5t#S256").transpose()?,
+                typ: de.deserialize_field("typ").transpose()?,
+                content_type: de.deserialize_field("cty").transpose()?,
+                specific,
+                additional: de.additional(),
+            },
+            _format: PhantomData,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct HeaderDeserializer {
     protected: Map<String, Value>,
     unprotected: Map<String, Value>,
 }
 
 impl HeaderDeserializer {
+    // FIXME: consider a check that ensures that if the headers are present, they are no empty object (`"header": {}`)
     fn from_values(protected: Value, unprotected: Value) -> Result<Self, Error> {
         // The `protected` and `header` parameters must be a JSON Object
         let protected = match protected {
@@ -309,7 +364,7 @@ impl HeaderDeserializer {
     }
 
     fn deserialize_field<'a, 'de, V>(
-        &'a self,
+        &'a mut self,
         field: &'a str,
     ) -> Option<Result<HeaderValue<V>, serde_json::Error>>
     where
@@ -325,14 +380,26 @@ impl HeaderDeserializer {
         // cannot overwrite protected headers via the unprotected header, because the
         // protected header is searched first.
 
-        if let Some(p) = self.protected.get(field) {
+        if let Some(p) = self.protected.remove(field) {
             return Some(V::deserialize(p).map(|v| HeaderValue::Protected(v)));
         }
 
-        if let Some(u) = self.unprotected.get(field) {
+        if let Some(u) = self.unprotected.remove(field) {
             return Some(V::deserialize(u).map(|v| HeaderValue::Unprotected(v)));
         }
 
         None
+    }
+
+    fn additional(self) -> BTreeMap<String, HeaderValue<Value>> {
+        self.protected
+            .into_iter()
+            .map(|(field, value)| (field, HeaderValue::Protected(value)))
+            .chain(
+                self.unprotected
+                    .into_iter()
+                    .map(|(field, value)| (field, HeaderValue::Unprotected(value))),
+            )
+            .collect()
     }
 }
