@@ -1,5 +1,6 @@
 use crate::{header::HeaderValue, jwa::JsonWebSigningAlgorithm, sealed::Sealed};
 
+/// Parameters specific to Json Web Signatures
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct Jws {

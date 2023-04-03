@@ -2,15 +2,22 @@ use core::ops::Deref;
 
 use crate::sealed::Sealed;
 
+/// Some value `T` in either the protected or unprotected header.
 #[derive(Debug)]
 pub enum HeaderValue<T> {
+    /// `T` is in the `protected` header parameter and integrity protected.
     Protected(T),
+    /// `T` is in the unprotected `header` parameter and NOT integrity
+    /// protected.
     Unprotected(T),
 }
 
 impl<T> Sealed for HeaderValue<T> {}
 
 impl<T> HeaderValue<T> {
+    /// Convert from `&HeaderValue<T>` to `HeaderValue<&T>`.
+    ///
+    /// Works like [`Option::as_ref`]
     pub fn as_ref(&self) -> HeaderValue<&'_ T> {
         match self {
             HeaderValue::Protected(v) => HeaderValue::Protected(v),
@@ -18,6 +25,9 @@ impl<T> HeaderValue<T> {
         }
     }
 
+    /// Converts from `&HeaderValue<T>` to `HeaderValue<&T::Target>`.
+    ///
+    /// Works like [`Option::as_deref`]
     pub fn as_deref(&self) -> HeaderValue<&T::Target>
     where
         T: Deref,
@@ -28,6 +38,8 @@ impl<T> HeaderValue<T> {
         }
     }
 
+    /// Maps an `HeaderValue<T>` to `HeaderValue<U>` by applying a function to a
+    /// contained value.
     pub fn map<U, F>(self, f: F) -> HeaderValue<U>
     where
         F: FnOnce(T) -> U,
@@ -38,6 +50,7 @@ impl<T> HeaderValue<T> {
         }
     }
 
+    /// Returns [`Some`] if `T` is in the `protected` parameter.
     pub fn protected(self) -> Option<T> {
         match self {
             Self::Protected(p) => Some(p),
@@ -45,6 +58,7 @@ impl<T> HeaderValue<T> {
         }
     }
 
+    /// Returns [`Some`] if `T` is in the unprotected `header` parameter.
     pub fn unprotected(self) -> Option<T> {
         match self {
             Self::Unprotected(u) => Some(u),
@@ -52,6 +66,8 @@ impl<T> HeaderValue<T> {
         }
     }
 
+    /// Returns the inner type `T` discarding the information about where `T` is
+    /// stored.
     pub fn into_inner(self) -> T {
         match self {
             Self::Protected(t) => t,

@@ -250,10 +250,28 @@ impl<F> JoseHeader<F, Jws>
 where
     F: Format,
 {
+    /// The [signing algorithm](JsonWebSigningAlgorithm) used to create the
+    /// signature for the JWS this [`JoseHeader`] is contained in.
+    ///
+    /// This parameter is serialized as `alg` and defined in [section 4.1.1 of
+    /// RFC 7515].
+    ///
+    /// [section 4.1.1 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.1>
     pub fn algorithm(&self) -> HeaderValue<&JsonWebSigningAlgorithm> {
         self.parameters.specific.algorithm.as_ref()
     }
 
+    /// Whether the payload is being base64url encoded or not.
+    ///
+    /// This parameter is serialized as `b64` and defined in [section 3 of RFC
+    /// 7797].
+    ///
+    /// Note: This header parameter is always integrity protected.
+    ///
+    /// Note: This header parameter is OPTIONAL and has a default value of
+    /// `true`.
+    ///
+    /// [section 3 of RFC 7797]: <https://datatracker.ietf.org/doc/html/rfc7797#section-3>
     pub fn payload_base64_url_encoded(&self) -> bool {
         self.parameters
             .specific
@@ -266,10 +284,24 @@ impl<F> JoseHeader<F, Jwe>
 where
     F: Format,
 {
+    /// The [encryption algorithm][JsonWebEncryptionAlgorithm] used to
+    /// encryption the content encryption key (CEK).
+    ///
+    /// This parameter is serialized as `alg` and defined in [section 4.1.1 of
+    /// RFC 7516].
+    ///
+    /// [section 4.1.1 of RFC 7516]: <https://datatracker.ietf.org/doc/html/rfc7516/#section-4.1.1>
     pub fn algorithm(&self) -> HeaderValue<&JsonWebEncryptionAlgorithm> {
         self.parameters.specific.algorithm.as_ref()
     }
 
+    /// The [encryption algorithm](JsonWebContentEncryptionAlgorithm) used to
+    /// encryption the payload of a JWE.
+    ///
+    /// This parameter is serialized as `enc` and defined in [section 4.1.2 of
+    /// RFC 7516].
+    ///
+    /// [section 4.1.2 of RFC 7516]: <https://datatracker.ietf.org/doc/html/rfc7516/#section-4.1.2>
     pub fn content_encryption_algorithm(&self) -> HeaderValue<&JsonWebContentEncryptionAlgorithm> {
         self.parameters
             .specific
@@ -283,7 +315,13 @@ where
     F: Format,
     T: Type,
 {
-    pub(crate) fn from_values(protected: Value, unprotected: Value) -> Result<Self, Error> {
+    /// Build a JoseHeader from its `header` and `protected` part.
+    ///
+    /// Note: The `protected` part must already be base64 decoded.
+    pub(crate) fn from_values(
+        protected: Option<Map<String, Value>>,
+        unprotected: Option<Map<String, Value>>,
+    ) -> Result<Self, Error> {
         let de = HeaderDeserializer::from_values(protected, unprotected)?;
         let (specific, mut de) = T::from_deserializer(de).map_err(|(e, _)| e)?;
         Ok(Self {
@@ -297,10 +335,7 @@ where
                         // RFC 7515
                         // `crit` must not be an empty list,
                         // must not contain header names specified by the specification
-                        // PROBLEM: `crit` wenn es in JWE genutzt wird, darf andere Paramter nicht
-                        // enthalten, wie wenn es in JWE genutzt wird. Eventuell kommen auch noch
-                        // Spezialfälle je nach serialization Format dazu, diese können hier so
-                        // nicht berücksichtigt werden
+                        // FIXME: consider forbidden headers that are `Format` specific.
                         if v.is_empty() {
                             return Err(Error::EmptyCriticalHeaders);
                         }
@@ -329,6 +364,7 @@ where
     }
 }
 
+/// An implementation detail for [`JoseHeader`]
 #[derive(Debug)]
 pub struct HeaderDeserializer {
     protected: Map<String, Value>,
@@ -336,16 +372,29 @@ pub struct HeaderDeserializer {
 }
 
 impl HeaderDeserializer {
-    // FIXME: consider a check that ensures that if the headers are present, they are no empty object (`"header": {}`)
-    fn from_values(protected: Value, unprotected: Value) -> Result<Self, Error> {
-        // The `protected` and `header` parameters must be a JSON Object
-        let protected = match protected {
-            Value::Object(object) => object,
-            _ => return Err(Error::NotAnObject),
-        };
-        let unprotected = match unprotected {
-            Value::Object(object) => object,
-            _ => return Err(Error::NotAnObject),
+    /// Prepare the deserialize for deserialization and run a few checks
+    fn from_values(
+        protected: Option<Map<String, Value>>,
+        unprotected: Option<Map<String, Value>>,
+    ) -> Result<Self, Error> {
+        // ensure that if the header is present, it actually contains some members as
+        // per section 7.2.1 of RFC 7515
+        if let Some(ref p) = protected {
+            if p.is_empty() {
+                return Err(Error::EmptyHeader);
+            }
+        }
+        if let Some(ref u) = unprotected {
+            if u.is_empty() {
+                return Err(Error::EmptyHeader);
+            }
+        }
+
+        let (protected, unprotected) = match (protected, unprotected) {
+            (Some(protected), Some(unprotected)) => (protected, unprotected),
+            (Some(protected), None) => (protected, Map::new()),
+            (None, Some(unprotected)) => (Map::new(), unprotected),
+            (None, None) => return Err(Error::NoHeader),
         };
 
         let protected_keys: BTreeSet<&str> = protected.keys().map(Deref::deref).collect();
@@ -376,15 +425,17 @@ impl HeaderDeserializer {
         // This method first looks at the `protected` header and if the requested field
         // isn't in there, it looks in the `header` parameter (which is not integrity
         // protected). A `HeaderDeserializer` should always ensure that the inner JSON
-        // Object don't share the same parameters but even if they do, an attacker
+        // Objects don't share the same parameters but even if they do, an attacker
         // cannot overwrite protected headers via the unprotected header, because the
         // protected header is searched first.
 
         if let Some(p) = self.protected.remove(field) {
+            debug_assert_eq!(self.unprotected.remove(field), None);
             return Some(V::deserialize(p).map(|v| HeaderValue::Protected(v)));
         }
 
         if let Some(u) = self.unprotected.remove(field) {
+            debug_assert_eq!(self.protected.remove(field), None);
             return Some(V::deserialize(u).map(|v| HeaderValue::Unprotected(v)));
         }
 

@@ -8,8 +8,23 @@ pub use self::{jwe::*, jws::*};
 use super::{Error, HeaderDeserializer};
 use crate::sealed::Sealed;
 
+/// Trait used to specify where a [`JoseHeader`](super::JoseHeader) is being
+/// used. Implemented by [`Jws`] and [`Jwe`].
+///
+/// This trait is an implementation detailed and sealed. It is not relevant for
+/// developers using this crate.
 pub trait Type: Sealed {
+    /// A list of parameters that are not allowed in the `crit` header.
+    ///
+    /// This list might grow or shrink. This is not considered a breaking
+    /// change.
     fn forbidden_critical_headers() -> &'static [&'static str];
+    /// Build the implementing type while preseving the [`HeaderDeserializer`]
+    ///
+    /// # Errors
+    ///
+    /// Should return an [`Error`] if deserialization fails or an invalid value
+    /// is detected.
     fn from_deserializer(
         de: HeaderDeserializer,
     ) -> Result<(Self, HeaderDeserializer), (Error, HeaderDeserializer)>
@@ -21,6 +36,7 @@ impl Type for Jws {
     #[inline]
     fn forbidden_critical_headers() -> &'static [&'static str] {
         // <https://www.rfc-editor.org/rfc/rfc7515.html#section-9.1.2>
+        // FIXME: add parameters from JWA
         &[
             "alg", "jku", "jwk", "kid", "x5u", "x5c", "x5t", "x5t#S256", "typ", "cty", "crit",
         ]
@@ -59,6 +75,7 @@ impl Type for Jwe {
     #[inline]
     fn forbidden_critical_headers() -> &'static [&'static str] {
         // <https://www.rfc-editor.org/rfc/rfc7516.html#section-10.1.1>
+        // FIXME: add parameters from JWA
         &[
             "alg", "enc", "zip", "jku", "jwk", "kid", "x5u", "x5c", "x5t", "x5t#S256", "typ",
             "cty", "crit",
@@ -66,7 +83,7 @@ impl Type for Jwe {
     }
 
     fn from_deserializer(
-        de: HeaderDeserializer,
+        _de: HeaderDeserializer,
     ) -> Result<(Self, HeaderDeserializer), (Error, HeaderDeserializer)>
     where
         Self: Sized,
