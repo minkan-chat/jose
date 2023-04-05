@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 
 use digest::{Digest, Update};
 use rand_core::OsRng;
-use rsa::{PaddingScheme, PublicKey};
+use rsa::{Pkcs1v15Sign, Pss, PublicKey};
 
 use crate::{
     jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm, RsaSigning, RsassaPkcs1V1_5, RsassaPss},
@@ -57,7 +57,7 @@ impl Update for RsaSigningDigest {
         match self.0 {
             RsaDigestInner::Sha256(ref mut x) => Update::update(x, data),
             RsaDigestInner::Sha384(ref mut x) => Update::update(x, data),
-            RsaDigestInner::Sha512(ref mut x) => Digest::update(x, data),
+            RsaDigestInner::Sha512(ref mut x) => Update::update(x, data),
         }
     }
 }
@@ -91,30 +91,30 @@ impl Signer<Vec<u8>> for RsaSigner {
         let res = match self.alg {
             RsaSigning::Pss(pss) => match pss {
                 RsassaPss::Ps256 => {
-                    let pad = PaddingScheme::new_pss::<sha2::Sha256>();
-                    key.sign_blinded(&mut rng, pad, &hashed)
+                    let pad = Pss::new::<sha2::Sha256>();
+                    key.sign_with_rng(&mut rng, pad, &hashed)
                 }
                 RsassaPss::Ps384 => {
-                    let pad = PaddingScheme::new_pss::<sha2::Sha384>();
-                    key.sign_blinded(&mut rng, pad, &hashed)
+                    let pad = Pss::new::<sha2::Sha384>();
+                    key.sign_with_rng(&mut rng, pad, &hashed)
                 }
                 RsassaPss::Ps512 => {
-                    let pad = PaddingScheme::new_pss::<sha2::Sha512>();
-                    key.sign_blinded(&mut rng, pad, &hashed)
+                    let pad = Pss::new::<sha2::Sha512>();
+                    key.sign_with_rng(&mut rng, pad, &hashed)
                 }
             },
             RsaSigning::RsPkcs1V1_5(pkcs) => match pkcs {
                 RsassaPkcs1V1_5::Rs256 => {
-                    let pad = PaddingScheme::new_pkcs1v15_sign::<sha2::Sha256>();
-                    key.sign_blinded(&mut rng, pad, &hashed)
+                    let pad = Pkcs1v15Sign::new::<sha2::Sha256>();
+                    key.sign_with_rng(&mut rng, pad, &hashed)
                 }
                 RsassaPkcs1V1_5::Rs384 => {
-                    let pad = PaddingScheme::new_pkcs1v15_sign::<sha2::Sha384>();
-                    key.sign_blinded(&mut rng, pad, &hashed)
+                    let pad = Pkcs1v15Sign::new::<sha2::Sha384>();
+                    key.sign_with_rng(&mut rng, pad, &hashed)
                 }
                 RsassaPkcs1V1_5::Rs512 => {
-                    let pad = PaddingScheme::new_pkcs1v15_sign::<sha2::Sha512>();
-                    key.sign_blinded(&mut rng, pad, &hashed)
+                    let pad = Pkcs1v15Sign::new::<sha2::Sha512>();
+                    key.sign_with_rng(&mut rng, pad, &hashed)
                 }
             },
         };
@@ -172,34 +172,34 @@ impl Verifier for RsaVerifier {
             RsaSigning::Pss(pss) => match pss {
                 RsassaPss::Ps256 => {
                     let hashed = sha2::Sha256::digest(msg);
-                    let pad = PaddingScheme::new_pss::<sha2::Sha256>();
+                    let pad = Pss::new::<sha2::Sha256>();
                     key.verify(pad, &hashed, signature)
                 }
                 RsassaPss::Ps384 => {
                     let hashed = sha2::Sha384::digest(msg);
-                    let pad = PaddingScheme::new_pss::<sha2::Sha384>();
+                    let pad = Pss::new::<sha2::Sha384>();
                     key.verify(pad, &hashed, signature)
                 }
                 RsassaPss::Ps512 => {
                     let hashed = sha2::Sha512::digest(msg);
-                    let pad = PaddingScheme::new_pss::<sha2::Sha512>();
+                    let pad = Pss::new::<sha2::Sha512>();
                     key.verify(pad, &hashed, signature)
                 }
             },
             RsaSigning::RsPkcs1V1_5(pkcs) => match pkcs {
                 RsassaPkcs1V1_5::Rs256 => {
                     let hashed = sha2::Sha256::digest(msg);
-                    let pad = PaddingScheme::new_pkcs1v15_sign::<sha2::Sha256>();
+                    let pad = Pkcs1v15Sign::new::<sha2::Sha256>();
                     key.verify(pad, &hashed, signature)
                 }
                 RsassaPkcs1V1_5::Rs384 => {
                     let hashed = sha2::Sha384::digest(msg);
-                    let pad = PaddingScheme::new_pkcs1v15_sign::<sha2::Sha384>();
+                    let pad = Pkcs1v15Sign::new::<sha2::Sha384>();
                     key.verify(pad, &hashed, signature)
                 }
                 RsassaPkcs1V1_5::Rs512 => {
                     let hashed = sha2::Sha512::digest(msg);
-                    let pad = PaddingScheme::new_pkcs1v15_sign::<sha2::Sha512>();
+                    let pad = Pkcs1v15Sign::new::<sha2::Sha512>();
                     key.verify(pad, &hashed, signature)
                 }
             },
