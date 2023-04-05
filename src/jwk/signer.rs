@@ -143,9 +143,9 @@ enum JwkDigestInner {
     Hs256(::hmac::Hmac<sha2::Sha256>),
     Hs384(::hmac::Hmac<sha2::Sha384>),
     Hs512(::hmac::Hmac<sha2::Sha512>),
-    Es256(<P256Signer as Signer<ecdsa::Signature<p256::NistP256>>>::Digest),
-    Es384(<P384Signer as Signer<ecdsa::Signature<p384::NistP384>>>::Digest),
-    Secp256k1(<Secp256k1Signer as Signer<ecdsa::Signature<k256::Secp256k1>>>::Digest),
+    Es256(<P256Signer as Signer<ecdsa::SignatureBytes<p256::NistP256>>>::Digest),
+    Es384(<P384Signer as Signer<ecdsa::SignatureBytes<p384::NistP384>>>::Digest),
+    Secp256k1(<Secp256k1Signer as Signer<ecdsa::SignatureBytes<k256::Secp256k1>>>::Digest),
 }
 
 impl Signer<Vec<u8>> for JwkSigner {

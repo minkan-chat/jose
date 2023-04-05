@@ -4,7 +4,7 @@ use alloc::{borrow::ToOwned, string::String, vec::Vec};
 use core::{fmt, ops::Deref, str::FromStr};
 
 use base64ct::{Base64UrlUnpadded, Encoding};
-use elliptic_curve::{bigint::ArrayEncoding, Curve, FieldBytes};
+use elliptic_curve::{Curve, FieldBytes};
 use generic_array::{ArrayLength, GenericArray};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 
@@ -153,8 +153,8 @@ where
     where
         D: Deserializer<'de>,
     {
-        let field: Base64UrlOctet<<C::UInt as ArrayEncoding>::ByteSize> =
-            Base64UrlOctet::deserialize(deserializer)?;
+        let field: Base64UrlOctet<C::FieldBytesSize> = Base64UrlOctet::deserialize(deserializer)?;
+
         Ok(Self(field.0))
     }
 }

@@ -9,11 +9,9 @@ use alloc::{format, string::String};
 use core::fmt::Display;
 
 use elliptic_curve::{
-    bigint::ArrayEncoding,
-    sec1::{FromEncodedPoint, ModulusSize, ToEncodedPoint, ValidatePublicKey},
-    AffinePoint, Curve, FieldSize, ProjectiveArithmetic, PublicKey, SecretKey,
+    sec1::{EncodedPoint, FromEncodedPoint, ModulusSize, ToEncodedPoint, ValidatePublicKey},
+    Curve, CurveArithmetic, PublicKey, SecretKey,
 };
-use sec1::EncodedPoint;
 use serde::{Deserialize, Serialize};
 
 use self::{
@@ -105,18 +103,18 @@ where
 
 impl<C> EcPublicKey<C>
 where
-    C: Curve + ProjectiveArithmetic,
-    AffinePoint<C>: FromEncodedPoint<C> + ToEncodedPoint<C>,
-    FieldSize<C>: ModulusSize,
+    C: CurveArithmetic,
+    C::FieldBytesSize: ModulusSize,
+    C::AffinePoint: FromEncodedPoint<C> + ToEncodedPoint<C>,
 {
     // FIXME: map correct errors
-    pub fn to_public_key(&self) -> Result<PublicKey<C>, impl Display> {
+    pub fn to_public_key(&self) -> Option<PublicKey<C>> {
         let point = &self.as_encoded_point();
-        PublicKey::<C>::from_sec1_bytes(point.as_bytes())
+        PublicKey::<C>::from_encoded_point(point).into()
     }
 
-    pub fn as_encoded_point(&self) -> EncodedPoint<<<C>::UInt as ArrayEncoding>::ByteSize> {
-        EncodedPoint::from_affine_coordinates(&self.x.0, &self.y.0, false)
+    pub fn as_encoded_point(&self) -> EncodedPoint<C> {
+        EncodedPoint::<C>::from_affine_coordinates(&self.x.0, &self.y.0, false)
     }
 }
 
@@ -134,13 +132,13 @@ where
 
 impl<C> EcPrivateKey<C>
 where
-    C: Curve + ProjectiveArithmetic + ValidatePublicKey,
-    AffinePoint<C>: FromEncodedPoint<C> + ToEncodedPoint<C>,
-    FieldSize<C>: ModulusSize,
+    C: CurveArithmetic,
+    C::FieldBytesSize: ModulusSize,
+    C::AffinePoint: FromEncodedPoint<C> + ToEncodedPoint<C>,
 {
     pub fn to_secret_key(&self) -> Result<SecretKey<C>, impl Display> {
         let public = self.public_part.as_encoded_point();
-        let secret = SecretKey::<C>::from_be_bytes(&self.d.0)
+        let secret = SecretKey::<C>::from_bytes(&self.d.0)
             .map_err(|e| format!("failed to parse secret key from big endian bytes: {}", e))?;
         C::validate_public_key(&secret, &public)
             .map_err(|e| format!("public key validation failed: {}", e))

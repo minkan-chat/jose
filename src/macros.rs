@@ -5,7 +5,7 @@ macro_rules! impl_ec {
     $public:path) => {
         impl $priv {
             /// Generate a new private key using the provided rng
-            pub fn generate(rng: impl rand_core::CryptoRng + rand_core::RngCore) -> Self {
+            pub fn generate(rng: &mut impl rand_core::CryptoRngCore) -> Self {
                 Self(elliptic_curve::SecretKey::random(rng))
             }
 
@@ -87,15 +87,15 @@ macro_rules! impl_ec {
         pub struct $signer(ecdsa::SigningKey<$crv>);
 
         #[allow(unused_qualifications)]
-        impl crate::jws::Signer<ecdsa::Signature<$crv>> for $signer {
+        impl crate::jws::Signer<ecdsa::SignatureBytes<$crv>> for $signer {
             type Digest = <$crv as ecdsa::hazmat::DigestPrimitive>::Digest;
 
             fn new_digest(&self) -> Self::Digest {
                 Self::Digest::default()
             }
 
-            fn sign_digest(&mut self, digest: Self::Digest) -> Result<ecdsa::Signature<$crv>, signature::Error> {
-                signature::DigestSigner::try_sign_digest(&self.0, digest)
+            fn sign_digest(&mut self, digest: Self::Digest) -> Result<ecdsa::SignatureBytes<$crv>, signature::Error> {
+                signature::DigestSigner::try_sign_digest(&self.0, digest).map(|(sig, _)| sig.to_bytes())
             }
 
             fn algorithm(&self) -> crate::jwa::JsonWebSigningAlgorithm {
@@ -146,9 +146,10 @@ macro_rules! impl_ec {
         impl crate::jwk::FromKey<$priv> for $verifier {
             type Error = crate::jws::InvalidSigningAlgorithmError;
             fn from_key(key: $priv, alg: crate::jwa::JsonWebAlgorithm) -> Result<$verifier, Self::Error> {
-                let key: ecdsa::VerifyingKey<$crv> = ecdsa::SigningKey::<$crv>::from(key.0).verifying_key();
+                let key: ecdsa::SigningKey<$crv> = ecdsa::SigningKey::<$crv>::from(key.0);
+
                 match alg {
-                    crate::jwa::JsonWebAlgorithm::Signing($($pattern)+) => Ok(Self(key)),
+                    crate::jwa::JsonWebAlgorithm::Signing($($pattern)+) => Ok(Self(ecdsa::VerifyingKey::from(&key))),
                     _ => Err(crate::jws::InvalidSigningAlgorithmError)
                 }
             }
@@ -182,10 +183,9 @@ macro_rules! impl_serde_ec {
                     )));
                 }
 
-                Ok(Self(
-                    key.to_public_key()
-                        .map_err(<D::Error as serde::de::Error>::custom)?,
-                ))
+                Ok(Self(key.to_public_key().ok_or_else(|| {
+                    <D::Error as serde::de::Error>::custom("Invalid public key")
+                })?))
             }
         }
 
@@ -285,7 +285,7 @@ macro_rules! impl_serde_ec {
                     y: crate::base64_url::Base64UrlEncodedField(
                         *generic_array::GenericArray::from_slice(y),
                     ),
-                    d: crate::base64_url::Base64UrlEncodedField(key.to_be_bytes()),
+                    d: crate::base64_url::Base64UrlEncodedField(key.to_bytes()),
                 };
 
                 repr.serialize(serializer)
