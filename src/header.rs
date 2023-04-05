@@ -2,170 +2,41 @@
 //! 7515].
 //!
 //! [section 4 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4>
-use alloc::{borrow::Cow, format, string::String, vec::Vec};
-use core::{hash::Hash, ops::Deref, str::FromStr};
+use alloc::{
+    collections::{BTreeMap, BTreeSet},
+    string::{String, ToString},
+};
+use core::{marker::PhantomData, ops::Deref};
 
-use hashbrown::HashSet;
 use mediatype::{MediaType, MediaTypeBuf};
-use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
+use serde::Deserialize;
+use serde_json::{Map, Value};
 
+mod error;
+mod formats;
+mod parameters;
+mod types;
+mod value;
+
+#[doc(inline)]
+pub use self::{error::Error, types::*, value::*};
+use self::{formats::Format, parameters::Parameters};
 use crate::{
     jwa::{JsonWebContentEncryptionAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
-    jwk::serde_impl::{self, Base64DerCertificate},
-    sealed::Sealed,
     JsonWebKey,
 };
 
-mod builder;
-mod serde_;
-#[doc(inline)]
-pub use builder::{BuilderError, JoseHeaderBuilder};
-
-use self::serde_::HeaderReprOwned;
-
-/// A [`JoseHeader`] stores information which are needed in order to process a
-/// JWE or JWS.
-///
-/// JWE and JWS both contain a header specifying things like the
-/// [algorithm](crate::jwa::JsonWebAlgorithm). There are two header types:
-///
-/// * [`Protected`] headers are integrity protected and cannot be changed by an
-///   attacker.
-/// * [`Unprotected`] headers are NOT integrity protected and can be changed by
-///   an attacker.
-///
-/// If a function or method wants to take a [`JoseHeader`] as an argument, it
-/// must specify which of the two types it expects via the generic type `T` at
-/// compile time.
-///
-/// The generic type `U` specifies if a [`JoseHeader`] is for JSON Web
-/// Encryption ([`Jwe`]) or for JSON Web Signatures ([`Jws`]). There are two
-/// type alias provided for you:
-///
-/// * [`JwsHeader<T, A>`]
-/// * [`JweHeader<T, A>`]
-///
-/// The generic type `T` is the same as in [`JoseHeader<T, U>`] and is either
-/// [`Protected`] or [`Unprotected`]. The generic type `A` is for additional
-/// header parameters defined by you. `A`'s default type is `()` which means if
-/// you don't specify it, there are no additional header parameters. You can
-/// read more about how to use additional header parameters in [`JwsHeader<T,
-/// A>::additional`].
-///
-/// # Examples
-///
-/// Build a protected header for a JSON Web Signature:
-///
-/// ```
-/// # use jose::header::BuilderError;
-/// # fn main() -> Result<(), BuilderError> {
-/// use jose::{jwa::{EcDSA, JsonWebSigningAlgorithm}, header::JwsHeader};
-/// use mediatype::{MediaTypeBuf, MediaType, names};
-///
-/// let jws_header = JwsHeader::builder()
-///     .protected()
-///     .algorithm(EcDSA::Es256)
-///     // set some parameters
-///     .typ(Some(MediaTypeBuf::new(names::APPLICATION, names::JOSE)))
-///     .content_type(Some(MediaTypeBuf::new(names::TEXT, names::PLAIN)))
-///     // build the header
-///     .build()?;
-///
-/// assert_eq!(jws_header.algorithm(), &JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256));
-/// assert_eq!(jws_header.typ(), Some(MediaType::parse("application/jose").unwrap()));
-/// assert_eq!(jws_header.content_type(), Some(MediaType::parse("text/plain").unwrap()));
-/// # Ok(())
-/// # }
-// FIXME: can't derive `Hash` because `JsonWebKey` does not implement it.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
-pub struct JoseHeader<T = (), U = ()> {
-    // Shared parameters between JWS and JWE
-    inner: HeaderReprOwned<T, U>,
+#[derive(Debug)]
+pub struct JoseHeader<F, T> {
+    parameters: Parameters<T>,
+    // marker for the format (compact, json general, json flattened)
+    _format: PhantomData<F>,
 }
 
-/// A marker trait which specifies where a [`JoseHeader`] can appear.
-///
-/// For details, see [`Protected`] and [`Unprotected`].
-pub trait HeaderMarker: Sealed {}
-/// A marker trait which specifies if a [`JoseHeader`] can be used in JSON Web
-/// Encryption or JSON Web Signatures.
-///
-/// For details, see [`Jwe`] and [`Jws`].
-pub trait TypeMarker: Sealed {}
-
-/// Marker struct for a [`JoseHeader`] that is integrity protected (part of the
-/// signature).
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
-pub struct Protected {
-    /// `crit` parameter as defined in section 4.1.11 of JWS and section 4.1.13
-    /// of JWE
-    //#[serde(rename = "crit", default, skip_serializing_if = "Vec::is_empty")]
-    critical_headers: HashSet<String>,
-}
-
-/// Marker struct for a [`JoseHeader`] that is not integrity protected (not part
-/// of the signature). Any parameters in this header cannot be trusted since
-/// it can be modified by attackers without invalidating the signature.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
-pub struct Unprotected {
-    // Empty.
-}
-
-impl Sealed for Protected {}
-impl Sealed for Unprotected {}
-impl HeaderMarker for Protected {}
-impl HeaderMarker for Unprotected {}
-impl<A> Sealed for Jws<A> {}
-impl<A> Sealed for Jwe<A> {}
-impl<A> TypeMarker for Jws<A> {}
-impl<A> TypeMarker for Jwe<A> {}
-
-/// Header parameters that are specific to encryption
-#[derive(Debug, Hash, PartialEq, Eq, Clone)]
-#[non_exhaustive]
-pub struct Jwe<A = ()> {
-    algorithm: JsonWebEncryptionAlgorithm,
-    // TODO: JWE Headers
-    //#[serde(rename = "enc")]
-    content_encryption_algorithm: JsonWebContentEncryptionAlgorithm,
-    //#[serde(flatten)]
-    additional: A,
-}
-
-/// Header parameters that are specific to signatures
-#[derive(Debug, Hash, PartialEq, Eq, Clone)]
-#[non_exhaustive]
-pub struct Jws<A = ()> {
-    algorithm: JsonWebSigningAlgorithm,
-    /// `b64` parameter as defined by RFC 7797. This parameter is optional and
-    /// it's default value is `true`.
-    ///
-    /// If this value is `false`, the payload of the JWS is not base64 urlsafe
-    /// encoded. This can work for simple stuff like a hex string, but will
-    /// often cause parsing errors. Use of this option makes sense if the
-    /// payload of a JWS is detached.
-    ///
-    /// Note: In a JsonWebToken, this value MUST always be true, e.g. the
-    /// payload MUST NOT use the unencoded payload option.
-    payload_base64_url_encoded: Option<bool>,
-    //#[serde(flatten)]
-    additional: A,
-}
-
-/// A [`JoseHeader`] used with Json Web Signatures
-pub type JwsHeader<T = (), A = ()> = JoseHeader<T, Jws<A>>;
-/// A [`JoseHeader`] used with Json Web Encryption
-pub type JweHeader<T = (), A = ()> = JoseHeader<T, Jwe<A>>;
-
-// general implementation for protected and unprotected headers in both jwe and
-// jws
-impl<T, A> JoseHeader<T, A>
+impl<F, T> JoseHeader<F, T>
 where
-    T: HeaderMarker,
-    A: TypeMarker,
+    F: Format,
+    T: Type,
 {
     /// Returns a url containing a link to a JSON Web Key Set as defined in
     /// [section 5 of RFC 7517].
@@ -176,8 +47,11 @@ where
     /// [section 4.1.2 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.2>
     /// [section 5 of RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-5>
     // FIXME: use url type instead
-    pub fn jwk_set_url(&self) -> Option<&str> {
-        self.inner.jwk_set_url.as_deref()
+    pub fn jwk_set_url(&self) -> Option<HeaderValue<&str>> {
+        self.parameters
+            .jwk_set_url
+            .as_ref()
+            .map(HeaderValue::as_deref)
     }
 
     /// Depending where this [`JoseHeader`] is being used, in JWE it contains
@@ -188,8 +62,11 @@ where
     /// RFC 7515].
     ///
     /// [section 4.1.3 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.3>
-    pub fn json_web_key(&self) -> Option<&JsonWebKey> {
-        self.inner.json_web_key.as_ref()
+    pub fn json_web_key(&self) -> Option<HeaderValue<&JsonWebKey<Value>>> {
+        self.parameters
+            .json_web_key
+            .as_ref()
+            .map(HeaderValue::as_ref)
     }
 
     /// The identifier of the key used in this JWE or JWS used to give a hint to
@@ -203,8 +80,8 @@ where
     /// RFC 7515].
     ///
     /// [section 4.1.4 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.4>
-    pub fn key_id(&self) -> Option<&str> {
-        self.inner.key_id.as_deref()
+    pub fn key_identifier(&self) -> Option<HeaderValue<&str>> {
+        self.parameters.key_id.as_ref().map(HeaderValue::as_deref)
     }
 
     /// The X.509 URL parameter is an URI (as defined in [RFC 3986]) that refers
@@ -217,29 +94,30 @@ where
     /// [RFC 3986]: <https://datatracker.ietf.org/doc/html/rfc3986>
     /// [RFC 5280]: <https://datatracker.ietf.org/doc/html/rfc5280>
     /// [section 4.1.5 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.5>
-    pub fn x509_url(&self) -> Option<&str> {
-        self.inner.x509_url.as_deref()
+    pub fn x509_url(&self) -> Option<HeaderValue<&str>> {
+        self.parameters.x509_url.as_ref().map(HeaderValue::as_deref)
     }
 
     /// An [`Iterator`] over a X.509 certificate chain that certify the public
     /// key used in this JWE or JWS.
     ///
-    /// The first certificate in the [`ExactSizeIterator`] returned by this
-    /// method is the PKIX certificate containing the key value as required by
-    /// the RFC. Note that this parameter is OPTIONAL and if not present, this
-    /// [`ExactSizeIterator`] will be empty ([`next`](Iterator::next) will be
-    /// [`None`] and [`len`](ExactSizeIterator::len) will be `0`).
+    /// The first certificate in the [`Iterator`] returned by this method is the
+    /// PKIX certificate containing the key value as required by the RFC.
     ///
     /// Each [`Item`](Iterator::Item) will be the byte representation of a
     /// DER-encoded X.509 certificate. This parameter works the same as
     /// [`JsonWebKey::x509_certificate_chain`].
     ///
-    /// This parameter is serialized as `x5u` and defined in [section 4.1.5 of
+    /// This parameter is serialized as `x5u` and defined in [section 4.1.6 of
     /// RFC 7515].
     ///
-    /// [section 4.1.5 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.5>
-    pub fn x509_certificate_chain(&self) -> impl ExactSizeIterator<Item = &[u8]> {
-        self.inner.x509_certificate_chain.iter().map(Deref::deref)
+    /// [section 4.1.6 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.6>
+    pub fn x509_certificate_chain(&self) -> Option<HeaderValue<impl Iterator<Item = &[u8]>>> {
+        self.parameters
+            .x509_certificate_chain
+            .as_ref()
+            .map(HeaderValue::as_deref)
+            .map(|value| value.map(|certs| certs.iter().map(Deref::deref)))
     }
 
     /// This parameter is the SHA-1 hash of the DER-encoded X.509 certificate
@@ -261,8 +139,11 @@ where
     /// [section 4.1.7 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.7>
     // replace the hardcoded output size with the Sha1::OutputsizeUser value then
     // they use const generics
-    pub fn x509_certificate_sha1_thumbprint(&self) -> Option<&[u8; 20]> {
-        self.inner.x509_certificate_sha1_thumbprint.as_ref()
+    pub fn x509_certificate_sha1_thumbprint(&self) -> Option<HeaderValue<&[u8; 20]>> {
+        self.parameters
+            .x509_certificate_sha1_thumbprint
+            .as_ref()
+            .map(HeaderValue::as_ref)
     }
 
     /// This parameter is the SHA-256 hash of the DER-encoded X.509 certificate
@@ -272,8 +153,11 @@ where
     /// of RFC 7515].
     ///
     /// [section 4.1.8 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.8>
-    pub fn x509_certificate_sha256_thumbprint(&self) -> Option<&[u8; 32]> {
-        self.inner.x509_certificate_sha256_thumbprint.as_ref()
+    pub fn x509_certificate_sha256_thumbprint(&self) -> Option<HeaderValue<&[u8; 32]>> {
+        self.parameters
+            .x509_certificate_sha256_thumbprint
+            .as_ref()
+            .map(HeaderValue::as_ref)
     }
 
     /// The Type parameter is used to declare the [media type] of this
@@ -293,8 +177,11 @@ where
     /// [`application`]: <mediatype::names::APPLICATION>
     /// [`jwt`]: <mediatype::names::JWT>
     /// [section 5.1 of RFC 7519]: <https://datatracker.ietf.org/doc/html/rfc7519#section-5.1>
-    pub fn typ(&self) -> Option<MediaType<'_>> {
-        self.inner.typ.as_ref().map(|f| f.to_ref())
+    pub fn typ(&self) -> Option<HeaderValue<MediaType<'_>>> {
+        self.parameters
+            .typ
+            .as_ref()
+            .map(|value| value.as_ref().map(MediaTypeBuf::to_ref))
     }
 
     /// The Content Type parameter is used to declare the [media type] of the
@@ -315,233 +202,255 @@ where
     /// [`application`]: <mediatype::names::APPLICATION>
     /// [`jwt`]: <mediatype::names::JWT>
     /// [section 5.2 of RFC 7519]: <https://datatracker.ietf.org/doc/html/rfc7519#section-5.2>
-    pub fn content_type(&self) -> Option<MediaType<'_>> {
-        self.inner.content_type.as_ref().map(|f| f.to_ref())
-    }
-}
-
-impl JwsHeader {
-    /// Create a [`JoseHeaderBuilder`] to build a [`JwsHeader`].
-    pub fn builder() -> JoseHeaderBuilder<(), Jws> {
-        JoseHeaderBuilder::default()
-    }
-}
-impl<T, A> JwsHeader<T, A>
-where
-    T: HeaderMarker,
-{
-    /// Convert this [`JwsHeader`] back to a [`JoseHeaderBuilder`].
-    pub fn into_builder(self) -> JoseHeaderBuilder<T, Jws<A>, A> {
-        self.into()
+    pub fn content_type(&self) -> Option<HeaderValue<MediaType<'_>>> {
+        self.parameters
+            .content_type
+            .as_ref()
+            .map(|value| value.as_ref().map(MediaTypeBuf::to_ref))
     }
 
-    /// The [`JsonWebSigningAlgorithm`] used in this [`Jws`].
-    pub fn algorithm(&self) -> &JsonWebSigningAlgorithm {
-        &self.inner.additional.algorithm
+    /// Get additional parameters by their serialized parameter name.
+    ///
+    /// Note: Parameters that are understood by this implementation (receivable
+    /// via the method on [`JoseHeader`]) will return [`None`]. Use the
+    /// appropriate method instead.
+    pub fn additional(&self, parameter_name: impl AsRef<str>) -> Option<HeaderValue<&Value>> {
+        self.parameters
+            .additional
+            .get(parameter_name.as_ref())
+            .map(|v| v.as_ref())
     }
 
-    /// Additional parameters in this [`JoseHeader`] defined by the generic type
-    /// `A` in [`Jws<A>`].
+    /// The Critical Header parameter is used to declare headers that must be
+    /// understood by an implementation.
     ///
-    /// Note that there are three classes of parameters in a [`JoseHeader`] as
-    /// defined by [section 4 of RFC 7515]:
+    /// It is an [`Iterator`] over the parameter names of critical headers in
+    /// this [`JoseHeader`]. If there are no headers marked as critical, this
+    /// [`Iterator`] will be empty.
     ///
-    /// * Registered Header Parameters: Parameters whose name is registered in
-    ///   the [IANA `JSON Web Signature and Encryption Header Parameters`
-    ///   registry] as defined in [section 4.1 of RFC 7515].
-    /// * Public Header Parameters: Parameters whose name is collision resistant
-    ///   as defined in [section 4.2 of RFC 7515].
-    /// * Private Header Parameters: Parameters whose use is limited to closed
-    ///   environments where one party controlls both the producer and consumer
-    ///   and defines how to process these parameters as defined in [section 4.3
-    ///   of RFC 7515].
+    /// This parameter is serialized as `crit` and defined in [section 4.1.11 of
+    /// RFC 7515].
     ///
-    /// We strongly advise you to only use Public Header Parameters in your
-    /// additional parameters because use of other parameters can introduce
-    /// breakage which is not covered by a major semver change.
+    /// Note: Header names listed in this parameter have to be present and the
+    /// [`JoseHeader`] is considered invalid otherwise.
     ///
-    /// If there are parameters that are in the [IANA `JSON Web Signature and
-    /// Encryption Header Parameters` registry] and not supported by this
-    /// implementation, please open an issue and consider submitting a pull
-    /// request.
-    ///
-    /// An example of such potential breakage would be if you were to introduce
-    /// a fictional `rep` (recipient) parameter which is an untyped
-    /// [`String`]. If a specification now introduced the same `rep` parameter
-    /// but were to add more constraints on the format of the [`String`] -- for
-    /// example, requiring it to be an URL -- and our library implemented
-    /// this parameter, deserialization would fail, because your application
-    /// put "invalid" data in the `rep` header which is catched by _our_
-    /// implementation of this parameter.
-    ///
-    /// # Example
-    ///
-    /// In order to use additional parameters in a [`JoseHeader`], define a
-    /// container:
-    ///
-    /// ```
-    /// # use serde::{Serialize, Deserialize};
-    /// # use jose::header::{JwsHeader, JweHeader};
-    /// #[derive(Deserialize, Serialize)]
-    /// struct MyAdditionalParameters {
-    ///     // Use a collision resistant name. In this case, make it collision
-    ///     // resistant by using a domain you control:
-    ///     #[serde(rename = "http://my-domain.com/rep")]
-    ///     rep: Option<String>,
-    /// }
-    ///
-    /// // Use these two type definitions instead of the default ones.
-    /// type MyJwsHeader<T> = JwsHeader<T, MyAdditionalParameters>;
-    /// type MyJweHeader<T> = JweHeader<T, MyAdditionalParameters>;
-    /// ```
-    ///
-    /// [section 4 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4>
-    /// [IANA `JSON Web Signature and Encryption Header Parameters` registry]: <https://www.iana.org/assignments/jose/jose.xhtml#web-signature-encryption-header-parameters>
-    /// [section 4.1 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1>
-    /// [section 4.2 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.2>
-    /// [section 4.3 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.3>
-    pub fn additional(&self) -> &A {
-        &self.inner.additional.additional
-    }
-}
-
-impl<T, A> JweHeader<T, A>
-where
-    T: HeaderMarker,
-{
-    /// Convert this [`JwsHeader`] back to a [`JoseHeaderBuilder`].
-    pub fn into_builder(self) -> JoseHeaderBuilder<T, Jwe<A>, A> {
-        self.into()
-    }
-
-    /// The [`JsonWebEncryptionAlgorithm`] used in this [`Jwe`] to encrypt the
-    /// content encryption key (CEK).
-    pub fn algorithm(&self) -> &JsonWebEncryptionAlgorithm {
-        &self.inner.additional.algorithm
-    }
-
-    /// The [`JsonWebContentEncryptionAlgorithm`] used to encrypt the payload of
-    /// this [`Jwe`].
-    pub fn content_encryption_algorithm(&self) -> &JsonWebContentEncryptionAlgorithm {
-        &self.inner.additional.content_encryption_algorithm
-    }
-
-    /// Additional parameters in this [`JoseHeader`] defined by the generic type
-    /// `A` in [`Jwe<A>`].
-    ///
-    /// This method is equivalent to [`JwsHeader<T, A>::additional`] but for
-    /// [`Jwe<A>`] instead of [`Jws<A>`]. See [`JwsHeader<T, A>::additional`]
-    /// for details.
-    pub fn additional(&self) -> &A {
-        &self.inner.additional.additional
-    }
-}
-
-// implementation for protected headers in both jwe and jws
-impl<A> JoseHeader<Protected, A> {
-    /// An [`Iterator`] over the critical header parameters in this
-    /// [`JoseHeader`].
-    ///
-    /// Note that this parameter is OPTIONAL and if not present, this
-    /// [`ExactSizeIterator`] will be empty ([`next`](Iterator::next) will be
-    /// [`None`] and [`len`](ExactSizeIterator::len) will be `0`).
-    ///
-    /// Each [`Item`](Iterator::Item`) will be the serialized form of the header
-    /// parameter (e.g. `cty` instead of
-    /// [`content_type`](JoseHeader::content_type)). Every
-    // FIXME: link to Policy method that validates critical header parameters
-    /// [`Item`](Iterator::Item) MUST be understood for this JWE or JWS to be
-    /// considered valid.
-    ///
-    /// This parameter is serialized as `crit` and is defined in [section 4.1.11
-    /// of RFC 7515].
-    ///
-    /// Note that this parameter can only appear in [`Protected`] headers.
+    /// Note: This header parameter is always integrity protected.
     ///
     /// [section 4.1.11 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.11>
-    pub fn critical_headers(&self) -> impl ExactSizeIterator<Item = &str> {
-        self.inner
-            .header_type
+    pub fn critical_headers(&self) -> impl Iterator<Item = &'_ str> {
+        self.parameters
             .critical_headers
             .iter()
+            .flatten()
             .map(Deref::deref)
     }
 }
 
-// implementation for unprotected headers in both jwe and jws
-impl<A> JoseHeader<Unprotected, A> {
-    // Empty.
-}
-
-// implementation for protected and unprotected headers in jws
-impl<T, A> JwsHeader<T, A>
+impl<F> JoseHeader<F, Jws>
 where
-    T: HeaderMarker,
+    F: Format,
 {
-    // Empty.
-}
+    /// The [signing algorithm](JsonWebSigningAlgorithm) used to create the
+    /// signature for the JWS this [`JoseHeader`] is contained in.
+    ///
+    /// This parameter is serialized as `alg` and defined in [section 4.1.1 of
+    /// RFC 7515].
+    ///
+    /// [section 4.1.1 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.1>
+    pub fn algorithm(&self) -> HeaderValue<&JsonWebSigningAlgorithm> {
+        self.parameters.specific.algorithm.as_ref()
+    }
 
-// implementation for protected headers in jws
-impl<A> JwsHeader<Protected, A> {
-    /// This header parameter defines if the payload of a JWS is
-    /// base64url-encoded or not.
+    /// Whether the payload is being base64url encoded or not.
     ///
-    /// Encoding the payload in base64url is unnecessary in some cases. One such
-    /// case would be detached content as defined in [Appendix F of RFC 7515].
+    /// This parameter is serialized as `b64` and defined in [section 3 of RFC
+    /// 7797].
     ///
-    /// This parameter is serialized as `b64` and is defined in [section 3 of
-    /// RFC 7797].
+    /// Note: This header parameter is always integrity protected.
     ///
-    /// Note that this parameter can only appear in [`Jws`] within [`Protected`]
-    /// headers.
+    /// Note: This header parameter is OPTIONAL and has a default value of
+    /// `true`.
     ///
     /// [section 3 of RFC 7797]: <https://datatracker.ietf.org/doc/html/rfc7797#section-3>
-    /// [Appendix F of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#appendix-F>
     pub fn payload_base64_url_encoded(&self) -> bool {
-        self.inner
-            .additional
+        self.parameters
+            .specific
             .payload_base64_url_encoded
             .unwrap_or(true)
     }
 }
 
-// implementation for unprotected headers in jws
-impl<A> JwsHeader<Unprotected, A> {
-    // Empty.
-}
-
-impl JweHeader {
-    /// Create a [`JoseHeaderBuilder`] to build a [`JweHeader`].
-    pub fn builder() -> JoseHeaderBuilder<(), Jwe> {
-        JoseHeaderBuilder::default()
-    }
-}
-// implementation for protected and unprotected headers in jwe
-impl<T, A> JweHeader<T, A>
+impl<F> JoseHeader<F, Jwe>
 where
-    T: HeaderMarker,
+    F: Format,
 {
-    // Empty.
-}
+    /// The [encryption algorithm][JsonWebEncryptionAlgorithm] used to
+    /// encryption the content encryption key (CEK).
+    ///
+    /// This parameter is serialized as `alg` and defined in [section 4.1.1 of
+    /// RFC 7516].
+    ///
+    /// [section 4.1.1 of RFC 7516]: <https://datatracker.ietf.org/doc/html/rfc7516/#section-4.1.1>
+    pub fn algorithm(&self) -> HeaderValue<&JsonWebEncryptionAlgorithm> {
+        self.parameters.specific.algorithm.as_ref()
+    }
 
-// implementation for protected headers in jwe
-impl<A> JweHeader<Protected, A> {
-    // Empty.
-}
-
-// implementation for unprotected headers in jwe
-impl<A> JweHeader<Unprotected, A> {
-    // Empty.
-}
-
-impl<T, A> AsRef<A> for JwsHeader<T, A> {
-    fn as_ref(&self) -> &A {
-        &self.inner.additional.additional
+    /// The [encryption algorithm](JsonWebContentEncryptionAlgorithm) used to
+    /// encryption the payload of a JWE.
+    ///
+    /// This parameter is serialized as `enc` and defined in [section 4.1.2 of
+    /// RFC 7516].
+    ///
+    /// [section 4.1.2 of RFC 7516]: <https://datatracker.ietf.org/doc/html/rfc7516/#section-4.1.2>
+    pub fn content_encryption_algorithm(&self) -> HeaderValue<&JsonWebContentEncryptionAlgorithm> {
+        self.parameters
+            .specific
+            .content_encryption_algorithm
+            .as_ref()
     }
 }
 
-impl<T, A> AsRef<A> for JweHeader<T, A> {
-    fn as_ref(&self) -> &A {
-        &self.inner.additional.additional
+impl<F, T> JoseHeader<F, T>
+where
+    F: Format,
+    T: Type,
+{
+    /// Build a JoseHeader from its `header` and `protected` part.
+    ///
+    /// Note: The `protected` part must already be base64 decoded.
+    pub(crate) fn from_values(
+        protected: Option<Map<String, Value>>,
+        unprotected: Option<Map<String, Value>>,
+    ) -> Result<Self, Error> {
+        let de = HeaderDeserializer::from_values(protected, unprotected)?;
+        let (specific, mut de) = T::from_deserializer(de).map_err(|(e, _)| e)?;
+        Ok(Self {
+            parameters: Parameters {
+                critical_headers: de
+                    .deserialize_field("crit")
+                    .transpose()?
+                    .map(|v| v.protected().ok_or(Error::ExpectedProtected))
+                    .transpose()?
+                    .map(|v: BTreeSet<_>| {
+                        // RFC 7515
+                        // `crit` must not be an empty list,
+                        // must not contain header names specified by the specification
+                        // FIXME: consider forbidden headers that are `Format` specific.
+                        if v.is_empty() {
+                            return Err(Error::EmptyCriticalHeaders);
+                        }
+                        for forbidden in T::forbidden_critical_headers() {
+                            if v.contains(*forbidden) {
+                                return Err(Error::ForbiddenHeader(forbidden.to_string()));
+                            }
+                        }
+                        Ok(v)
+                    })
+                    .transpose()?,
+                jwk_set_url: de.deserialize_field("jku").transpose()?,
+                json_web_key: de.deserialize_field("jwk").transpose()?,
+                key_id: de.deserialize_field("kid").transpose()?,
+                x509_url: de.deserialize_field("x5u").transpose()?,
+                x509_certificate_chain: de.deserialize_field("x5c").transpose()?,
+                x509_certificate_sha1_thumbprint: de.deserialize_field("x5t").transpose()?,
+                x509_certificate_sha256_thumbprint: de.deserialize_field("x5t#S256").transpose()?,
+                typ: de.deserialize_field("typ").transpose()?,
+                content_type: de.deserialize_field("cty").transpose()?,
+                specific,
+                additional: de.additional(),
+            },
+            _format: PhantomData,
+        })
+    }
+}
+
+/// An implementation detail for [`JoseHeader`]
+#[derive(Debug)]
+pub struct HeaderDeserializer {
+    protected: Map<String, Value>,
+    unprotected: Map<String, Value>,
+}
+
+impl HeaderDeserializer {
+    /// Prepare the deserialize for deserialization and run a few checks
+    fn from_values(
+        protected: Option<Map<String, Value>>,
+        unprotected: Option<Map<String, Value>>,
+    ) -> Result<Self, Error> {
+        // ensure that if the header is present, it actually contains some members as
+        // per section 7.2.1 of RFC 7515
+        if let Some(ref p) = protected {
+            if p.is_empty() {
+                return Err(Error::EmptyHeader);
+            }
+        }
+        if let Some(ref u) = unprotected {
+            if u.is_empty() {
+                return Err(Error::EmptyHeader);
+            }
+        }
+
+        let (protected, unprotected) = match (protected, unprotected) {
+            (Some(protected), Some(unprotected)) => (protected, unprotected),
+            (Some(protected), None) => (protected, Map::new()),
+            (None, Some(unprotected)) => (Map::new(), unprotected),
+            (None, None) => return Err(Error::NoHeader),
+        };
+
+        let protected_keys: BTreeSet<&str> = protected.keys().map(Deref::deref).collect();
+        let unprotected_keys: BTreeSet<&str> = unprotected.keys().map(Deref::deref).collect();
+
+        // the members of `protected` and `header` must be disjoint, because otherwise
+        // an implementation must decide which header type takes priority
+        if !protected_keys.is_disjoint(&unprotected_keys) {
+            return Err(Error::NotDisjoint);
+        }
+
+        Ok(Self {
+            protected,
+            unprotected,
+        })
+    }
+
+    fn deserialize_field<'a, 'de, V>(
+        &'a mut self,
+        field: &'a str,
+    ) -> Option<Result<HeaderValue<V>, serde_json::Error>>
+    where
+        V: Deserialize<'de>,
+        'a: 'de,
+    {
+        // Security
+        //
+        // This method first looks at the `protected` header and if the requested field
+        // isn't in there, it looks in the `header` parameter (which is not integrity
+        // protected). A `HeaderDeserializer` should always ensure that the inner JSON
+        // Objects don't share the same parameters but even if they do, an attacker
+        // cannot overwrite protected headers via the unprotected header, because the
+        // protected header is searched first.
+
+        if let Some(p) = self.protected.remove(field) {
+            debug_assert_eq!(self.unprotected.remove(field), None);
+            return Some(V::deserialize(p).map(|v| HeaderValue::Protected(v)));
+        }
+
+        if let Some(u) = self.unprotected.remove(field) {
+            debug_assert_eq!(self.protected.remove(field), None);
+            return Some(V::deserialize(u).map(|v| HeaderValue::Unprotected(v)));
+        }
+
+        None
+    }
+
+    fn additional(self) -> BTreeMap<String, HeaderValue<Value>> {
+        self.protected
+            .into_iter()
+            .map(|(field, value)| (field, HeaderValue::Protected(value)))
+            .chain(
+                self.unprotected
+                    .into_iter()
+                    .map(|(field, value)| (field, HeaderValue::Unprotected(value))),
+            )
+            .collect()
     }
 }
