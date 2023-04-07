@@ -85,3 +85,18 @@ impl<T> HeaderValue<Option<T>> {
         })
     }
 }
+
+impl<T, E> HeaderValue<Result<T, E>> {
+    /// Transpose a [`HeaderValue<Result<T, E>>] into [`Result<HeaderValue<T>,
+    /// E`]
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the inner [`Result`] contains an error.
+    pub fn transpose(self) -> Result<HeaderValue<T>, E> {
+        Ok(match self {
+            Self::Protected(p) => HeaderValue::Protected(p?),
+            Self::Unprotected(u) => HeaderValue::Unprotected(u?),
+        })
+    }
+}

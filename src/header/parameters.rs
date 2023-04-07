@@ -12,7 +12,7 @@ use crate::{jwk::serde_impl::Base64DerCertificate, JsonWebKey};
 
 #[derive(Debug)]
 #[non_exhaustive]
-pub struct Parameters<T> {
+pub(crate) struct Parameters<T> {
     /// `crit` header MUST always be protected
     pub(crate) critical_headers: Option<BTreeSet<String>>,
     /// `jku` parameter defined in section 4.1.2 of JWS and section 4.1.4 of JWE

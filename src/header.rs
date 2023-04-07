@@ -9,7 +9,7 @@ use alloc::{
 use core::{marker::PhantomData, ops::Deref};
 
 use mediatype::{MediaType, MediaTypeBuf};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 mod builder;
@@ -32,7 +32,7 @@ use crate::{
     JsonWebKey,
 };
 
-// TODO: serialization
+// TODO: docs
 #[derive(Debug)]
 pub struct JoseHeader<F, T> {
     parameters: Parameters<T>,
@@ -379,6 +379,79 @@ where
             },
             _format: PhantomData,
         })
+    }
+
+    /// Returns `Result<(Option<Protected>, Option<Unprotected>), Error>`
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn into_values(
+        self,
+    ) -> Result<(Option<Map<String, Value>>, Option<Map<String, Value>>), Error> {
+        let parameters = self.parameters;
+
+        // use the existing Map with additional parameters. Parameters that collide with
+        // names understood by this library are replaced.
+        let mut collected_parameters = parameters.additional;
+
+        // insert crit header only if it is some and non empty as per RFC
+        if let Some(crit) = parameters.critical_headers {
+            if !crit.is_empty() {
+                collected_parameters.insert(
+                    "crit".to_string(),
+                    HeaderValue::Protected(serde_json::to_value(crit)?),
+                );
+            }
+        } else {
+            collected_parameters.remove("crit");
+        }
+
+        // FIXME: optimize this code in a way that there are not this many inserts
+        macro_rules! insert {
+            ($($name:literal: $value:expr),+,) => {
+                $(if let Some(value) = $value {
+                    collected_parameters.insert(
+                        $name.to_string(),
+                        value.map(serde_json::to_value).transpose()?,
+                    );
+                } else {
+                    collected_parameters.remove($name);
+                })+
+            };
+        }
+        insert! {
+            "jku": parameters.jwk_set_url,
+            "jwk": parameters.json_web_key,
+            "kid": parameters.key_id,
+            "x5u": parameters.x509_url,
+            "x5c": parameters.x509_certificate_chain,
+            "x5t": parameters.x509_certificate_sha1_thumbprint,
+            "x5t#S256": parameters.x509_certificate_sha256_thumbprint,
+            "typ": parameters.typ,
+            "cty": parameters.content_type,
+        }
+
+        let mut protected = Map::new();
+        let mut unprotected = Map::new();
+        for (key, value) in collected_parameters
+            .into_iter()
+            .chain(parameters.specific.into_map()?)
+        {
+            match value {
+                HeaderValue::Protected(value) => protected.insert(key, value),
+                HeaderValue::Unprotected(value) => unprotected.insert(key, value),
+            };
+        }
+
+        let protected = match protected.is_empty() {
+            true => None,
+            false => Some(protected),
+        };
+
+        let unprotected = match unprotected.is_empty() {
+            true => None,
+            false => Some(unprotected),
+        };
+
+        Ok((protected, unprotected))
     }
 }
 

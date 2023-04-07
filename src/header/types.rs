@@ -1,11 +1,16 @@
 mod jwe;
 mod jws;
 
-use alloc::string::ToString;
+use alloc::{
+    collections::BTreeMap,
+    string::{String, ToString},
+};
+
+use serde_json::Value;
 
 #[doc(inline)]
 pub use self::{jwe::*, jws::*};
-use super::{builder::Specific, Error, HeaderDeserializer};
+use super::{builder::Specific, Error, HeaderDeserializer, HeaderValue};
 use crate::sealed::Sealed;
 
 /// Trait used to specify where a [`JoseHeader`](super::JoseHeader) is being
@@ -38,6 +43,13 @@ pub trait Type: Sealed {
     /// Implementation detail of
     /// [`JoseHeaderBuilder`](super::JoseHeaderBuilder).
     fn into_specific(self) -> Specific;
+
+    /// Convert fields into a Map that can be used for serialization
+    ///
+    /// # Errors
+    ///
+    /// May return an error if the conversion to [`Value`] fails.
+    fn into_map(self) -> Result<BTreeMap<String, HeaderValue<Value>>, Error>;
 }
 
 impl Type for Jws {
@@ -91,6 +103,24 @@ impl Type for Jws {
             payload_base64_url_encoded: self.payload_base64_url_encoded,
         }
     }
+
+    fn into_map(self) -> Result<BTreeMap<String, HeaderValue<Value>>, Error> {
+        let mut map = BTreeMap::new();
+        map.insert(
+            "alg".to_string(),
+            self.algorithm.map(serde_json::to_value).transpose()?,
+        );
+
+        // if explictly set to true, set it even tho true is the default
+        if let Some(b64) = self.payload_base64_url_encoded {
+            map.insert(
+                "b64".to_string(),
+                HeaderValue::Protected(serde_json::to_value(b64)?),
+            );
+        }
+
+        Ok(map)
+    }
 }
 
 impl Type for Jwe {
@@ -125,5 +155,22 @@ impl Type for Jwe {
             algorithm: Some(self.algorithm),
             content_encryption_algorithm: Some(self.content_encryption_algorithm),
         }
+    }
+
+    fn into_map(self) -> Result<BTreeMap<String, HeaderValue<Value>>, Error> {
+        Ok([
+            (
+                "alg".to_string(),
+                self.algorithm.map(serde_json::to_value).transpose()?,
+            ),
+            (
+                "enc".to_string(),
+                self.content_encryption_algorithm
+                    .map(serde_json::to_value)
+                    .transpose()?,
+            ),
+        ]
+        .into_iter()
+        .collect())
     }
 }
