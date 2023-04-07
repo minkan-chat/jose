@@ -3,7 +3,7 @@ use core::ops::Deref;
 use crate::sealed::Sealed;
 
 /// Some value `T` in either the protected or unprotected header.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum HeaderValue<T> {
     /// `T` is in the `protected` header parameter and integrity protected.
     Protected(T),

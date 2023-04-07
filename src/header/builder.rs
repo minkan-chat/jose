@@ -61,6 +61,24 @@ where
     pub fn additional(self, additional: BTreeMap<String, HeaderValue<Value>>) -> Self {
         Self { additional, ..self }
     }
+
+    fn with_specific(specific: Specific) -> Self {
+        Self {
+            critical_headers: None,
+            jwk_set_url: None,
+            json_web_key: None,
+            key_identifier: None,
+            x509_url: None,
+            x509_certificate_chain: None,
+            x509_certificate_sha1_thumbprint: None,
+            x509_certificate_sha256_thumbprint: None,
+            typ: None,
+            content_type: None,
+            additional: BTreeMap::new(),
+            specific,
+            _phantom: PhantomData,
+        }
+    }
 }
 
 /// Specific parameters for Jws and Jwe. See [`Jws`] and [`Jwe`]
@@ -101,7 +119,10 @@ pub enum JoseHeaderBuilderError {
     InvalidX509CertificateChain,
 }
 
-impl<F> JoseHeaderBuilder<F, Jws> {
+impl<F> JoseHeaderBuilder<F, Jws>
+where
+    F: Format,
+{
     /// Set the [`algorithm`](crate::JoseHeader::algorithm) parameter for
     /// [`Jws`].
     pub fn algorithm(self, algorithm: HeaderValue<JsonWebSigningAlgorithm>) -> Self {
@@ -182,9 +203,20 @@ impl<F> JoseHeaderBuilder<F, Jws> {
             parameters,
         })
     }
+
+    /// Create a new [`JoseHeader`] for [`Jws`].
+    pub fn new() -> Self {
+        JoseHeaderBuilder::with_specific(Specific::Jws {
+            algorithm: None,
+            payload_base64_url_encoded: None,
+        })
+    }
 }
 
-impl<F> JoseHeaderBuilder<F, Jwe> {
+impl<F> JoseHeaderBuilder<F, Jwe>
+where
+    F: Format,
+{
     /// Set the [`algorithm`](crate::JoseHeader::algorithm) parameter for
     /// [`Jwe`].
     pub fn algorithm(self, algorithm: HeaderValue<JsonWebEncryptionAlgorithm>) -> Self {
@@ -265,6 +297,31 @@ impl<F> JoseHeaderBuilder<F, Jwe> {
             _format: PhantomData,
             parameters,
         })
+    }
+
+    /// Create a new [`JoseHeader`] for [`Jwe`].
+    pub fn new() -> Self {
+        JoseHeaderBuilder::with_specific(Specific::Jwe {
+            algorithm: None,
+            content_encryption_algorithm: None,
+        })
+    }
+}
+
+impl<F> Default for JoseHeaderBuilder<F, Jws>
+where
+    F: Format,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl<F> Default for JoseHeaderBuilder<F, Jwe>
+where
+    F: Format,
+{
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -20,13 +20,19 @@ mod types;
 mod value;
 
 #[doc(inline)]
-pub use self::{builder::JoseHeaderBuilder, error::Error, types::*, value::*};
+pub use self::{
+    builder::{JoseHeaderBuilder, JoseHeaderBuilderError},
+    error::Error,
+    types::*,
+    value::*,
+};
 use self::{formats::Format, parameters::Parameters};
 use crate::{
     jwa::{JsonWebContentEncryptionAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
     JsonWebKey,
 };
 
+// TODO: into_builder method and serialization
 #[derive(Debug)]
 pub struct JoseHeader<F, T> {
     parameters: Parameters<T>,
@@ -279,6 +285,11 @@ where
             .payload_base64_url_encoded
             .unwrap_or(true)
     }
+
+    /// Build a new [`JoseHeader`] for [`Jws`].
+    pub fn builder() -> JoseHeaderBuilder<F, Jws> {
+        JoseHeaderBuilder::<F, Jws>::new()
+    }
 }
 
 impl<F> JoseHeader<F, Jwe>
@@ -308,6 +319,11 @@ where
             .specific
             .content_encryption_algorithm
             .as_ref()
+    }
+
+    /// Build a new [`JoseHeader`] for [`Jwe`].
+    pub fn builder() -> JoseHeaderBuilder<F, Jwe> {
+        JoseHeaderBuilder::<F, Jwe>::new()
     }
 }
 
