@@ -12,6 +12,7 @@ use mediatype::{MediaType, MediaTypeBuf};
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
+mod builder;
 mod error;
 mod formats;
 mod parameters;
@@ -19,7 +20,7 @@ mod types;
 mod value;
 
 #[doc(inline)]
-pub use self::{error::Error, types::*, value::*};
+pub use self::{builder::JoseHeaderBuilder, error::Error, types::*, value::*};
 use self::{formats::Format, parameters::Parameters};
 use crate::{
     jwa::{JsonWebContentEncryptionAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
