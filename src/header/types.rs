@@ -34,6 +34,10 @@ pub trait Type: Sealed {
     /// Implementation detail of
     /// [`JoseHeaderBuilder`](super::JoseHeaderBuilder).
     fn specific_default() -> Specific;
+
+    /// Implementation detail of
+    /// [`JoseHeaderBuilder`](super::JoseHeaderBuilder).
+    fn into_specific(self) -> Specific;
 }
 
 impl Type for Jws {
@@ -80,6 +84,13 @@ impl Type for Jws {
             payload_base64_url_encoded: None,
         }
     }
+
+    fn into_specific(self) -> Specific {
+        Specific::Jws {
+            algorithm: Some(self.algorithm),
+            payload_base64_url_encoded: self.payload_base64_url_encoded,
+        }
+    }
 }
 
 impl Type for Jwe {
@@ -106,6 +117,13 @@ impl Type for Jwe {
         Specific::Jwe {
             algorithm: None,
             content_encryption_algorithm: None,
+        }
+    }
+
+    fn into_specific(self) -> Specific {
+        Specific::Jwe {
+            algorithm: Some(self.algorithm),
+            content_encryption_algorithm: Some(self.content_encryption_algorithm),
         }
     }
 }

@@ -32,7 +32,7 @@ use crate::{
     JsonWebKey,
 };
 
-// TODO: into_builder method and serialization
+// TODO: serialization
 #[derive(Debug)]
 pub struct JoseHeader<F, T> {
     parameters: Parameters<T>,
@@ -48,6 +48,12 @@ where
     /// Build a new [`JoseHeader`].
     pub fn builder() -> JoseHeaderBuilder<F, T> {
         JoseHeaderBuilder::default()
+    }
+
+    /// Modify this [`JoseHeader`] by turning it back into a
+    /// [`JoseHeaderBuilder`].
+    pub fn into_builder(self) -> JoseHeaderBuilder<F, T> {
+        JoseHeaderBuilder::from_header(self)
     }
 
     /// Returns a url containing a link to a JSON Web Key Set as defined in

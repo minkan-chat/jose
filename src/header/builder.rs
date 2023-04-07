@@ -106,6 +106,32 @@ where
         };
         Ok((parameters, self.specific))
     }
+
+    /// Create a [`JoseHeaderBuilder`] from a [`JoseHeader`] preserving the
+    /// parameters.
+    pub fn from_header(header: JoseHeader<F, T>) -> Self {
+        let parameters = header.parameters;
+        let specific = parameters.specific.into_specific();
+
+        let x509_certificate_chain = parameters
+            .x509_certificate_chain
+            .map(|v| v.map(|v| v.into_iter().map(|v| v.0).collect::<Vec<_>>()));
+        Self {
+            critical_headers: parameters.critical_headers,
+            jwk_set_url: parameters.jwk_set_url,
+            json_web_key: parameters.json_web_key,
+            key_identifier: parameters.key_id,
+            x509_url: parameters.x509_url,
+            x509_certificate_chain,
+            x509_certificate_sha1_thumbprint: parameters.x509_certificate_sha1_thumbprint,
+            x509_certificate_sha256_thumbprint: parameters.x509_certificate_sha256_thumbprint,
+            typ: parameters.typ,
+            content_type: parameters.content_type,
+            additional: parameters.additional,
+            specific,
+            _phantom: PhantomData,
+        }
+    }
 }
 
 impl<F, T> Default for JoseHeaderBuilder<F, T>
