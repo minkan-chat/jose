@@ -5,7 +5,7 @@ use alloc::string::ToString;
 
 #[doc(inline)]
 pub use self::{jwe::*, jws::*};
-use super::{Error, HeaderDeserializer};
+use super::{builder::Specific, Error, HeaderDeserializer};
 use crate::sealed::Sealed;
 
 /// Trait used to specify where a [`JoseHeader`](super::JoseHeader) is being
@@ -30,6 +30,10 @@ pub trait Type: Sealed {
     ) -> Result<(Self, HeaderDeserializer), (Error, HeaderDeserializer)>
     where
         Self: Sized;
+
+    /// Implementation detail of
+    /// [`JoseHeaderBuilder`](super::JoseHeaderBuilder).
+    fn specific_default() -> Specific;
 }
 
 impl Type for Jws {
@@ -69,6 +73,13 @@ impl Type for Jws {
             Err(e) => Err((e, de)),
         }
     }
+
+    fn specific_default() -> Specific {
+        Specific::Jws {
+            algorithm: None,
+            payload_base64_url_encoded: None,
+        }
+    }
 }
 
 impl Type for Jwe {
@@ -89,5 +100,12 @@ impl Type for Jwe {
         Self: Sized,
     {
         todo!()
+    }
+
+    fn specific_default() -> Specific {
+        Specific::Jwe {
+            algorithm: None,
+            content_encryption_algorithm: None,
+        }
     }
 }

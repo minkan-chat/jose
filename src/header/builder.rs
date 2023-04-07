@@ -62,7 +62,8 @@ where
         Self { additional, ..self }
     }
 
-    fn with_specific(specific: Specific) -> Self {
+    /// Create a new [`JoseHeaderBuilder`] in order to build a [`JoseHeader`].
+    pub fn new() -> Self {
         Self {
             critical_headers: None,
             jwk_set_url: None,
@@ -75,15 +76,52 @@ where
             typ: None,
             content_type: None,
             additional: BTreeMap::new(),
-            specific,
+            specific: T::specific_default(),
             _phantom: PhantomData,
         }
+    }
+
+    fn build_parameters(self) -> Result<(Parameters<()>, Specific), JoseHeaderBuilderError> {
+        // oh dear god
+        let x509_certificate_chain = self
+            .x509_certificate_chain
+            .map(|v| v.map(|v| v.into_iter().map(Base64DerCertificate).collect::<Vec<_>>()));
+
+        // FIXME: check if additional parameters contain parameters that are understood
+        // by our implementation and that should be set via their methods instead.
+
+        let parameters = Parameters {
+            critical_headers: self.critical_headers,
+            jwk_set_url: self.jwk_set_url,
+            json_web_key: self.json_web_key,
+            key_id: self.key_identifier,
+            x509_url: self.x509_url,
+            x509_certificate_chain,
+            x509_certificate_sha1_thumbprint: self.x509_certificate_sha1_thumbprint,
+            x509_certificate_sha256_thumbprint: self.x509_certificate_sha256_thumbprint,
+            typ: self.typ,
+            content_type: self.content_type,
+            specific: (),
+            additional: self.additional,
+        };
+        Ok((parameters, self.specific))
+    }
+}
+
+impl<F, T> Default for JoseHeaderBuilder<F, T>
+where
+    F: Format,
+    T: Type,
+{
+    fn default() -> Self {
+        Self::new()
     }
 }
 
 /// Specific parameters for Jws and Jwe. See [`Jws`] and [`Jwe`]
 #[derive(Debug)]
-enum Specific {
+#[non_exhaustive]
+pub enum Specific {
     Jws {
         algorithm: Option<HeaderValue<JsonWebSigningAlgorithm>>,
         // default: true
@@ -163,7 +201,9 @@ where
     /// Returns an error if any of the values provided by the builder are
     /// invalid. See [`JoseHeaderBuilderError`] for details.
     pub fn build(self) -> Result<JoseHeader<F, Jws>, JoseHeaderBuilderError> {
-        let (algorithm, payload_base64_url_encoded) = match self.specific {
+        let (parameters, specific) = self.build_parameters()?;
+
+        let (algorithm, payload_base64_url_encoded) = match specific {
             Specific::Jws {
                 algorithm,
                 payload_base64_url_encoded,
@@ -177,38 +217,22 @@ where
             algorithm,
             payload_base64_url_encoded,
         };
-
-        // oh dear god
-        let x509_certificate_chain = self
-            .x509_certificate_chain
-            .map(|v| v.map(|v| v.into_iter().map(Base64DerCertificate).collect::<Vec<_>>()));
-
-        let parameters = Parameters {
-            critical_headers: self.critical_headers,
-            jwk_set_url: self.jwk_set_url,
-            json_web_key: self.json_web_key,
-            key_id: self.key_identifier,
-            x509_url: self.x509_url,
-            x509_certificate_chain,
-            x509_certificate_sha1_thumbprint: self.x509_certificate_sha1_thumbprint,
-            x509_certificate_sha256_thumbprint: self.x509_certificate_sha256_thumbprint,
-            typ: self.typ,
-            content_type: self.content_type,
-            specific,
-            additional: self.additional,
-        };
-
         Ok(JoseHeader {
             _format: PhantomData,
-            parameters,
-        })
-    }
-
-    /// Create a new [`JoseHeader`] for [`Jws`].
-    pub fn new() -> Self {
-        JoseHeaderBuilder::with_specific(Specific::Jws {
-            algorithm: None,
-            payload_base64_url_encoded: None,
+            parameters: Parameters {
+                specific,
+                critical_headers: parameters.critical_headers,
+                jwk_set_url: parameters.jwk_set_url,
+                json_web_key: parameters.json_web_key,
+                key_id: parameters.key_id,
+                x509_url: parameters.x509_url,
+                x509_certificate_chain: parameters.x509_certificate_chain,
+                x509_certificate_sha1_thumbprint: parameters.x509_certificate_sha1_thumbprint,
+                x509_certificate_sha256_thumbprint: parameters.x509_certificate_sha256_thumbprint,
+                typ: parameters.typ,
+                content_type: parameters.content_type,
+                additional: parameters.additional,
+            },
         })
     }
 }
@@ -258,7 +282,8 @@ where
     /// Returns an error if any of the values provided by the builder are
     /// invalid. See [`JoseHeaderBuilderError`] for details.
     pub fn build(self) -> Result<JoseHeader<F, Jwe>, JoseHeaderBuilderError> {
-        let (algorithm, content_encryption_algorithm) = match self.specific {
+        let (parameters, specific) = self.build_parameters()?;
+        let (algorithm, content_encryption_algorithm) = match specific {
             Specific::Jwe {
                 algorithm,
                 content_encryption_algorithm,
@@ -273,55 +298,23 @@ where
             content_encryption_algorithm,
         };
 
-        // oh dear god
-        let x509_certificate_chain = self
-            .x509_certificate_chain
-            .map(|v| v.map(|v| v.into_iter().map(Base64DerCertificate).collect::<Vec<_>>()));
-
-        let parameters = Parameters {
-            critical_headers: self.critical_headers,
-            jwk_set_url: self.jwk_set_url,
-            json_web_key: self.json_web_key,
-            key_id: self.key_identifier,
-            x509_url: self.x509_url,
-            x509_certificate_chain,
-            x509_certificate_sha1_thumbprint: self.x509_certificate_sha1_thumbprint,
-            x509_certificate_sha256_thumbprint: self.x509_certificate_sha256_thumbprint,
-            typ: self.typ,
-            content_type: self.content_type,
-            specific,
-            additional: self.additional,
-        };
-
         Ok(JoseHeader {
             _format: PhantomData,
-            parameters,
+            parameters: Parameters {
+                specific,
+                critical_headers: parameters.critical_headers,
+                jwk_set_url: parameters.jwk_set_url,
+                json_web_key: parameters.json_web_key,
+                key_id: parameters.key_id,
+                x509_url: parameters.x509_url,
+                x509_certificate_chain: parameters.x509_certificate_chain,
+                x509_certificate_sha1_thumbprint: parameters.x509_certificate_sha1_thumbprint,
+                x509_certificate_sha256_thumbprint: parameters.x509_certificate_sha256_thumbprint,
+                typ: parameters.typ,
+                content_type: parameters.content_type,
+                additional: parameters.additional,
+            },
         })
-    }
-
-    /// Create a new [`JoseHeader`] for [`Jwe`].
-    pub fn new() -> Self {
-        JoseHeaderBuilder::with_specific(Specific::Jwe {
-            algorithm: None,
-            content_encryption_algorithm: None,
-        })
-    }
-}
-
-impl<F> Default for JoseHeaderBuilder<F, Jws>
-where
-    F: Format,
-{
-    fn default() -> Self {
-        Self::new()
-    }
-}
-impl<F> Default for JoseHeaderBuilder<F, Jwe>
-where
-    F: Format,
-{
-    fn default() -> Self {
-        Self::new()
     }
 }
 

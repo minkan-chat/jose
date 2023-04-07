@@ -45,6 +45,11 @@ where
     F: Format,
     T: Type,
 {
+    /// Build a new [`JoseHeader`].
+    pub fn builder() -> JoseHeaderBuilder<F, T> {
+        JoseHeaderBuilder::default()
+    }
+
     /// Returns a url containing a link to a JSON Web Key Set as defined in
     /// [section 5 of RFC 7517].
     ///
@@ -285,11 +290,6 @@ where
             .payload_base64_url_encoded
             .unwrap_or(true)
     }
-
-    /// Build a new [`JoseHeader`] for [`Jws`].
-    pub fn builder() -> JoseHeaderBuilder<F, Jws> {
-        JoseHeaderBuilder::<F, Jws>::new()
-    }
 }
 
 impl<F> JoseHeader<F, Jwe>
@@ -319,11 +319,6 @@ where
             .specific
             .content_encryption_algorithm
             .as_ref()
-    }
-
-    /// Build a new [`JoseHeader`] for [`Jwe`].
-    pub fn builder() -> JoseHeaderBuilder<F, Jwe> {
-        JoseHeaderBuilder::<F, Jwe>::new()
     }
 }
 

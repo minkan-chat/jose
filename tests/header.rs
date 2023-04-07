@@ -15,5 +15,5 @@ fn build_header() {
     assert_eq!(
         header.algorithm(),
         HeaderValue::Protected(&JsonWebSigningAlgorithm::None)
-    )
+    );
 }
