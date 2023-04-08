@@ -9,7 +9,7 @@ use alloc::{
 use core::{marker::PhantomData, ops::Deref};
 
 use mediatype::{MediaType, MediaTypeBuf};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{Map, Value};
 
 mod builder;
@@ -32,7 +32,94 @@ use crate::{
     JsonWebKey,
 };
 
-// TODO: docs
+/// A [`JoseHeader`] is primarily used to specify how a JSON Web Signature or
+/// JSON Web Encryption should be processed.
+///
+/// Besides the [`algorithm`](JoseHeader::algorithm) used for the cryptographic
+/// primitives, it can also store additional metadata that should not be part of
+/// the payload.
+/// For example, the [`typ`](JoseHeader::typ) parameter may be used to specify a
+/// content type for the payload.
+///
+/// # Structure
+///
+/// A [`JoseHeader`] may be a bit different, depending where it is being used.
+/// Therefore, [`JoseHeader<F, T>`] has two generic types that define where and
+/// how exactly it is being used. `F` defines the [`Format`] that this
+/// [`JoseHeader`] is being used in. `T` defines whether the [`JoseHeader`] is
+/// part of a [JSON Web Signature][Jws] or [JSON Web Encryption][Jwe].
+///
+/// A [`JoseHeader`] can store parameters in two ways:
+///
+/// * [protected](HeaderValue::Protected): Parameters stored in the protected
+///   part of a [`JoseHeader`] can not be modified without the knowledge of the
+///   cryptographic key that was used to protected the payload.
+///
+/// * [unprotected](HeaderValue::Unprotected): Parameters stored in the
+///   unprotected part of a [`JoseHeader`] **can** be modified by anybody and
+///   changes cannot be detected. You therefore cannot rely or trust them.
+///
+/// Since most parameters are allowed in both of the two header parts, each
+/// parameter is wrapped in a [`HeaderValue<T>`] that specifies the part in
+/// which the paramter is stored.
+///
+/// # Parameter classes
+///
+/// [Section 4 of RFC 7515] defines three classes of header parameters:
+///
+/// * [Registered header parameters]: these parameters are registerd in the
+///   [IANA `JSON Web Signature and Encryption Header Parameters` registry].
+///   Most of them are implemented by this library and can be directly accessed
+///   via the methods on [`JoseHeader`]. If you find a registered parameter you
+///   need missing, you are welcome to open an issue or even better a pull
+///   request to support it.
+///
+/// * [Public header parameters]: these parameters are not registered but use a
+///   "Collision-Resistant Name" (e.g. they are prefixed by a domain you
+///   control) as defined in [section 2 of RFC 7515]. You may access them using
+///   [`JoseHeader::additional`].
+///
+/// * [Private header parameters]: these parameters are not registered either
+///   but do not use a "Collisin-Resistant Name" and are therefore subject to
+///   collision. You can also use them via [`JoseHeader::additional`] but their
+///   use is not recommended and if new paramters are registered that collide
+///   with a private parameter, your implementation may break.
+///
+/// # Examples
+///
+///
+/// ```
+/// use jose::{
+///     format::Compact,
+///     header::{HeaderValue, JoseHeader, Jws},
+///     jwa::Hmac,
+/// };
+///
+/// // we are going to build a `JoseHeader` for a `Compact` `Jws`
+/// let header = JoseHeader::<Compact, Jws>::builder()
+///     // we set the `alg` header parameter as an unprotected parameter
+///     .algorithm(HeaderValue::Unprotected(Hmac::Hs256.into()))
+///     // we set the `kid` header parameter as an protected parameter
+///     .key_identifier(Some(HeaderValue::Protected("key-1".to_string())))
+///     .build()
+///     .unwrap();
+///
+/// assert_eq!(
+///     header.algorithm(),
+///     HeaderValue::Unprotected(&Hmac::Hs256.into())
+/// );
+/// assert_eq!(
+///     header.key_identifier(),
+///     Some(HeaderValue::Protected("key-1"))
+/// );
+/// ```
+///
+/// [section 2 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-2>
+/// [Section 4 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4>
+/// [IANA `JSON Web Signature and Encryption Header Parameters` registry]: <https://www.iana.org/assignments/jose/jose.xhtml#web-signature-encryption-header-parameters>
+/// [Registered header parameters]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1>
+/// [Public header parameters]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.2>
+/// [Private header parameters]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.3>
 #[derive(Debug)]
 pub struct JoseHeader<F, T> {
     parameters: Parameters<T>,

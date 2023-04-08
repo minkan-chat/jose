@@ -165,7 +165,7 @@ pub enum Specific {
 #[non_exhaustive]
 pub enum JoseHeaderBuilderError {
     /// There is no algorithm specified. Specify an algorithm via
-    /// [`JoseHeaderBuilder::algorithm].
+    /// [`JoseHeaderBuilder::algorithm`].
     #[error("no algorithm set")]
     MissingAlgorithm,
     /// There is no content encryption algorithm specified. Specify an content
