@@ -128,6 +128,110 @@ pub enum SignError<P> {
     Payload(P),
 }
 
+/// Represents a JSON Web Signature (JWS) as defined in [RFC 7515].
+///
+/// The JWS is a format for representing digitally signed or MACed (Message
+/// Authentication Code) content using JSON. The JSON representation is used
+/// to convey the payload, the signature, and optionally additional meta-data
+/// about the payload and signature.
+///
+/// The [`JsonWebSignature`] struct has two type parameters:
+///
+/// * `F`: The format of the JWS. This can be either [`Compact`] or [`JsonFlattened`].
+/// * `T`: The type of the payload. This can be any type that implements the
+///        [`ProvidePayload`] trait and also the [`FromRawPayload`] trait.
+///
+/// # Examples
+///
+/// ## Creating a JWS with a custom header and payload
+///
+/// ```rust
+/// # extern crate alloc;
+/// # use jose::jws::*;
+/// # use jose::format::*;
+/// # use jose::jwa::*;
+/// # use jose::*;
+/// # use core::convert::Infallible;
+/// # use alloc::string::FromUtf8Error;
+///
+/// # #[derive(Debug, PartialEq, Eq)]
+/// # struct StringPayload(String);
+/// #
+/// # impl From<&str> for StringPayload {
+/// #     fn from(value: &str) -> Self {
+/// #         StringPayload(value.to_string())
+/// #     }
+/// # }
+/// #
+/// # impl FromRawPayload for StringPayload {
+/// #     type Error = FromUtf8Error;
+/// #
+/// #     fn from_raw_payload(payload: PayloadKind) -> Result<Self, Self::Error> {
+/// #         match payload {
+/// #             PayloadKind::Standard(s) => String::from_utf8(s.decode()).map(StringPayload),
+/// #         }
+/// #     }
+/// # }
+///
+/// # impl ProvidePayload for StringPayload {
+/// #     type Error = Infallible;
+/// #
+/// #     fn provide_payload<D: digest::Update>(
+/// #         &mut self,
+/// #         digest: &mut D,
+/// #     ) -> Result<PayloadKind, Self::Error> {
+/// #         let s = Base64UrlString::encode(&self.0);
+/// #         digest.update(s.as_bytes());
+/// #         Ok(PayloadKind::Standard(s))
+/// #     }
+/// # }
+///
+/// # struct DummyDigest;
+/// # impl digest::Update for DummyDigest {
+/// #     fn update(&mut self, _data: &[u8]) {}
+/// # }
+/// #
+/// # struct NoneKey;
+/// # impl Signer<[u8; 0]> for NoneKey {
+/// #     type Digest = DummyDigest;
+/// #
+/// #     fn new_digest(&self) -> Self::Digest {
+/// #         DummyDigest
+/// #     }
+/// #
+/// #     fn sign_digest(&mut self, _digest: Self::Digest) -> Result<[u8; 0], signature::Error> {
+/// #         Ok([])
+/// #     }
+/// #
+/// #     fn algorithm(&self) -> JsonWebSigningAlgorithm {
+/// #         JsonWebSigningAlgorithm::None
+/// #     }
+/// # }
+/// #
+/// # struct NoneVerifier;
+/// # impl Verifier for NoneVerifier {
+/// #     fn verify(&mut self, _: &[u8], _: &[u8]) -> Result<(), signature::Error> {
+/// #         Ok(())
+/// #     }
+/// # }
+///
+/// let jws = Jws::<Compact, _>::new(StringPayload::from("abc"));
+/// let jws_compact = jws.sign(&mut NoneKey).unwrap().encode();
+///
+/// assert_eq!(
+///     jws_compact.to_string(),
+///     String::from("eyJhbGciOiJub25lIn0.YWJj.")
+/// );
+///
+/// let parsed_jws = Unverified::<Jws<Compact, StringPayload>>::decode(jws_compact)
+///     .unwrap()
+///     .verify(&mut NoneVerifier)
+///     .unwrap();
+///
+/// assert_eq!(parsed_jws.payload(), &StringPayload::from("abc"));
+/// ```
+///
+/// [RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515>
 #[derive(Debug)]
 pub struct JsonWebSignature<F: Format, T> {
     header: F::JwsHeader,
@@ -135,6 +239,11 @@ pub struct JsonWebSignature<F: Format, T> {
 }
 
 impl<T> JsonWebSignature<Compact, T> {
+    /// Creates a new JWS with the given payload and a default header.
+    ///
+    /// The default header is a [`JoseHeader`] with the following properties:
+    /// * The `alg` header parameter is set to [`JsonWebSigningAlgorithm::None`].
+    /// * everything else is `None`.
     pub fn new(payload: T) -> Self {
         let header = JoseHeader::<Compact, header::Jws>::builder()
             .algorithm(header::HeaderValue::Protected(
@@ -146,12 +255,20 @@ impl<T> JsonWebSignature<Compact, T> {
         Self { header, payload }
     }
 
+    /// Creates a new JWS with the given header and payload.
+    ///
+    /// This is useful if you want to set additional header parameters.
     pub fn new_with_header(header: JoseHeader<Compact, header::Jws>, payload: T) -> Self {
         Self { header, payload }
     }
 }
 
 impl<T> JsonWebSignature<JsonFlattened, T> {
+    /// Creates a new JWS with the given payload and a default header.
+    ///
+    /// The default header is a [`JoseHeader`] with the following properties:
+    /// * The `alg` header parameter is set to [`JsonWebSigningAlgorithm::None`].
+    /// * everything else is `None`.
     pub fn new(payload: T) -> Self {
         let header = JoseHeader::<JsonFlattened, header::Jws>::builder()
             .algorithm(header::HeaderValue::Protected(
@@ -163,6 +280,9 @@ impl<T> JsonWebSignature<JsonFlattened, T> {
         Self { header, payload }
     }
 
+    /// Creates a new JWS with the given header and payload.
+    ///
+    /// This is useful if you want to set additional header parameters.
     pub fn new_with_header(header: JoseHeader<JsonFlattened, header::Jws>, payload: T) -> Self {
         Self { header, payload }
     }
