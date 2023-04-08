@@ -3,7 +3,7 @@ use core::ops::Deref;
 use crate::sealed::Sealed;
 
 /// Some value `T` in either the protected or unprotected header.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum HeaderValue<T> {
     /// `T` is in the `protected` header parameter and integrity protected.
     Protected(T),
@@ -82,6 +82,21 @@ impl<T> HeaderValue<Option<T>> {
         Some(match self {
             HeaderValue::Protected(p) => HeaderValue::Protected(p?),
             HeaderValue::Unprotected(u) => HeaderValue::Unprotected(u?),
+        })
+    }
+}
+
+impl<T, E> HeaderValue<Result<T, E>> {
+    /// Transpose a [`HeaderValue<Result<T, E>>] into
+    /// [`Result<HeaderValue<`T`>, E>`]
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the inner [`Result`] contains an error.
+    pub fn transpose(self) -> Result<HeaderValue<T>, E> {
+        Ok(match self {
+            Self::Protected(p) => HeaderValue::Protected(p?),
+            Self::Unprotected(u) => HeaderValue::Unprotected(u?),
         })
     }
 }

@@ -12,6 +12,7 @@ use mediatype::{MediaType, MediaTypeBuf};
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
+mod builder;
 mod error;
 mod formats;
 mod parameters;
@@ -19,13 +20,106 @@ mod types;
 mod value;
 
 #[doc(inline)]
-pub use self::{error::Error, types::*, value::*};
+pub use self::{
+    builder::{JoseHeaderBuilder, JoseHeaderBuilderError},
+    error::Error,
+    types::*,
+    value::*,
+};
 use self::{formats::Format, parameters::Parameters};
 use crate::{
     jwa::{JsonWebContentEncryptionAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
     JsonWebKey,
 };
 
+/// A [`JoseHeader`] is primarily used to specify how a JSON Web Signature or
+/// JSON Web Encryption should be processed.
+///
+/// Besides the [`algorithm`](JoseHeader::algorithm) used for the cryptographic
+/// primitives, it can also store additional metadata that should not be part of
+/// the payload.
+/// For example, the [`typ`](JoseHeader::typ) parameter may be used to specify a
+/// content type for the payload.
+///
+/// # Structure
+///
+/// A [`JoseHeader`] may be a bit different, depending where it is being used.
+/// Therefore, [`JoseHeader<F, T>`] has two generic types that define where and
+/// how exactly it is being used. `F` defines the [`Format`] that this
+/// [`JoseHeader`] is being used in. `T` defines whether the [`JoseHeader`] is
+/// part of a [JSON Web Signature][Jws] or [JSON Web Encryption][Jwe].
+///
+/// A [`JoseHeader`] can store parameters in two ways:
+///
+/// * [protected](HeaderValue::Protected): Parameters stored in the protected
+///   part of a [`JoseHeader`] can not be modified without the knowledge of the
+///   cryptographic key that was used to protected the payload.
+///
+/// * [unprotected](HeaderValue::Unprotected): Parameters stored in the
+///   unprotected part of a [`JoseHeader`] **can** be modified by anybody and
+///   changes cannot be detected. You therefore cannot rely or trust them.
+///
+/// Since most parameters are allowed in both of the two header parts, each
+/// parameter is wrapped in a [`HeaderValue<T>`] that specifies the part in
+/// which the paramter is stored.
+///
+/// # Parameter classes
+///
+/// [Section 4 of RFC 7515] defines three classes of header parameters:
+///
+/// * [Registered header parameters]: these parameters are registerd in the
+///   [IANA `JSON Web Signature and Encryption Header Parameters` registry].
+///   Most of them are implemented by this library and can be directly accessed
+///   via the methods on [`JoseHeader`]. If you find a registered parameter you
+///   need missing, you are welcome to open an issue or even better a pull
+///   request to support it.
+///
+/// * [Public header parameters]: these parameters are not registered but use a
+///   "Collision-Resistant Name" (e.g. they are prefixed by a domain you
+///   control) as defined in [section 2 of RFC 7515]. You may access them using
+///   [`JoseHeader::additional`].
+///
+/// * [Private header parameters]: these parameters are not registered either
+///   but do not use a "Collisin-Resistant Name" and are therefore subject to
+///   collision. You can also use them via [`JoseHeader::additional`] but their
+///   use is not recommended and if new paramters are registered that collide
+///   with a private parameter, your implementation may break.
+///
+/// # Examples
+///
+///
+/// ```
+/// use jose::{
+///     format::Compact,
+///     header::{HeaderValue, JoseHeader, Jws},
+///     jwa::Hmac,
+/// };
+///
+/// // we are going to build a `JoseHeader` for a `Compact` `Jws`
+/// let header = JoseHeader::<Compact, Jws>::builder()
+///     // we set the `alg` header parameter as an unprotected parameter
+///     .algorithm(HeaderValue::Unprotected(Hmac::Hs256.into()))
+///     // we set the `kid` header parameter as an protected parameter
+///     .key_identifier(Some(HeaderValue::Protected("key-1".to_string())))
+///     .build()
+///     .unwrap();
+///
+/// assert_eq!(
+///     header.algorithm(),
+///     HeaderValue::Unprotected(&Hmac::Hs256.into())
+/// );
+/// assert_eq!(
+///     header.key_identifier(),
+///     Some(HeaderValue::Protected("key-1"))
+/// );
+/// ```
+///
+/// [section 2 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-2>
+/// [Section 4 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4>
+/// [IANA `JSON Web Signature and Encryption Header Parameters` registry]: <https://www.iana.org/assignments/jose/jose.xhtml#web-signature-encryption-header-parameters>
+/// [Registered header parameters]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1>
+/// [Public header parameters]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.2>
+/// [Private header parameters]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.3>
 #[derive(Debug)]
 pub struct JoseHeader<F, T> {
     parameters: Parameters<T>,
@@ -38,6 +132,17 @@ where
     F: Format,
     T: Type,
 {
+    /// Build a new [`JoseHeader`].
+    pub fn builder() -> JoseHeaderBuilder<F, T> {
+        JoseHeaderBuilder::default()
+    }
+
+    /// Modify this [`JoseHeader`] by turning it back into a
+    /// [`JoseHeaderBuilder`].
+    pub fn into_builder(self) -> JoseHeaderBuilder<F, T> {
+        JoseHeaderBuilder::from_header(self)
+    }
+
     /// Returns a url containing a link to a JSON Web Key Set as defined in
     /// [section 5 of RFC 7517].
     ///
@@ -361,6 +466,79 @@ where
             },
             _format: PhantomData,
         })
+    }
+
+    /// Returns `Result<(Option<Protected>, Option<Unprotected>), Error>`
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn into_values(
+        self,
+    ) -> Result<(Option<Map<String, Value>>, Option<Map<String, Value>>), Error> {
+        let parameters = self.parameters;
+
+        // use the existing Map with additional parameters. Parameters that collide with
+        // names understood by this library are replaced.
+        let mut collected_parameters = parameters.additional;
+
+        // insert crit header only if it is some and non empty as per RFC
+        if let Some(crit) = parameters.critical_headers {
+            if !crit.is_empty() {
+                collected_parameters.insert(
+                    "crit".to_string(),
+                    HeaderValue::Protected(serde_json::to_value(crit)?),
+                );
+            }
+        } else {
+            collected_parameters.remove("crit");
+        }
+
+        // FIXME: optimize this code in a way that there are not this many inserts
+        macro_rules! insert {
+            ($($name:literal: $value:expr),+,) => {
+                $(if let Some(value) = $value {
+                    collected_parameters.insert(
+                        $name.to_string(),
+                        value.map(serde_json::to_value).transpose()?,
+                    );
+                } else {
+                    collected_parameters.remove($name);
+                })+
+            };
+        }
+        insert! {
+            "jku": parameters.jwk_set_url,
+            "jwk": parameters.json_web_key,
+            "kid": parameters.key_id,
+            "x5u": parameters.x509_url,
+            "x5c": parameters.x509_certificate_chain,
+            "x5t": parameters.x509_certificate_sha1_thumbprint,
+            "x5t#S256": parameters.x509_certificate_sha256_thumbprint,
+            "typ": parameters.typ,
+            "cty": parameters.content_type,
+        }
+
+        let mut protected = Map::new();
+        let mut unprotected = Map::new();
+        for (key, value) in collected_parameters
+            .into_iter()
+            .chain(parameters.specific.into_map()?)
+        {
+            match value {
+                HeaderValue::Protected(value) => protected.insert(key, value),
+                HeaderValue::Unprotected(value) => unprotected.insert(key, value),
+            };
+        }
+
+        let protected = match protected.is_empty() {
+            true => None,
+            false => Some(protected),
+        };
+
+        let unprotected = match unprotected.is_empty() {
+            true => None,
+            false => Some(unprotected),
+        };
+
+        Ok((protected, unprotected))
     }
 }
 
