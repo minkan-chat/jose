@@ -151,6 +151,23 @@ impl<T> JsonWebSignature<Compact, T> {
     }
 }
 
+impl<T> JsonWebSignature<JsonFlattened, T> {
+    pub fn new(payload: T) -> Self {
+        let header = JoseHeader::<JsonFlattened, header::Jws>::builder()
+            .algorithm(header::HeaderValue::Protected(
+                JsonWebSigningAlgorithm::None,
+            ))
+            .build()
+            .expect("this header is always valid");
+
+        Self { header, payload }
+    }
+
+    pub fn new_with_header(header: JoseHeader<JsonFlattened, header::Jws>, payload: T) -> Self {
+        Self { header, payload }
+    }
+}
+
 impl<F: Format, T> JsonWebSignature<F, T> {
     /// Returns a reference to the payload of this JWS.
     pub fn payload(&self) -> &T {
@@ -254,7 +271,7 @@ impl<T: FromRawPayload> DecodeFormat<Compact> for JsonWebSignature<Compact, T> {
             let header = JoseHeader::from_values(Some(header), None)
                 .map_err(ParseCompactError::InvalidHeader)?;
 
-            (header, json)
+            (header, raw)
         };
 
         let (payload, raw_payload) = {
@@ -266,7 +283,6 @@ impl<T: FromRawPayload> DecodeFormat<Compact> for JsonWebSignature<Compact, T> {
 
         let signature = input.part(2).expect("`len()` is checked above to be 3");
 
-        let raw_header = Base64UrlUnpadded::encode_string(raw_header.as_bytes());
         let raw_payload = Base64UrlUnpadded::encode_string(&raw_payload);
 
         let msg = alloc::format!("{}.{}", raw_header, raw_payload);
@@ -279,11 +295,68 @@ impl<T: FromRawPayload> DecodeFormat<Compact> for JsonWebSignature<Compact, T> {
     }
 }
 
+/// Different kinds of errors that can occurr while parsing a JWS from it's
+/// JSON, general or flattened, format.
+#[derive(Debug, Error)]
+pub enum ParseJsonError<P> {
+    /// Unprotected `header` field must be a JSON object.
+    #[error("unprotected header field must be a JSON object")]
+    UnprotectedMustBeObject,
+    /// The header of the JWS is invalid.
+    #[error("invalid JWS header: {0}")]
+    InvalidHeader(#[source] header::Error),
+    /// The protected header or signature contained invalid UTF-8
+    #[error("protected header or signature contained invalid UTF-8")]
+    InvalidUtf8Encoding,
+    /// The protected header contained invalid JSON
+    #[error("protected header contained invalid JSON")]
+    InvalidJson(#[source] serde_json::Error),
+    /// Failed to parse the payload.
+    #[error(transparent)]
+    Payload(P),
+}
+
 impl<T: FromRawPayload> DecodeFormat<JsonFlattened> for JsonWebSignature<JsonFlattened, T> {
-    type Error = ();
+    type Error = ParseJsonError<T::Error>;
     type Decoded<D> = Unverified<D>;
 
-    fn decode(_input: JsonFlattened) -> Result<Self::Decoded<Self>, Self::Error> {
-        todo!()
+    fn decode(
+        JsonFlattened {
+            payload,
+            protected,
+            header,
+            signature,
+        }: JsonFlattened,
+    ) -> Result<Self::Decoded<Self>, Self::Error> {
+        let msg = alloc::format!("{}.{}", protected, payload);
+
+        let header = {
+            let json = String::from_utf8(protected.decode())
+                .map_err(|_| ParseJsonError::InvalidUtf8Encoding)?;
+
+            let protected =
+                serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&json)
+                    .map_err(ParseJsonError::InvalidJson)?;
+
+            let unprotected = match header {
+                Some(serde_json::Value::Object(values)) => Some(values),
+                Some(_) => return Err(ParseJsonError::UnprotectedMustBeObject),
+                None => None,
+            };
+
+            JoseHeader::from_values(Some(protected), unprotected)
+                .map_err(ParseJsonError::InvalidHeader)?
+        };
+
+        let payload = {
+            let payload_kind = PayloadKind::Standard(payload);
+            T::from_raw_payload(payload_kind).map_err(ParseJsonError::Payload)?
+        };
+
+        Ok(Unverified {
+            value: JsonWebSignature { header, payload },
+            signature: signature.decode(),
+            msg: msg.into_bytes(),
+        })
     }
 }

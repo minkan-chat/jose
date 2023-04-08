@@ -24,9 +24,20 @@ impl std::error::Error for NoBase64UrlString {}
 
 /// A wrapper around a [`String`] that guarantees that the inner string is a
 /// valid Base64Url string.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize)]
 #[repr(transparent)]
+#[serde(transparent)]
 pub struct Base64UrlString(String);
+
+impl<'de> Deserialize<'de> for Base64UrlString {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let inner = String::deserialize(deserializer)?;
+        Base64UrlString::from_str(&inner).map_err(D::Error::custom)
+    }
+}
 
 impl fmt::Display for Base64UrlString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

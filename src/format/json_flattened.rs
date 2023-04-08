@@ -1,4 +1,4 @@
-use core::{fmt, str::FromStr};
+use core::fmt;
 
 use alloc::string::ToString;
 use serde::{Deserialize, Serialize};
@@ -10,21 +10,36 @@ use crate::{
     Base64UrlString, JoseHeader,
 };
 
-use super::{sealed, Compact, Format};
+use super::{sealed, Format};
 
 /// The flattened json serialization format that is a wrapper around
 /// a generic json value and that can be deserialized into
 /// any serilizable type.
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[repr(transparent)]
-#[serde(transparent)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JsonFlattened {
-    pub(crate) value: Value,
+    pub(crate) payload: Base64UrlString,
+    pub(crate) protected: Base64UrlString,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) header: Option<Value>,
+    pub(crate) signature: Base64UrlString,
 }
 
 impl Format for JsonFlattened {}
+
+impl fmt::Display for JsonFlattened {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let repr = if f.alternate() {
+            serde_json::to_string_pretty(&self).map_err(|_| fmt::Error)?
+        } else {
+            serde_json::to_string(&self).map_err(|_| fmt::Error)?
+        };
+
+        f.write_str(&repr)
+    }
+}
+
 impl sealed::SealedFormat for JsonFlattened {
-    type JwsHeader = JoseHeader<Compact, header::Jws>;
+    type JwsHeader = JoseHeader<JsonFlattened, header::Jws>;
     type SerializedJwsHeader = (Base64UrlString, Option<Value>);
 
     fn update_header<S: AsRef<[u8]>, D: digest::Update>(
@@ -63,46 +78,18 @@ impl sealed::SealedFormat for JsonFlattened {
         payload: PayloadKind,
         signature: &[u8],
     ) -> Result<Self, serde_json::Error> {
-        let mut x = Value::Object(serde_json::Map::default());
-
         let PayloadKind::Standard(payload) = payload;
 
-        x["payload"] = Value::String(payload.into_inner());
-        x["protected"] = Value::String(protected.to_string());
+        let signature = Base64UrlString::encode(signature);
 
-        if let Some(unprotected) = unprotected {
-            x["header"] = unprotected;
-        }
-
-        let signature = Base64UrlString::encode(signature).into_inner();
-        x["signature"] = Value::String(signature);
-
-        Ok(JsonFlattened { value: x })
-    }
-}
-
-impl JsonFlattened {
-    /// Turns this Json wrapper into it's generic underlying Value.
-    pub fn into_inner(self) -> Value {
-        self.value
-    }
-}
-
-impl FromStr for JsonFlattened {
-    type Err = serde_json::Error;
-
-    /// The from_str implementation will parse the supplied
-    /// string as JSON.
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let value = serde_json::from_str::<Value>(s)?;
-        Ok(Self { value })
-    }
-}
-
-impl fmt::Display for JsonFlattened {
-    /// The display implementation will format this value
-    /// as compact JSON.
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.value)
+        Ok(JsonFlattened {
+            payload,
+            protected,
+            header: match unprotected {
+                Some(x) => Some(serde_json::to_value(x)?),
+                None => None,
+            },
+            signature,
+        })
     }
 }
