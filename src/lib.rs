@@ -45,7 +45,7 @@ pub use base64_url::Base64UrlString;
 pub use self::{header::JoseHeader, jwk::JsonWebKey, jws::JsonWebSignature, jwt::JsonWebToken};
 
 /// Type alias to make `JsonWebSignature` easier to access.
-pub type JWS<T, H = ()> = JsonWebSignature<T, H>;
+pub type Jws<F, T> = JsonWebSignature<F, T>;
 
 /// Type alias to make `JsonWebToken` easier to access.
-pub type JWT = JsonWebToken;
+pub type Jwt<F> = JsonWebToken<F>;

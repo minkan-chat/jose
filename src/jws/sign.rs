@@ -1,6 +1,7 @@
-use super::JsonWebSignatureValue;
+use core::fmt;
+
 use crate::{
-    format::{AppendSignature, IntoFormat},
+    format::Format,
     jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::FromKey,
 };
@@ -15,24 +16,21 @@ use crate::{
 ///
 /// [signing algorithm]: crate::jwa::JsonWebSigningAlgorithm
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub struct Signed<S> {
-    pub(crate) value: JsonWebSignatureValue,
-    pub(crate) signature: S,
+pub struct Signed<F> {
+    pub(crate) value: F,
 }
 
-impl<S: AsRef<[u8]>> Signed<S> {
-    /// Encodes this signed value into the given format (`F`).
-    ///
-    /// Available formats are [`JsonFlattened`](crate::format::JsonFlattened)
-    /// and [`Compact`](crate::format::Compact).
-    pub fn encode<F>(self) -> F
-    where
-        F: AppendSignature,
-        JsonWebSignatureValue: IntoFormat<F>,
-    {
-        let mut format: F = self.value.into_format();
-        format.append_signature(self.signature.as_ref());
-        format
+impl<F: Format> fmt::Display for Signed<F> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.value, f)
+    }
+}
+
+impl<F: Format> Signed<F> {
+    /// Encodes this signed value into the format of the signed JWS.
+    #[inline]
+    pub fn encode(self) -> F {
+        self.value
     }
 }
 
@@ -47,7 +45,7 @@ impl<S: AsRef<[u8]>> Signed<S> {
 /// To be able to be used as a [`Signer`], one must provide the sign operation
 /// itself, and also needs to [specify the algorithm] used for signing. The
 /// algorithm will be used as the value for the `alg` field inside the
-/// [`JoseHeader`](crate::jws::JoseHeader) for the signed type.
+/// [`JoseHeader`](crate::header::JoseHeader) for the signed type.
 ///
 /// [`new_digest`]: Signer::new_digest
 /// [`sign_digest`]: Signer::sign_digest

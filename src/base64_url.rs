@@ -38,13 +38,10 @@ impl FromStr for Base64UrlString {
     type Err = NoBase64UrlString;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.as_bytes().iter().all(|c| {
-            (b'A'..=b'Z').contains(c)
-                || (b'a'..=b'z').contains(c)
-                || (b'0'..=b'9').contains(c)
-                || *c == b'_'
-                || *c == b'-'
-        }) {
+        if s.as_bytes()
+            .iter()
+            .all(|c| c.is_ascii_alphanumeric() || *c == b'_' || *c == b'-')
+        {
             Ok(Base64UrlString(s.to_owned()))
         } else {
             Err(NoBase64UrlString)

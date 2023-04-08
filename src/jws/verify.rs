@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
 use crate::{
-    format::FromFormat,
+    format::{DecodeFormat, Format},
     jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::FromKey,
 };
@@ -21,9 +21,9 @@ pub trait Verifier {
     fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<(), signature::Error>;
 }
 
-/// This wrapper type represents any type that was parsed from user input,
-/// but the data integrity was not verified, thus it might contain corrupted or
-/// malicious data.
+/// This wrapper type represents a [JWS](crate::JsonWebSignature) that was
+/// parsed from user input, but the data integrity was not verified, thus it
+/// might contain corrupted or malicious data.
 ///
 /// An [`Unverified`] struct can be verified using the [`verify`](Self::verify)
 /// method.
@@ -41,11 +41,11 @@ impl<T> Unverified<T> {
     ///
     /// Returns an error if the input format has an invalid representation for
     /// the `T` type.
-    pub fn decode<F>(input: F) -> Result<Self, <T as FromFormat<F>>::Error>
+    pub fn decode<F: Format>(input: F) -> Result<Self, T::Error>
     where
-        T: FromFormat<F>,
+        T: DecodeFormat<F, Decoded<T> = Unverified<T>>,
     {
-        T::from_format(input)
+        T::decode(input)
     }
 
     /// Verify this struct using the given verifier, returning a [`Verified`]
@@ -63,7 +63,7 @@ impl<T> Unverified<T> {
 
 /// Wrapper type around a JWS, or JWE that was verified using a [`Verifier`].
 #[derive(Debug)]
-pub struct Verified<T>(pub(crate) T);
+pub struct Verified<T>(T);
 
 impl<T> Verified<T> {
     /// Turns self into it's inner `T`.
@@ -115,3 +115,4 @@ where
         V::from_key(self, JsonWebAlgorithm::Signing(alg))
     }
 }
+
