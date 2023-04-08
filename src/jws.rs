@@ -305,6 +305,11 @@ impl<T> JsonWebSignature<Compact, T> {
 impl<F: Format, T: ProvidePayload> JsonWebSignature<F, T> {
     /// Signs this [`JsonWebSignature`] using the given `signer`.
     ///
+    /// When signing the JWS, some fields of the header of this JWS may be updated.
+    /// For example, the `alg` header parameter will be updated to reflect
+    /// the algorithm used to sign the JWS, and the `kid` header parameter may
+    /// be updated using the value from the given [`Signer`].
+    ///
     /// # Errors
     ///
     /// Returns an error if any step of the signing operation failed.
