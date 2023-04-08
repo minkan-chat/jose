@@ -9,7 +9,7 @@ use thiserror_no_std::Error;
 
 use crate::{
     format::{Compact, DecodeFormat, Format, JsonFlattened},
-    header,
+    header::{self, HeaderValue, JoseHeaderBuilder},
     jwa::JsonWebSigningAlgorithm,
     Base64UrlString, JoseHeader,
 };
@@ -246,9 +246,7 @@ impl<T> JsonWebSignature<Compact, T> {
     /// * everything else is `None`.
     pub fn new(payload: T) -> Self {
         let header = JoseHeader::<Compact, header::Jws>::builder()
-            .algorithm(header::HeaderValue::Protected(
-                JsonWebSigningAlgorithm::None,
-            ))
+            .algorithm(HeaderValue::Protected(JsonWebSigningAlgorithm::None))
             .build()
             .expect("this header is always valid");
 
@@ -258,8 +256,19 @@ impl<T> JsonWebSignature<Compact, T> {
     /// Creates a new JWS with the given header and payload.
     ///
     /// This is useful if you want to set additional header parameters.
-    pub fn new_with_header(header: JoseHeader<Compact, header::Jws>, payload: T) -> Self {
-        Self { header, payload }
+    ///
+    /// # Errors
+    ///
+    /// Fails if the given builder failed to build the [`JoseHeader`].
+    pub fn new_with_header(
+        header: JoseHeaderBuilder<Compact, header::Jws>,
+        payload: T,
+    ) -> Result<Self, header::JoseHeaderBuilderError> {
+        let header = header
+            .algorithm(HeaderValue::Protected(JsonWebSigningAlgorithm::None))
+            .build()?;
+
+        Ok(Self { header, payload })
     }
 }
 
@@ -271,9 +280,7 @@ impl<T> JsonWebSignature<JsonFlattened, T> {
     /// * everything else is `None`.
     pub fn new(payload: T) -> Self {
         let header = JoseHeader::<JsonFlattened, header::Jws>::builder()
-            .algorithm(header::HeaderValue::Protected(
-                JsonWebSigningAlgorithm::None,
-            ))
+            .algorithm(HeaderValue::Protected(JsonWebSigningAlgorithm::None))
             .build()
             .expect("this header is always valid");
 
@@ -283,8 +290,19 @@ impl<T> JsonWebSignature<JsonFlattened, T> {
     /// Creates a new JWS with the given header and payload.
     ///
     /// This is useful if you want to set additional header parameters.
-    pub fn new_with_header(header: JoseHeader<JsonFlattened, header::Jws>, payload: T) -> Self {
-        Self { header, payload }
+    ///
+    /// # Errors
+    ///
+    /// Fails if the given builder failed to build the [`JoseHeader`].
+    pub fn new_with_header(
+        header: JoseHeaderBuilder<JsonFlattened, header::Jws>,
+        payload: T,
+    ) -> Result<Self, header::JoseHeaderBuilderError> {
+        let header = header
+            .algorithm(HeaderValue::Protected(JsonWebSigningAlgorithm::None))
+            .build()?;
+
+        Ok(Self { header, payload })
     }
 }
 

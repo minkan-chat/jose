@@ -139,15 +139,12 @@ fn smoke() {
     let payload = r#"{"iss":"joe","exp":1300819380,"http://example.com/is_root":true}"#;
     let payload = StringPayload::from(payload);
 
-    let header = JoseHeader::<JsonFlattened, header::Jws>::builder()
-        .algorithm(HeaderValue::Protected(JsonWebSigningAlgorithm::None))
-        .typ(Some(HeaderValue::Unprotected(
-            "application/jwt".parse().unwrap(),
-        )))
-        .build()
-        .unwrap();
+    let header = JoseHeader::<JsonFlattened, header::Jws>::builder().typ(Some(
+        HeaderValue::Unprotected("application/jwt".parse().unwrap()),
+    ));
 
     let jws = Jws::<JsonFlattened, StringPayload>::new_with_header(header, payload)
+        .unwrap()
         .sign(&mut signer)
         .unwrap()
         .encode();
