@@ -68,7 +68,7 @@ num-bigint-dig = { version = "0.8.1", default-features = false, features = [
 serde-value = { version = "0.7.0", default-features = false }
 
 # a replacement for the `mime` crate from hyper which seems to be no longer maintained
-mediatype = { version = "0.19", features = ["serde"] }
+mediatype = { version = "0.19.3", features = ["serde"] }
 
 [dev-dependencies]
 rand = "0.8.5"

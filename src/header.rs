@@ -14,11 +14,11 @@ use serde_json::{Map, Value};
 
 mod builder;
 mod error;
-mod formats;
 mod parameters;
 mod types;
 mod value;
 
+use self::parameters::Parameters;
 #[doc(inline)]
 pub use self::{
     builder::{JoseHeaderBuilder, JoseHeaderBuilderError},
@@ -26,8 +26,8 @@ pub use self::{
     types::*,
     value::*,
 };
-use self::{formats::Format, parameters::Parameters};
 use crate::{
+    format::Format,
     jwa::{JsonWebContentEncryptionAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
     JsonWebKey,
 };

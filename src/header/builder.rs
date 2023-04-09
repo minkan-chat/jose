@@ -8,8 +8,9 @@ use core::marker::PhantomData;
 use mediatype::MediaTypeBuf;
 use serde_json::Value;
 
-use super::{formats::Format, HeaderValue, Jwe, Jws, Type};
+use super::{HeaderValue, Jwe, Jws, Type};
 use crate::{
+    format::Format,
     header::parameters::Parameters,
     jwa::{JsonWebContentEncryptionAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
     jwk::serde_impl::Base64DerCertificate,
