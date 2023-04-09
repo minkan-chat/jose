@@ -114,7 +114,11 @@ fn sign_jws_using_p256() {
         .unwrap()
         .encode();
 
-    assert_eq!(jws.to_string().as_str(), "eyJhbGciOiJFUzI1NiJ9.aGVsbG8gd29ybGQh.lVKmpTNK_Im3-JEpF1JzuXM-vP9tNSkR8785hqnYzOHd1__VVOeMzGW7nywUe7Xkp6Wlu3KgWXlvsxhQdU1PlQ");
+    assert_eq!(
+        jws.to_string().as_str(),
+        "eyJhbGciOiJFUzI1NiJ9.aGVsbG8gd29ybGQh.\
+         lVKmpTNK_Im3-JEpF1JzuXM-vP9tNSkR8785hqnYzOHd1__VVOeMzGW7nywUe7Xkp6Wlu3KgWXlvsxhQdU1PlQ"
+    );
 }
 
 #[test]

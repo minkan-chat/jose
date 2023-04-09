@@ -1,16 +1,15 @@
+use alloc::string::ToString;
 use core::fmt;
 
-use alloc::string::ToString;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::{sealed, Format};
 use crate::{
     header::{self, HeaderValue},
     jws::{PayloadKind, SignError},
     Base64UrlString, JoseHeader,
 };
-
-use super::{sealed, Format};
 
 /// The flattened json serialization format that is a wrapper around
 /// a generic json value and that can be deserialized into

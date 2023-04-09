@@ -137,9 +137,10 @@ pub enum SignError<P> {
 ///
 /// The [`JsonWebSignature`] struct has two type parameters:
 ///
-/// * `F`: The format of the JWS. This can be either [`Compact`] or [`JsonFlattened`].
+/// * `F`: The format of the JWS. This can be either [`Compact`] or
+///   [`JsonFlattened`].
 /// * `T`: The type of the payload. This can be any type that implements the
-///        [`ProvidePayload`] trait and also the [`FromRawPayload`] trait.
+///   [`ProvidePayload`] trait and also the [`FromRawPayload`] trait.
 ///
 /// # Examples
 ///
@@ -242,7 +243,8 @@ impl<T> JsonWebSignature<Compact, T> {
     /// Creates a new JWS with the given payload and a default header.
     ///
     /// The default header is a [`JoseHeader`] with the following properties:
-    /// * The `alg` header parameter is set to [`JsonWebSigningAlgorithm::None`].
+    /// * The `alg` header parameter is set to
+    ///   [`JsonWebSigningAlgorithm::None`].
     /// * everything else is `None`.
     pub fn new(payload: T) -> Self {
         let header = JoseHeader::<Compact, header::Jws>::builder()
@@ -276,7 +278,8 @@ impl<T> JsonWebSignature<JsonFlattened, T> {
     /// Creates a new JWS with the given payload and a default header.
     ///
     /// The default header is a [`JoseHeader`] with the following properties:
-    /// * The `alg` header parameter is set to [`JsonWebSigningAlgorithm::None`].
+    /// * The `alg` header parameter is set to
+    ///   [`JsonWebSigningAlgorithm::None`].
     /// * everything else is `None`.
     pub fn new(payload: T) -> Self {
         let header = JoseHeader::<JsonFlattened, header::Jws>::builder()
@@ -314,7 +317,8 @@ impl<F: Format, T> JsonWebSignature<F, T> {
 }
 
 impl<T> JsonWebSignature<Compact, T> {
-    /// Returns a reference to the [`JoseHeader`](crate::header::JoseHeader) of this JWS.
+    /// Returns a reference to the [`JoseHeader`](crate::header::JoseHeader) of
+    /// this JWS.
     pub fn header(&self) -> &JoseHeader<Compact, header::Jws> {
         &self.header
     }
@@ -323,10 +327,10 @@ impl<T> JsonWebSignature<Compact, T> {
 impl<F: Format, T: ProvidePayload> JsonWebSignature<F, T> {
     /// Signs this [`JsonWebSignature`] using the given `signer`.
     ///
-    /// When signing the JWS, some fields of the header of this JWS may be updated.
-    /// For example, the `alg` header parameter will be updated to reflect
-    /// the algorithm used to sign the JWS, and the `kid` header parameter may
-    /// be updated using the value from the given [`Signer`].
+    /// When signing the JWS, some fields of the header of this JWS may be
+    /// updated. For example, the `alg` header parameter will be updated to
+    /// reflect the algorithm used to sign the JWS, and the `kid` header
+    /// parameter may be updated using the value from the given [`Signer`].
     ///
     /// # Errors
     ///
@@ -460,8 +464,8 @@ pub enum ParseJsonError<P> {
 }
 
 impl<T: FromRawPayload> DecodeFormat<JsonFlattened> for JsonWebSignature<JsonFlattened, T> {
-    type Error = ParseJsonError<T::Error>;
     type Decoded<D> = Unverified<D>;
+    type Error = ParseJsonError<T::Error>;
 
     fn decode(
         JsonFlattened {

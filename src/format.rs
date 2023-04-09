@@ -14,9 +14,8 @@ pub use json_flattened::JsonFlattened;
 use crate::sealed::Sealed;
 
 pub(crate) mod sealed {
-    use core::convert::Infallible;
-
     use alloc::fmt;
+    use core::convert::Infallible;
 
     use crate::{
         header::JoseHeaderBuilderError,
