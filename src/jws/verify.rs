@@ -115,4 +115,3 @@ where
         V::from_key(self, JsonWebAlgorithm::Signing(alg))
     }
 }
-
