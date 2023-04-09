@@ -126,7 +126,7 @@ impl<A> JsonWebKeyBuilder<A> {
     pub fn build_and_check<P: Policy>(
         self,
         policy: P,
-    ) -> Result<Checked<JsonWebKey<A>, P>, JsonWebKeyBuildError<(JsonWebKey<A>, P::Error)>>
+    ) -> Result<Checked<JsonWebKey<A>, P>, JsonWebKeyBuildError<P::Error>>
     where
         A: Checkable,
     {
@@ -138,7 +138,7 @@ impl<A> JsonWebKeyBuilder<A> {
                 JsonWebKeyBuildError::PolicyCheckFailed(x) => match x {},
             })?
             .check(policy)
-            .map_err(JsonWebKeyBuildError::PolicyCheckFailed)
+            .map_err(|(_, e)| JsonWebKeyBuildError::PolicyCheckFailed(e))
     }
 }
 
