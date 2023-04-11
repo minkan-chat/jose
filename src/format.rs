@@ -17,10 +17,7 @@ pub(crate) mod sealed {
     use alloc::fmt;
     use core::convert::Infallible;
 
-    use crate::{
-        header::JoseHeaderBuilderError,
-        jws::{PayloadKind, SignError, Signer},
-    };
+    use crate::jws::{PayloadKind, SignError, Signer};
 
     // We put all methods, types, etc into a sealed trait, so
     // the user is not able to access these thing as they should
@@ -30,9 +27,9 @@ pub(crate) mod sealed {
         type SerializedJwsHeader: fmt::Debug;
 
         fn update_header<S: AsRef<[u8]>, D: digest::Update>(
-            header: Self::JwsHeader,
+            header: &mut Self::JwsHeader,
             signer: &dyn Signer<S, Digest = D>,
-        ) -> Result<Self::JwsHeader, JoseHeaderBuilderError>;
+        );
 
         fn provide_header<D: digest::Update>(
             header: Self::JwsHeader,

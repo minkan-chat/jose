@@ -9,7 +9,7 @@ use thiserror_no_std::Error;
 
 use crate::{
     format::{Compact, DecodeFormat, Format, JsonFlattened},
-    header::{self, HeaderValue, JoseHeaderBuilder},
+    header::{self, HeaderValue},
     jwa::JsonWebSigningAlgorithm,
     Base64UrlString, JoseHeader,
 };
@@ -114,12 +114,13 @@ pub enum SignError<P> {
     /// Failed to serialize the [`JoseHeader`](crate::header::JoseHeader).
     #[error("failed to serialize header: {0}")]
     SerializeHeader(#[source] serde_json::Error),
+    /// The `protected` part of the header was empty, which is disallowed in the
+    /// compact format.
+    #[error("the protected header was empty on a compact JWS")]
+    EmptyProtectedHeader,
     /// The header of the JWS is invalid.
     #[error("invalid JWS header: {0}")]
     InvalidHeader(#[source] header::Error),
-    /// The header got invalid after updating it with the given signer.
-    #[error("invalid JWS header after updating it with the given signer: {0}")]
-    InvalidHeaderBuilder(#[source] header::JoseHeaderBuilderError),
     /// The underlying signing operation of the given signer failed.
     #[error(transparent)]
     Sign(signature::Error),
@@ -258,19 +259,8 @@ impl<T> JsonWebSignature<Compact, T> {
     /// Creates a new JWS with the given header and payload.
     ///
     /// This is useful if you want to set additional header parameters.
-    ///
-    /// # Errors
-    ///
-    /// Fails if the given builder failed to build the [`JoseHeader`].
-    pub fn new_with_header(
-        header: JoseHeaderBuilder<Compact, header::Jws>,
-        payload: T,
-    ) -> Result<Self, header::JoseHeaderBuilderError> {
-        let header = header
-            .algorithm(HeaderValue::Protected(JsonWebSigningAlgorithm::None))
-            .build()?;
-
-        Ok(Self { header, payload })
+    pub fn new_with_header(header: JoseHeader<Compact, header::Jws>, payload: T) -> Self {
+        Self { header, payload }
     }
 }
 
@@ -293,19 +283,8 @@ impl<T> JsonWebSignature<JsonFlattened, T> {
     /// Creates a new JWS with the given header and payload.
     ///
     /// This is useful if you want to set additional header parameters.
-    ///
-    /// # Errors
-    ///
-    /// Fails if the given builder failed to build the [`JoseHeader`].
-    pub fn new_with_header(
-        header: JoseHeaderBuilder<JsonFlattened, header::Jws>,
-        payload: T,
-    ) -> Result<Self, header::JoseHeaderBuilderError> {
-        let header = header
-            .algorithm(HeaderValue::Protected(JsonWebSigningAlgorithm::None))
-            .build()?;
-
-        Ok(Self { header, payload })
+    pub fn new_with_header(header: JoseHeader<JsonFlattened, header::Jws>, payload: T) -> Self {
+        Self { header, payload }
     }
 }
 
@@ -344,15 +323,14 @@ impl<F: Format, T: ProvidePayload> JsonWebSignature<F, T> {
         mut self,
         signer: &mut dyn Signer<S, Digest = D>,
     ) -> Result<Signed<F>, SignError<T::Error>> {
-        self.header =
-            F::update_header(self.header, signer).map_err(SignError::InvalidHeaderBuilder)?;
+        F::update_header(&mut self.header, signer);
 
         let mut digest = signer.new_digest();
         let serialized_header =
             F::provide_header(self.header, &mut digest).map_err(|x| match x {
                 SignError::SerializeHeader(x) => SignError::SerializeHeader(x),
                 SignError::InvalidHeader(x) => SignError::InvalidHeader(x),
-                SignError::InvalidHeaderBuilder(x) => SignError::InvalidHeaderBuilder(x),
+                SignError::EmptyProtectedHeader => SignError::EmptyProtectedHeader,
                 SignError::Sign(x) => SignError::Sign(x),
                 SignError::Payload(x) => match x {},
             })?;
@@ -475,15 +453,24 @@ impl<T: FromRawPayload> DecodeFormat<JsonFlattened> for JsonWebSignature<JsonFla
             signature,
         }: JsonFlattened,
     ) -> Result<Self::Decoded<Self>, Self::Error> {
-        let msg = alloc::format!("{}.{}", protected, payload);
+        let msg = match protected {
+            Some(ref protected) => alloc::format!("{}.{}", protected, payload),
+            None => alloc::format!(".{}", payload),
+        };
 
         let header = {
-            let json = String::from_utf8(protected.decode())
-                .map_err(|_| ParseJsonError::InvalidUtf8Encoding)?;
+            let protected = match protected {
+                Some(encoded) => {
+                    let json = String::from_utf8(encoded.decode())
+                        .map_err(|_| ParseJsonError::InvalidUtf8Encoding)?;
 
-            let protected =
-                serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&json)
-                    .map_err(ParseJsonError::InvalidJson)?;
+                    let values =
+                        serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&json)
+                            .map_err(ParseJsonError::InvalidJson)?;
+                    Some(values)
+                }
+                None => None,
+            };
 
             let unprotected = match header {
                 Some(serde_json::Value::Object(values)) => Some(values),
@@ -491,7 +478,7 @@ impl<T: FromRawPayload> DecodeFormat<JsonFlattened> for JsonWebSignature<JsonFla
                 None => None,
             };
 
-            JoseHeader::from_values(Some(protected), unprotected)
+            JoseHeader::from_values(protected, unprotected)
                 .map_err(ParseJsonError::InvalidHeader)?
         };
 

@@ -4,7 +4,7 @@ use core::{fmt, str::FromStr};
 use super::{sealed, Format};
 use crate::{
     base64_url::NoBase64UrlString,
-    header::{self, HeaderValue, JoseHeaderBuilderError},
+    header::{self, HeaderValue},
     jws::{PayloadKind, SignError, Signer},
     Base64UrlString, JoseHeader,
 };
@@ -22,27 +22,44 @@ impl sealed::SealedFormat for Compact {
     type SerializedJwsHeader = Base64UrlString;
 
     fn update_header<S: AsRef<[u8]>, D: digest::Update>(
-        header: Self::JwsHeader,
+        header: &mut Self::JwsHeader,
         signer: &dyn Signer<S, Digest = D>,
-    ) -> Result<Self::JwsHeader, JoseHeaderBuilderError> {
-        let builder = header
-            .into_builder()
-            .algorithm(HeaderValue::Protected(signer.algorithm()))
-            .key_identifier(
-                signer
-                    .key_id()
-                    .map(ToString::to_string)
-                    .map(HeaderValue::Protected),
-            );
+    ) {
+        let is_protected = matches!(header.algorithm(), HeaderValue::Protected(_));
 
-        builder.build()
+        let alg = if is_protected {
+            HeaderValue::Protected(signer.algorithm())
+        } else {
+            HeaderValue::Unprotected(signer.algorithm())
+        };
+
+        let kid = signer.key_id().map(|s| {
+            let kid = s.to_string();
+            if is_protected {
+                HeaderValue::Protected(kid)
+            } else {
+                HeaderValue::Unprotected(kid)
+            }
+        });
+
+        header.set_alg_and_key_id(alg, kid);
     }
 
     fn provide_header<D: digest::Update>(
         header: Self::JwsHeader,
         digest: &mut D,
     ) -> Result<Self::SerializedJwsHeader, SignError<core::convert::Infallible>> {
+        extern crate std;
         let (protected_header, _) = header.into_values().map_err(SignError::InvalidHeader)?;
+
+        if protected_header
+            .as_ref()
+            .map(|x| x.is_empty())
+            .unwrap_or(true)
+        {
+            return Err(SignError::EmptyProtectedHeader);
+        }
+
         let header =
             serde_json::to_string(&protected_header).map_err(SignError::SerializeHeader)?;
 

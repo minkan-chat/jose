@@ -9,12 +9,16 @@ use jose::{
     format::{Compact, JsonFlattened},
     header::{self, HeaderValue},
     jwa::{EcDSA, JsonWebSigningAlgorithm},
-    jwk::ec::p256::{P256PrivateKey, P256Signer, P256Verifier},
+    jwk::{
+        ec::p256::{P256PrivateKey, P256Signer, P256Verifier},
+        JwkSigner,
+    },
     jws::{
         FromRawPayload, IntoSigner, IntoVerifier, PayloadKind, ProvidePayload, Signer, Unverified,
         Verifier,
     },
-    Base64UrlString, JoseHeader, Jws,
+    policy::{Checkable, StandardPolicy},
+    Base64UrlString, JoseHeader, JsonWebKey, Jws,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -122,6 +126,50 @@ fn sign_jws_using_p256() {
 }
 
 #[test]
+fn deny_compact_jws_with_empty_protected_header() {
+    let header = JoseHeader::<Compact, header::Jws>::builder()
+        .algorithm(HeaderValue::Unprotected(JsonWebSigningAlgorithm::None))
+        .build()
+        .unwrap();
+
+    let jws = Jws::<Compact, _>::new_with_header(header, StringPayload::from("abc"));
+
+    jws.sign(&mut NoneKey).unwrap_err();
+}
+
+#[test]
+fn json_flattened_jws_with_no_protected_header() {
+    let key = std::fs::read_to_string(format!(
+        "{}/tests/keys/cookbook_hs256.json",
+        env!("CARGO_MANIFEST_DIR"),
+    ))
+    .unwrap();
+
+    let key: JsonWebKey = serde_json::from_str(&key).unwrap();
+    let key = key.check(StandardPolicy::new()).unwrap();
+
+    let mut signer = JwkSigner::try_from(key).unwrap();
+
+    // let mut verifier: P256Verifier = key
+    //     .clone()
+    //     .into_verifier(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
+    //     .unwrap();
+
+    let header = JoseHeader::<JsonFlattened, header::Jws>::builder()
+        .algorithm(HeaderValue::Unprotected(JsonWebSigningAlgorithm::None))
+        .build()
+        .unwrap();
+
+    let payload = "It's a dangerous business, Frodo, going out your door. You step onto the road, \
+                   and if you don't keep your feet, there's no knowing where you";
+    let jws = Jws::<JsonFlattened, _>::new_with_header(header, StringPayload::from(payload));
+
+    let jws = jws.sign(&mut signer).unwrap();
+
+    println!("{:#}", jws);
+}
+
+#[test]
 fn smoke() {
     let key = std::fs::read_to_string(format!(
         "{}/tests/keys/p256.json",
@@ -143,12 +191,15 @@ fn smoke() {
     let payload = r#"{"iss":"joe","exp":1300819380,"http://example.com/is_root":true}"#;
     let payload = StringPayload::from(payload);
 
-    let header = JoseHeader::<JsonFlattened, header::Jws>::builder().typ(Some(
-        HeaderValue::Unprotected("application/jwt".parse().unwrap()),
-    ));
+    let header = JoseHeader::<JsonFlattened, header::Jws>::builder()
+        .typ(Some(HeaderValue::Unprotected(
+            "application/jwt".parse().unwrap(),
+        )))
+        .algorithm(HeaderValue::Protected(JsonWebSigningAlgorithm::None))
+        .build()
+        .unwrap();
 
     let jws = Jws::<JsonFlattened, StringPayload>::new_with_header(header, payload)
-        .unwrap()
         .sign(&mut signer)
         .unwrap()
         .encode();
