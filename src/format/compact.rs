@@ -49,7 +49,6 @@ impl sealed::SealedFormat for Compact {
         header: Self::JwsHeader,
         digest: &mut D,
     ) -> Result<Self::SerializedJwsHeader, SignError<core::convert::Infallible>> {
-        extern crate std;
         let (protected_header, _) = header.into_values().map_err(SignError::InvalidHeader)?;
 
         if protected_header
