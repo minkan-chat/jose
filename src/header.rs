@@ -127,6 +127,22 @@ pub struct JoseHeader<F, T> {
     _format: PhantomData<F>,
 }
 
+impl<F> JoseHeader<F, Jws>
+where
+    F: Format,
+{
+    /// Method to override the alg and kid fields.
+    /// Only intended for internal usage.
+    pub(crate) fn set_alg_and_key_id(
+        &mut self,
+        alg: HeaderValue<JsonWebSigningAlgorithm>,
+        kid: Option<HeaderValue<String>>,
+    ) {
+        self.parameters.key_id = kid;
+        self.parameters.specific.algorithm = alg;
+    }
+}
+
 impl<F, T> JoseHeader<F, T>
 where
     F: Format,
