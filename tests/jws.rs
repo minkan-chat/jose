@@ -7,7 +7,7 @@ use std::{convert::Infallible, string::FromUtf8Error};
 
 use jose::{
     format::{Compact, JsonFlattened},
-    header::{self, HeaderValue},
+    header::HeaderValue,
     jwa::{EcDSA, JsonWebSigningAlgorithm},
     jwk::{
         ec::p256::{P256PrivateKey, P256Signer, P256Verifier},
@@ -18,7 +18,7 @@ use jose::{
         Verifier,
     },
     policy::{Checkable, StandardPolicy},
-    Base64UrlString, JoseHeader, JsonWebKey, Jws,
+    Base64UrlString, JsonWebKey, Jws,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -84,7 +84,9 @@ impl Verifier for NoneVerifier {
 
 #[test]
 fn none_verifier_roundtrip() {
-    let jws = Jws::<Compact, _>::new(StringPayload::from("abc"));
+    let jws = Jws::<Compact, _>::builder()
+        .build(StringPayload::from("abc"))
+        .unwrap();
     let jws_compact = jws.sign(&mut NoneKey).unwrap().encode();
 
     assert_eq!(
@@ -113,7 +115,9 @@ fn sign_jws_using_p256() {
         .into_signer(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
         .unwrap();
 
-    let jws = Jws::<Compact, StringPayload>::new(StringPayload::from("hello world!"))
+    let jws = Jws::<Compact, _>::builder()
+        .build(StringPayload::from("hello world!"))
+        .unwrap()
         .sign(&mut signer)
         .unwrap()
         .encode();
@@ -127,12 +131,10 @@ fn sign_jws_using_p256() {
 
 #[test]
 fn deny_compact_jws_with_empty_protected_header() {
-    let header = JoseHeader::<Compact, header::Jws>::builder()
-        .algorithm(HeaderValue::Unprotected(JsonWebSigningAlgorithm::None))
-        .build()
+    let jws: Jws<Compact, StringPayload> = Jws::builder()
+        .header(|b| b.algorithm(HeaderValue::Unprotected(JsonWebSigningAlgorithm::None)))
+        .build(StringPayload::from("abc"))
         .unwrap();
-
-    let jws = Jws::<Compact, _>::new_with_header(header, StringPayload::from("abc"));
 
     jws.sign(&mut NoneKey).unwrap_err();
 }
@@ -150,19 +152,13 @@ fn json_flattened_jws_with_no_protected_header() {
 
     let mut signer = JwkSigner::try_from(key).unwrap();
 
-    // let mut verifier: P256Verifier = key
-    //     .clone()
-    //     .into_verifier(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
-    //     .unwrap();
-
-    let header = JoseHeader::<JsonFlattened, header::Jws>::builder()
-        .algorithm(HeaderValue::Unprotected(JsonWebSigningAlgorithm::None))
-        .build()
-        .unwrap();
-
     let payload = "It's a dangerous business, Frodo, going out your door. You step onto the road, \
                    and if you don't keep your feet, there's no knowing where you";
-    let jws = Jws::<JsonFlattened, _>::new_with_header(header, StringPayload::from(payload));
+
+    let jws: Jws<JsonFlattened, StringPayload> = Jws::builder()
+        .header(|b| b.algorithm(HeaderValue::Unprotected(JsonWebSigningAlgorithm::None)))
+        .build(StringPayload::from(payload))
+        .unwrap();
 
     let jws = jws.sign(&mut signer).unwrap();
 
@@ -191,15 +187,15 @@ fn smoke() {
     let payload = r#"{"iss":"joe","exp":1300819380,"http://example.com/is_root":true}"#;
     let payload = StringPayload::from(payload);
 
-    let header = JoseHeader::<JsonFlattened, header::Jws>::builder()
-        .typ(Some(HeaderValue::Unprotected(
-            "application/jwt".parse().unwrap(),
-        )))
-        .algorithm(HeaderValue::Protected(JsonWebSigningAlgorithm::None))
-        .build()
-        .unwrap();
-
-    let jws = Jws::<JsonFlattened, StringPayload>::new_with_header(header, payload)
+    let jws = Jws::<JsonFlattened, _>::builder()
+        .header(|b| {
+            b.algorithm(HeaderValue::Protected(JsonWebSigningAlgorithm::None))
+                .typ(Some(HeaderValue::Protected(
+                    "application/jwt".parse().unwrap(),
+                )))
+        })
+        .build(payload)
+        .unwrap()
         .sign(&mut signer)
         .unwrap()
         .encode();
