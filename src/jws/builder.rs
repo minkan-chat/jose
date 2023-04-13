@@ -24,22 +24,26 @@ impl<F: Format> JsonWebSignatureBuilder<F> {
 
     /// Configures the custom header for this [`JsonWebSignature`].
     ///
-    /// For [`Compact`](crate::format::Compact) and [`JsonFlattened`](crate::format::JsonFlattened) format,
-    /// this method will set the single protected, and unprotected header if JSON flattened,
+    /// For [`Compact`](crate::format::Compact) and
+    /// [`JsonFlattened`](crate::format::JsonFlattened) format, this method
+    /// will set the single protected, and unprotected header if JSON flattened,
     /// header.
     ///
     /// ## Support for empty protected headers
     ///
-    /// The [JWS RFC] allows for the protected header to be empty, and instead supply all necessary
-    /// parameters in the unprotected header. By default, the `jose` crate will overwrite the
-    /// `alg` field (and optionally `kid` field) in the protected header, with the signing algorithm used in the signing
-    /// operation.
-    /// To achieve that the `alg` field is set on the unprotected header, one must set the `alg`
-    /// field to `HeaderValue::Protected(JsonWebSigningAlgorithm::None)` manually.
+    /// The [JWS RFC] allows for the protected header to be empty, and instead
+    /// supply all necessary parameters in the unprotected header. By
+    /// default, the `jose` crate will overwrite the `alg` field (and
+    /// optionally `kid` field) in the protected header, with the signing
+    /// algorithm used in the signing operation.
+    /// To achieve that the `alg` field is set on the unprotected header, one
+    /// must set the `alg`
+    /// field to `HeaderValue::Protected(JsonWebSigningAlgorithm::None)`
+    /// manually.
     ///
     /// However, you must note, that this feature is not supported for the
-    /// [`Compact`](crate::format::Compact) format, becuase that format can only have a protected
-    /// header.
+    /// [`Compact`](crate::format::Compact) format, becuase that format can only
+    /// have a protected header.
     ///
     /// ```
     /// # use jose::{format::*, jws::*, header::HeaderValue, jwa::*};
