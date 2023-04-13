@@ -75,6 +75,45 @@ pub trait Signer<S: AsRef<[u8]>> {
     fn key_id(&self) -> Option<&str> {
         None
     }
+
+    /// Returns a new [`Signer`] that wraps `self`, but returns `None` when
+    /// calling the `key_id` method.
+    fn without_key_id(self) -> SignerWithoutKeyId<Self>
+    where
+        Self: Sized,
+    {
+        SignerWithoutKeyId { inner: self }
+    }
+}
+
+/// Wrapper type around an existing [`Signer`] that will always return `None`
+/// for the key id.
+///
+/// This is useful if you parse a JWK, which has a Key ID, but you do not want
+/// to add this ID to the header in a JWS.
+#[derive(Debug, Clone)]
+pub struct SignerWithoutKeyId<S> {
+    inner: S,
+}
+
+impl<SIG: AsRef<[u8]>, S: Signer<SIG>> Signer<SIG> for SignerWithoutKeyId<S> {
+    type Digest = S::Digest;
+
+    fn new_digest(&self) -> Self::Digest {
+        S::new_digest(&self.inner)
+    }
+
+    fn sign_digest(&mut self, digest: Self::Digest) -> Result<SIG, signature::Error> {
+        S::sign_digest(&mut self.inner, digest)
+    }
+
+    fn algorithm(&self) -> JsonWebSigningAlgorithm {
+        S::algorithm(&self.inner)
+    }
+
+    fn key_id(&self) -> Option<&str> {
+        None
+    }
 }
 
 /// An error returned if something expected a different

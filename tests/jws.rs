@@ -73,6 +73,10 @@ impl Signer<[u8; 0]> for NoneKey {
     fn algorithm(&self) -> JsonWebSigningAlgorithm {
         JsonWebSigningAlgorithm::None
     }
+
+    fn key_id(&self) -> Option<&str> {
+        Some("none")
+    }
 }
 
 struct NoneVerifier;
@@ -83,11 +87,22 @@ impl Verifier for NoneVerifier {
 }
 
 #[test]
+fn signer_without_key_id() {
+    let signer = NoneKey;
+
+    assert_eq!(signer.key_id(), Some("none"));
+
+    let without_key_id = signer.without_key_id();
+
+    assert_eq!(without_key_id.key_id(), None);
+}
+
+#[test]
 fn none_verifier_roundtrip() {
     let jws = Jws::<Compact, _>::builder()
         .build(StringPayload::from("abc"))
         .unwrap();
-    let jws_compact = jws.sign(&mut NoneKey).unwrap().encode();
+    let jws_compact = jws.sign(&mut NoneKey.without_key_id()).unwrap().encode();
 
     assert_eq!(
         jws_compact.to_string(),
