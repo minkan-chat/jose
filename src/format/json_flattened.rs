@@ -38,7 +38,7 @@ impl fmt::Display for JsonFlattened {
     }
 }
 
-impl sealed::SealedFormat for JsonFlattened {
+impl sealed::SealedFormat<JsonFlattened> for JsonFlattened {
     type JwsHeader = JoseHeader<JsonFlattened, header::Jws>;
     type SerializedJwsHeader = (Option<Base64UrlString>, Option<Value>);
 
@@ -104,5 +104,12 @@ impl sealed::SealedFormat for JsonFlattened {
             },
             signature,
         })
+    }
+
+    fn finalize_jws_header_builder(
+        value_ref: &mut Result<Self::JwsHeader, header::JoseHeaderBuilderError>,
+        new_builder: header::JoseHeaderBuilder<JsonFlattened, header::Jws>,
+    ) {
+        *value_ref = new_builder.build();
     }
 }

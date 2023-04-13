@@ -17,7 +17,7 @@ pub struct Compact {
 }
 
 impl Format for Compact {}
-impl sealed::SealedFormat for Compact {
+impl sealed::SealedFormat<Compact> for Compact {
     type JwsHeader = JoseHeader<Compact, header::Jws>;
     type SerializedJwsHeader = Base64UrlString;
 
@@ -84,6 +84,13 @@ impl sealed::SealedFormat for Compact {
         compact.push(signature);
 
         Ok(compact)
+    }
+
+    fn finalize_jws_header_builder(
+        value_ref: &mut Result<Self::JwsHeader, header::JoseHeaderBuilderError>,
+        new_builder: header::JoseHeaderBuilder<Compact, header::Jws>,
+    ) {
+        *value_ref = new_builder.build();
     }
 }
 
