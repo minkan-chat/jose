@@ -65,8 +65,9 @@ impl<T> Unverified<T> {
 /// parsed from user input, but the data integrity was not verified, thus it
 /// might contain corrupted or malicious data.
 ///
-/// Compared to [`Unverified`] this type can contain multiple signatures that need to be verified.
-/// An instance of this type can only be obtained by decoding a JWS using the [`JsonGeneral`] format.
+/// Compared to [`Unverified`] this type can contain multiple signatures that
+/// need to be verified. An instance of this type can only be obtained by
+/// decoding a JWS using the [`JsonGeneral`] format.
 #[derive(Debug)]
 pub struct ManyUnverified<T> {
     pub(crate) value: T,
@@ -75,7 +76,8 @@ pub struct ManyUnverified<T> {
 }
 
 impl<T> ManyUnverified<T> {
-    /// Parses a JWS in the [`JsonGeneral`] format into an unverified representation of `T`.
+    /// Parses a JWS in the [`JsonGeneral`] format into an unverified
+    /// representation of `T`.
     ///
     /// # Errors
     ///
@@ -98,9 +100,11 @@ impl<T> ManyUnverified<T> {
     ///
     /// # Errors
     ///
-    /// Returns an error if the number of verifiers does not match the number of signatures,
-    /// or if anything went wrong during a signature verification or if one of the signatures is just invalid.
-    // TODO: consider using a more specific error type to give the usermore information about the error
+    /// Returns an error if the number of verifiers does not match the number of
+    /// signatures, or if anything went wrong during a signature
+    /// verification or if one of the signatures is just invalid.
+    // TODO: consider using a more specific error type to give the usermore
+    // information about the error
     pub fn verify_many<'a>(
         self,
         verifiers: impl IntoIterator<Item = &'a mut dyn Verifier>,

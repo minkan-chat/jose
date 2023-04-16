@@ -1,16 +1,15 @@
+use alloc::{string::String, vec, vec::Vec};
 use core::{convert::Infallible, fmt};
 
-use alloc::{string::String, vec, vec::Vec};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::{sealed, Format};
 use crate::{
     header::{self, JoseHeaderBuilder, JoseHeaderBuilderError},
     jws::{PayloadKind, SignError, Signer},
     Base64UrlString, JoseHeader,
 };
-
-use super::{sealed, Format};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct Signature {
@@ -21,7 +20,8 @@ pub(crate) struct Signature {
     pub(crate) signature: Base64UrlString,
 }
 
-/// The JSON General Serialization format as specified in [Section 7.2.1] in the JWS RFC.
+/// The JSON General Serialization format as specified in [Section 7.2.1] in the
+/// JWS RFC.
 ///
 /// [Section 7.2.1]: https://datatracker.ietf.org/doc/html/rfc7515#section-7.2.1
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -46,7 +46,6 @@ impl Format for JsonGeneral {}
 
 impl sealed::SealedFormat<JsonGeneral> for JsonGeneral {
     type JwsHeader = Vec<JoseHeader<JsonGeneral, header::Jws>>;
-
     // this only a single header, even though JsonGeneral supports multiple headers,
     // because this trait implementation is only be used for a single signer.
     type SerializedJwsHeader = (

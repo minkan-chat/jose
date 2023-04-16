@@ -251,8 +251,8 @@ impl<T: ProvidePayload> JsonWebSignature<JsonGeneral, T> {
         signers: impl IntoIterator<Item = &'s mut dyn Signer<S, Digest = D>>,
     ) -> Result<Signed<JsonGeneral>, SignError<T::Error>> {
         if self.header.is_empty() {
-            // this is unreachable right now, but we don't want to panic, so just return a kind of
-            // matching error
+            // this is unreachable right now, but we don't want to panic, so just return a
+            // kind of matching error
             return Err(SignError::HeaderCountMismatch);
         }
 
@@ -466,8 +466,8 @@ impl<T: FromRawPayload> DecodeFormat<JsonFlattened> for JsonWebSignature<JsonFla
 }
 
 impl<T: FromRawPayload> DecodeFormat<JsonGeneral> for JsonWebSignature<JsonGeneral, T> {
-    type Error = ParseJsonError<T::Error>;
     type Decoded<D> = ManyUnverified<D>;
+    type Error = ParseJsonError<T::Error>;
 
     fn decode(
         JsonGeneral {
