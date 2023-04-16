@@ -245,7 +245,15 @@ impl<F: Format, T: ProvidePayload> JsonWebSignature<F, T> {
 }
 
 impl<T: ProvidePayload> JsonWebSignature<JsonGeneral, T> {
+    /// Signs this JWS using multiple signers.
+    ///
+    /// This is only supported when the JWS is in the [`JsonGeneral`] format.
+    ///
     /// # Errors
+    ///
+    /// Returns an error if the length of the given iterator of signers does
+    /// not match the number of headers in this JWS.
+    /// Otherwise, this method may return the same errors as the normal sign operation.
     pub fn sign_many<'s, S: AsRef<[u8]> + 's, D: digest::Update + 's>(
         mut self,
         signers: impl IntoIterator<Item = &'s mut dyn Signer<S, Digest = D>>,
