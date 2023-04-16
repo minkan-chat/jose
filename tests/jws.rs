@@ -225,7 +225,7 @@ fn smoke() {
         .unwrap()
         .encode();
 
-    let verifiers: [&mut dyn Verifier; 2] = [&mut verifier2, &mut verifier2];
+    let verifiers: [&mut dyn Verifier; 2] = [&mut verifier, &mut verifier2];
     let parsed_jws = ManyUnverified::<Jws<JsonGeneral, StringPayload>>::decode(jws)
         .unwrap()
         .verify_many(verifiers)
