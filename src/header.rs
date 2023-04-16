@@ -133,11 +133,28 @@ where
 {
     /// Method to override the alg and kid fields.
     /// Only intended for internal usage.
-    pub(crate) fn set_alg_and_key_id(
+    pub(crate) fn overwrite_alg_and_key_id(
         &mut self,
-        alg: HeaderValue<JsonWebSigningAlgorithm>,
-        kid: Option<HeaderValue<String>>,
+        alg: JsonWebSigningAlgorithm,
+        kid: Option<&str>,
     ) {
+        let is_protected = matches!(self.algorithm(), HeaderValue::Protected(_));
+
+        let alg = if is_protected {
+            HeaderValue::Protected(alg)
+        } else {
+            HeaderValue::Unprotected(alg)
+        };
+
+        let kid = kid.map(|s| {
+            let kid = s.to_string();
+            if is_protected {
+                HeaderValue::Protected(kid)
+            } else {
+                HeaderValue::Unprotected(kid)
+            }
+        });
+
         self.parameters.key_id = kid;
         self.parameters.specific.algorithm = alg;
     }

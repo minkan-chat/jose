@@ -68,7 +68,7 @@ impl PolicyError for StandardPolicyFail {
 /// - `key_ops` field must not contain [`KeyOperation::Other`] because it can't
 ///   be verified
 #[non_exhaustive]
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct StandardPolicy;
 
 impl StandardPolicy {
