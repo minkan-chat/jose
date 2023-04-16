@@ -6,18 +6,23 @@
 use std::{convert::Infallible, string::FromUtf8Error};
 
 use jose::{
-    format::{Compact, JsonFlattened},
+    format::{Compact, JsonFlattened, JsonGeneral},
     header::HeaderValue,
-    jwa::{EcDSA, JsonWebSigningAlgorithm},
+    jwa::{EcDSA, Hmac, JsonWebSigningAlgorithm},
     jwk::{
         ec::p256::{P256PrivateKey, P256Signer, P256Verifier},
-        JwkSigner,
+        rsa::{RsaPrivateKey, RsaSigner},
+        symmetric::{
+            hmac::{HmacKey, Hs256},
+            OctetSequence,
+        },
+        JwkSigner, JwkVerifier, SymmetricJsonWebKey,
     },
     jws::{
-        FromRawPayload, IntoSigner, IntoVerifier, PayloadKind, ProvidePayload, Signer, Unverified,
-        Verifier,
+        FromRawPayload, IntoSigner, IntoVerifier, ManyUnverified, PayloadKind, ProvidePayload,
+        Signer, Unverified, Verifier,
     },
-    policy::{Checkable, StandardPolicy},
+    policy::{Checkable, StandardPolicy, StandardPolicyFail},
     Base64UrlString, JsonWebKey, Jws,
 };
 
@@ -188,39 +193,45 @@ fn smoke() {
     ))
     .unwrap();
 
-    let key: P256PrivateKey = serde_json::from_str(&key).unwrap();
+    let key2 = std::fs::read_to_string(format!(
+        "{}/tests/keys/hs256.json",
+        env!("CARGO_MANIFEST_DIR"),
+    ))
+    .unwrap();
 
-    let mut verifier: P256Verifier = key
-        .clone()
-        .into_verifier(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
-        .unwrap();
+    let key: JsonWebKey = serde_json::from_str(&key).unwrap();
+    let key = key.check(StandardPolicy::new()).unwrap();
 
-    let mut signer: P256Signer = key
-        .into_signer(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
-        .unwrap();
+    let key2: JsonWebKey = serde_json::from_str(&key2).unwrap();
+    let key2 = key2.check(StandardPolicy::new()).unwrap();
+
+    let mut signer = JwkSigner::try_from(key.clone()).unwrap();
+    let mut signer2 = JwkSigner::try_from(key2.clone()).unwrap();
+
+    let mut verifier = JwkVerifier::try_from(key).unwrap();
+    let mut verifier2 = JwkVerifier::try_from(key2).unwrap();
 
     let payload = r#"{"iss":"joe","exp":1300819380,"http://example.com/is_root":true}"#;
     let payload = StringPayload::from(payload);
 
-    let jws = Jws::<JsonFlattened, _>::builder()
-        .header(|b| {
-            b.algorithm(HeaderValue::Protected(JsonWebSigningAlgorithm::None))
-                .typ(Some(HeaderValue::Protected(
-                    "application/jwt".parse().unwrap(),
-                )))
-        })
+    let signers: [&mut dyn Signer<Vec<u8>, Digest = _>; 2] = [&mut signer, &mut signer2];
+
+    let jws = Jws::<JsonGeneral, _>::builder()
+        .header(|b| b)
+        .header(|b| b)
         .build(payload)
         .unwrap()
-        .sign(&mut signer)
+        .sign_many(signers)
         .unwrap()
         .encode();
 
-    let parsed_jws = Unverified::<Jws<JsonFlattened, StringPayload>>::decode(jws)
+    let verifiers: [&mut dyn Verifier; 2] = [&mut verifier, &mut verifier2];
+    let parsed_jws = ManyUnverified::<Jws<JsonGeneral, StringPayload>>::decode(jws)
         .unwrap()
-        .verify(&mut verifier)
+        .verify_many(verifiers)
         .unwrap();
 
-    println!("{:?}", parsed_jws);
+    println!("{:#?}", parsed_jws);
 }
 
 // #[test]

@@ -2,13 +2,13 @@
 //!
 //! [RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515>
 
-use alloc::string::String;
+use alloc::{format, string::String, vec, vec::Vec};
 
 use base64ct::{Base64UrlUnpadded, Encoding};
 use thiserror_no_std::Error;
 
 use crate::{
-    format::{Compact, DecodeFormat, Format, JsonFlattened},
+    format::{Compact, DecodeFormat, Format, JsonFlattened, JsonGeneral, JsonGeneralSignature},
     header, Base64UrlString, JoseHeader,
 };
 
@@ -110,6 +110,12 @@ pub trait FromRawPayload: Sized {
 /// Different kinds of errors that can occurr while signing a JWS.
 #[derive(Debug, Error)]
 pub enum SignError<P> {
+    /// The number of headers in the JWS does not match the number of
+    /// [`Signer`]s.
+    ///
+    /// This error is only possible when using the [`JsonGeneral`] format.
+    #[error("the number of headers does not match the number of signers")]
+    HeaderCountMismatch,
     /// Failed to serialize the [`JoseHeader`](crate::header::JoseHeader).
     #[error("failed to serialize header: {0}")]
     SerializeHeader(#[source] serde_json::Error),
@@ -175,6 +181,21 @@ impl<T> JsonWebSignature<Compact, T> {
     }
 }
 
+impl<T> JsonWebSignature<JsonFlattened, T> {
+    /// Returns a reference to the [`JoseHeader`](crate::header::JoseHeader) of
+    /// this JWS.
+    pub fn header(&self) -> &JoseHeader<JsonFlattened, header::Jws> {
+        &self.header
+    }
+}
+
+impl<T> JsonWebSignature<JsonGeneral, T> {
+    /// Returns a reference to the list of [`JoseHeader`] of this JWS.
+    pub fn header(&self) -> &Vec<JoseHeader<JsonGeneral, header::Jws>> {
+        &self.header
+    }
+}
+
 impl<F: Format, T: ProvidePayload> JsonWebSignature<F, T> {
     /// Signs this [`JsonWebSignature`] using the given `signer`.
     ///
@@ -200,6 +221,7 @@ impl<F: Format, T: ProvidePayload> JsonWebSignature<F, T> {
         let mut digest = signer.new_digest();
         let serialized_header =
             F::provide_header(self.header, &mut digest).map_err(|x| match x {
+                SignError::HeaderCountMismatch => SignError::HeaderCountMismatch,
                 SignError::SerializeHeader(x) => SignError::SerializeHeader(x),
                 SignError::InvalidHeader(x) => SignError::InvalidHeader(x),
                 SignError::EmptyProtectedHeader => SignError::EmptyProtectedHeader,
@@ -218,6 +240,92 @@ impl<F: Format, T: ProvidePayload> JsonWebSignature<F, T> {
         Ok(Signed {
             value: F::finalize(serialized_header, payload, signature.as_ref())
                 .map_err(SignError::SerializeHeader)?,
+        })
+    }
+}
+
+impl<T: ProvidePayload> JsonWebSignature<JsonGeneral, T> {
+    /// Signs this JWS using multiple signers.
+    ///
+    /// This is only supported when the JWS is in the [`JsonGeneral`] format.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the length of the given iterator of signers does
+    /// not match the number of headers in this JWS.
+    /// Otherwise, this method may return the same errors as the normal sign
+    /// operation.
+    pub fn sign_many<'s, S: AsRef<[u8]> + 's, D: digest::Update + 's>(
+        mut self,
+        signers: impl IntoIterator<Item = &'s mut dyn Signer<S, Digest = D>>,
+    ) -> Result<Signed<JsonGeneral>, SignError<T::Error>> {
+        if self.header.is_empty() {
+            // this is unreachable right now, but we don't want to panic, so just return a
+            // kind of matching error
+            return Err(SignError::HeaderCountMismatch);
+        }
+
+        let signers = signers.into_iter().collect::<Vec<_>>();
+
+        if signers.len() != self.header.len() {
+            return Err(SignError::HeaderCountMismatch);
+        }
+
+        let mut final_payload = None;
+        let mut signatures = vec![];
+
+        for (mut hdr, signer) in self.header.into_iter().zip(signers) {
+            hdr.overwrite_alg_and_key_id(signer.algorithm(), signer.key_id());
+
+            let mut digest = signer.new_digest();
+
+            let serialized_hdr = {
+                let (protected, unprotected) =
+                    hdr.into_values().map_err(SignError::InvalidHeader)?;
+
+                let protected = match protected {
+                    Some(hdr) => {
+                        let json =
+                            serde_json::to_string(&hdr).map_err(SignError::SerializeHeader)?;
+
+                        let encoded = Base64UrlString::encode(json);
+                        digest.update(encoded.as_bytes());
+                        Some(encoded)
+                    }
+                    None => None,
+                };
+
+                (protected, unprotected)
+            };
+
+            digest.update(b".");
+
+            let payload = self
+                .payload
+                .provide_payload(&mut digest)
+                .map_err(SignError::Payload)?;
+
+            if final_payload.is_none() {
+                final_payload = Some(payload);
+            }
+
+            let signature = signer.sign_digest(digest).map_err(SignError::Sign)?;
+
+            signatures.push(JsonGeneralSignature {
+                protected: serialized_hdr.0,
+                header: serialized_hdr.1,
+                signature: Base64UrlString::encode(signature.as_ref()),
+            });
+        }
+
+        let final_payload = final_payload.expect("payload must be set");
+        let PayloadKind::Standard(payload) = final_payload;
+
+        Ok(Signed {
+            value: JsonGeneral {
+                payload,
+                signatures,
+            },
         })
     }
 }
@@ -282,7 +390,7 @@ impl<T: FromRawPayload> DecodeFormat<Compact> for JsonWebSignature<Compact, T> {
 
         let raw_payload = Base64UrlUnpadded::encode_string(&raw_payload);
 
-        let msg = alloc::format!("{}.{}", raw_header, raw_payload);
+        let msg = format!("{}.{}", raw_header, raw_payload);
 
         Ok(Unverified {
             value: JsonWebSignature { header, payload },
@@ -292,13 +400,34 @@ impl<T: FromRawPayload> DecodeFormat<Compact> for JsonWebSignature<Compact, T> {
     }
 }
 
+fn parse_json_header<F: Format, E>(
+    protected: Option<Base64UrlString>,
+    header: Option<serde_json::Map<String, serde_json::Value>>,
+) -> Result<JoseHeader<F, header::Jws>, ParseJsonError<E>> {
+    let protected = match protected {
+        Some(encoded) => {
+            let json = String::from_utf8(encoded.decode())
+                .map_err(|_| ParseJsonError::InvalidUtf8Encoding)?;
+
+            let values = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&json)
+                .map_err(ParseJsonError::InvalidJson)?;
+            Some(values)
+        }
+        None => None,
+    };
+
+    JoseHeader::from_values(protected, header).map_err(ParseJsonError::InvalidHeader)
+}
+
 /// Different kinds of errors that can occurr while parsing a JWS from it's
 /// JSON, general or flattened, format.
 #[derive(Debug, Error)]
 pub enum ParseJsonError<P> {
-    /// Unprotected `header` field must be a JSON object.
-    #[error("unprotected header field must be a JSON object")]
-    UnprotectedMustBeObject,
+    /// The `signatures` array was empty.
+    ///
+    /// This error can only happen when decoding the [`JsonGeneral`] format.
+    #[error("the signatures array was empty")]
+    EmptySignatures,
     /// The header of the JWS is invalid.
     #[error("invalid JWS header: {0}")]
     InvalidHeader(#[source] header::Error),
@@ -326,33 +455,11 @@ impl<T: FromRawPayload> DecodeFormat<JsonFlattened> for JsonWebSignature<JsonFla
         }: JsonFlattened,
     ) -> Result<Self::Decoded<Self>, Self::Error> {
         let msg = match protected {
-            Some(ref protected) => alloc::format!("{}.{}", protected, payload),
-            None => alloc::format!(".{}", payload),
+            Some(ref protected) => format!("{}.{}", protected, payload),
+            None => format!(".{}", payload),
         };
 
-        let header = {
-            let protected = match protected {
-                Some(encoded) => {
-                    let json = String::from_utf8(encoded.decode())
-                        .map_err(|_| ParseJsonError::InvalidUtf8Encoding)?;
-
-                    let values =
-                        serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&json)
-                            .map_err(ParseJsonError::InvalidJson)?;
-                    Some(values)
-                }
-                None => None,
-            };
-
-            let unprotected = match header {
-                Some(serde_json::Value::Object(values)) => Some(values),
-                Some(_) => return Err(ParseJsonError::UnprotectedMustBeObject),
-                None => None,
-            };
-
-            JoseHeader::from_values(protected, unprotected)
-                .map_err(ParseJsonError::InvalidHeader)?
-        };
+        let header = parse_json_header(protected, header)?;
 
         let payload = {
             let payload_kind = PayloadKind::Standard(payload);
@@ -363,6 +470,50 @@ impl<T: FromRawPayload> DecodeFormat<JsonFlattened> for JsonWebSignature<JsonFla
             value: JsonWebSignature { header, payload },
             signature: signature.decode(),
             msg: msg.into_bytes(),
+        })
+    }
+}
+
+impl<T: FromRawPayload> DecodeFormat<JsonGeneral> for JsonWebSignature<JsonGeneral, T> {
+    type Decoded<D> = ManyUnverified<D>;
+    type Error = ParseJsonError<T::Error>;
+
+    fn decode(
+        JsonGeneral {
+            payload,
+            signatures,
+        }: JsonGeneral,
+    ) -> Result<Self::Decoded<Self>, Self::Error> {
+        if signatures.is_empty() {
+            return Err(ParseJsonError::EmptySignatures);
+        }
+
+        let mut headers = vec![];
+        let mut unverified_signatures = vec![];
+
+        for sig in signatures {
+            let msg = match sig.protected {
+                Some(ref protected) => format!("{}.{}", protected, payload),
+                None => format!(".{}", payload),
+            };
+
+            let header = parse_json_header(sig.protected, sig.header)?;
+
+            headers.push(header);
+            unverified_signatures.push((msg.into_bytes(), sig.signature.decode()));
+        }
+
+        let payload = {
+            let payload_kind = PayloadKind::Standard(payload);
+            T::from_raw_payload(payload_kind).map_err(ParseJsonError::Payload)?
+        };
+
+        Ok(ManyUnverified {
+            value: JsonWebSignature {
+                header: headers,
+                payload,
+            },
+            signatures: unverified_signatures,
         })
     }
 }

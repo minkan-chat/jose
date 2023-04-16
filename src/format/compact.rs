@@ -1,10 +1,10 @@
-use alloc::{string::ToString, vec::Vec};
+use alloc::vec::Vec;
 use core::{fmt, str::FromStr};
 
 use super::{sealed, Format};
 use crate::{
     base64_url::NoBase64UrlString,
-    header::{self, HeaderValue},
+    header,
     jws::{PayloadKind, SignError, Signer},
     Base64UrlString, JoseHeader,
 };
@@ -25,24 +25,7 @@ impl sealed::SealedFormat<Compact> for Compact {
         header: &mut Self::JwsHeader,
         signer: &dyn Signer<S, Digest = D>,
     ) {
-        let is_protected = matches!(header.algorithm(), HeaderValue::Protected(_));
-
-        let alg = if is_protected {
-            HeaderValue::Protected(signer.algorithm())
-        } else {
-            HeaderValue::Unprotected(signer.algorithm())
-        };
-
-        let kid = signer.key_id().map(|s| {
-            let kid = s.to_string();
-            if is_protected {
-                HeaderValue::Protected(kid)
-            } else {
-                HeaderValue::Unprotected(kid)
-            }
-        });
-
-        header.set_alg_and_key_id(alg, kid);
+        header.overwrite_alg_and_key_id(signer.algorithm(), signer.key_id());
     }
 
     fn provide_header<D: digest::Update>(

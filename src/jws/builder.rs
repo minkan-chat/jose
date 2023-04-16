@@ -8,18 +8,12 @@ use crate::{
 /// Builds a [`JsonWebSignature`] with custom header parameters.
 #[derive(Debug)]
 pub struct JsonWebSignatureBuilder<F: Format> {
-    header: Result<F::JwsHeader, JoseHeaderBuilderError>,
+    header: Option<Result<F::JwsHeader, JoseHeaderBuilderError>>,
 }
 
 impl<F: Format> JsonWebSignatureBuilder<F> {
     pub(super) fn new() -> Self {
-        let default_header = JoseHeader::<F, header::Jws>::builder()
-            .algorithm(HeaderValue::Protected(JsonWebSigningAlgorithm::None));
-
-        let mut header = Err(JoseHeaderBuilderError::MissingAlgorithm);
-        F::finalize_jws_header_builder(&mut header, default_header);
-
-        Self { header }
+        Self { header: None }
     }
 
     /// Configures the custom header for this [`JsonWebSignature`].
@@ -56,25 +50,30 @@ impl<F: Format> JsonWebSignatureBuilder<F> {
     /// ```
     ///
     /// [JWS RFC]: <https://datatracker.ietf.org/doc/html/rfc7515>
-    // TODO: Add support for JsonGeneral
     pub fn header<
         CB: Fn(JoseHeaderBuilder<F, header::Jws>) -> JoseHeaderBuilder<F, header::Jws>,
     >(
         mut self,
         callback: CB,
     ) -> Self {
-        // when there was an error setting the previous header,
-        // do not overwrite the header value, because we want
-        // to keep the error and report it in the `build` method
-        if self.header.is_err() {
-            return self;
-        }
+        let mut header = match self.header {
+            Some(Ok(hdr)) => Ok(hdr),
+
+            // when there was an error setting the previous header,
+            // do not overwrite the header value, because we want
+            // to keep the error and report it in the `build` method
+            Some(Err(_)) => return self,
+
+            // this `Err` value is just used as a placeholder to be replaced
+            None => Err(JoseHeaderBuilderError::MissingAlgorithm),
+        };
 
         let builder = JoseHeader::<F, header::Jws>::builder()
             .algorithm(HeaderValue::Protected(JsonWebSigningAlgorithm::None));
         let builder = callback(builder);
 
-        F::finalize_jws_header_builder(&mut self.header, builder);
+        F::finalize_jws_header_builder(&mut header, builder);
+        self.header = Some(header);
 
         self
     }
@@ -85,6 +84,18 @@ impl<F: Format> JsonWebSignatureBuilder<F> {
     ///
     /// Fails if the supplied header parameters were invalid.
     pub fn build<T>(self, payload: T) -> Result<JsonWebSignature<F, T>, JoseHeaderBuilderError> {
-        Ok(JsonWebSignature::new(self.header?, payload))
+        let header = match self.header {
+            Some(hdr) => hdr?,
+            None => {
+                let default_header = JoseHeader::<F, header::Jws>::builder()
+                    .algorithm(HeaderValue::Protected(JsonWebSigningAlgorithm::None));
+
+                let mut header = Err(JoseHeaderBuilderError::MissingAlgorithm);
+                F::finalize_jws_header_builder(&mut header, default_header);
+                header?
+            }
+        };
+
+        Ok(JsonWebSignature::new(header, payload))
     }
 }
