@@ -253,7 +253,8 @@ impl<T: ProvidePayload> JsonWebSignature<JsonGeneral, T> {
     ///
     /// Returns an error if the length of the given iterator of signers does
     /// not match the number of headers in this JWS.
-    /// Otherwise, this method may return the same errors as the normal sign operation.
+    /// Otherwise, this method may return the same errors as the normal sign
+    /// operation.
     pub fn sign_many<'s, S: AsRef<[u8]> + 's, D: digest::Update + 's>(
         mut self,
         signers: impl IntoIterator<Item = &'s mut dyn Signer<S, Digest = D>>,
