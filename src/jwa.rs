@@ -341,8 +341,7 @@ mod tests {
         let jwe = "dir";
         let jwa: JsonWebAlgorithm =
             serde_json::from_value(serde_json::Value::String(jwe.to_string())).unwrap();
-        extern crate std;
-        std::dbg!(&jwa);
+
         assert!(matches!(
             jwa,
             JsonWebAlgorithm::Encryption(JsonWebEncryptionAlgorithm::Direct)
