@@ -1,5 +1,3 @@
-use alloc::borrow::ToOwned;
-
 use super::{
     ec::{
         p256::P256Verifier, p384::P384Verifier, secp256k1::Secp256k1Verifier, EcPrivate, EcPublic,
@@ -110,8 +108,8 @@ where
         }
 
         match alg {
-            JsonWebAlgorithm::Encryption(..) => Err(FromJwkError::InvalidAlgorithm),
             JsonWebAlgorithm::Signing(alg) => Self::new(jwk.into_type().key_type, alg),
+            _ => Err(FromJwkError::InvalidAlgorithm),
         }
     }
 }
@@ -130,8 +128,9 @@ where
     fn try_from(jwk: Checked<JsonWebKey<T>, P>) -> Result<Self, Self::Error> {
         let alg = jwk
             .algorithm()
-            .ok_or(FromJwkError::InvalidAlgorithm)?
-            .to_owned();
+            .and_then(|x| x.clone().into_jwa())
+            .ok_or(FromJwkError::InvalidAlgorithm)?;
+
         JwkVerifier::from_key(jwk, alg)
     }
 }

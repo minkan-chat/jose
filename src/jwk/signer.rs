@@ -1,4 +1,4 @@
-use alloc::{borrow::ToOwned, string::String, vec::Vec};
+use alloc::{string::String, vec::Vec};
 
 use digest::Update;
 
@@ -212,8 +212,9 @@ where
     fn try_from(jwk: Checked<JsonWebKey<T>, P>) -> Result<Self, Self::Error> {
         let alg = jwk
             .algorithm()
-            .ok_or(FromJwkError::InvalidAlgorithm)?
-            .to_owned();
+            .and_then(|x| x.clone().into_jwa())
+            .ok_or(FromJwkError::InvalidAlgorithm)?;
+
         let kid = jwk.kid.clone();
         let mut signer = JwkSigner::from_key(jwk, alg)?;
         signer.key_id = kid;
@@ -246,8 +247,8 @@ where
         }
 
         match alg {
-            JsonWebAlgorithm::Encryption(..) => Err(InvalidSigningAlgorithmError.into()),
             JsonWebAlgorithm::Signing(alg) => Self::new(jwk.into_type().key_type, alg),
+            _ => Err(InvalidSigningAlgorithmError.into()),
         }
     }
 }

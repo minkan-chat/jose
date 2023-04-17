@@ -11,9 +11,9 @@ mod hmac;
 mod pbes2;
 mod rsa;
 
-use alloc::string::String;
+use alloc::{borrow::Cow, string::String};
 
-use serde::{Deserialize, Serialize};
+use serde::{de::value::CowStrDeserializer, Deserialize, Serialize};
 
 #[doc(inline)]
 pub use self::{
@@ -27,18 +27,114 @@ pub use self::{
     rsa::{RsaSigning, RsaesOaep, RsassaPkcs1V1_5, RsassaPss},
 };
 
-/// Either a JSON Web Algorithm for signing operations, or an algorithm for
-/// encryption operations. Possible values should be registered in the [IANA
-/// `JSON Web Signature and Encryption Algorithms` registry][1].
+/// Either a JSON Web Algorithm for signing operations, an algorithm for content
+/// encryption operations or an algorithm for encryption operations.
+/// Possible values should be registered in the [IANA `JSON Web Signature and Encryption Algorithms` registry][1].
 ///
 /// [1]: <https://www.iana.org/assignments/jose/jose.xhtml#web-signature-encryption-algorithms>
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 #[serde(untagged)]
 pub enum JsonWebAlgorithm {
     /// Signing algorithm.
     Signing(JsonWebSigningAlgorithm),
     /// Encryption algorithm.
     Encryption(JsonWebEncryptionAlgorithm),
+    /// Unknown algorithm.
+    Other(String),
+}
+
+impl JsonWebAlgorithm {
+    /// Turn this algorithm into a [`JsonWebKeyAlgorithm`].
+    pub fn into_jwk_algorithm(self) -> JsonWebKeyAlgorithm {
+        match self {
+            Self::Signing(alg) => JsonWebKeyAlgorithm::Signing(alg),
+            Self::Encryption(alg) => JsonWebKeyAlgorithm::Encryption(alg),
+            Self::Other(alg) => JsonWebKeyAlgorithm::Other(alg),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for JsonWebAlgorithm {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let val = <Cow<'_, str> as Deserialize>::deserialize(deserializer)?;
+        let deser = CowStrDeserializer::<'_, D::Error>::new(val.clone());
+
+        let signing = <JsonWebSigningAlgorithm as Deserialize>::deserialize(deser.clone())?;
+        let encryption = <JsonWebEncryptionAlgorithm as Deserialize>::deserialize(deser.clone())?;
+
+        if !matches!(signing, JsonWebSigningAlgorithm::Other(_)) {
+            return Ok(Self::Signing(signing));
+        }
+
+        if !matches!(encryption, JsonWebEncryptionAlgorithm::Other(_)) {
+            return Ok(Self::Encryption(encryption));
+        }
+
+        Ok(Self::Other(val.into_owned()))
+    }
+}
+
+/// Either a JSON Web Algorithm for signing operations, an algorithm for content
+/// encryption operations or an algorithm for encryption operations.
+/// Possible values should be registered in the [IANA `JSON Web Signature and Encryption Algorithms` registry][1].
+///
+/// [1]: <https://www.iana.org/assignments/jose/jose.xhtml#web-signature-encryption-algorithms>
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
+#[serde(untagged)]
+pub enum JsonWebKeyAlgorithm {
+    /// Signing algorithm.
+    Signing(JsonWebSigningAlgorithm),
+    /// Encryption algorithm.
+    Encryption(JsonWebEncryptionAlgorithm),
+    /// Content encryption algorithm.
+    ContentEncryption(JsonWebContentEncryptionAlgorithm),
+    /// Unknown algorithm.
+    Other(String),
+}
+
+impl JsonWebKeyAlgorithm {
+    /// Turn this algorithm into a [`JsonWebAlgorithm`], if possible.
+    ///
+    /// This will return [`None`] if the algorithm is a content encryption algorithm.
+    pub fn into_jwa(self) -> Option<JsonWebAlgorithm> {
+        match self {
+            Self::Signing(alg) => Some(JsonWebAlgorithm::Signing(alg)),
+            Self::Encryption(alg) => Some(JsonWebAlgorithm::Encryption(alg)),
+            Self::ContentEncryption(..) => None,
+            Self::Other(alg) => Some(JsonWebAlgorithm::Other(alg)),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for JsonWebKeyAlgorithm {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let val = <Cow<'_, str> as Deserialize>::deserialize(deserializer)?;
+        let deser = CowStrDeserializer::<'_, D::Error>::new(val.clone());
+
+        let signing = <JsonWebSigningAlgorithm as Deserialize>::deserialize(deser.clone())?;
+        let encryption = <JsonWebEncryptionAlgorithm as Deserialize>::deserialize(deser.clone())?;
+        let content = <JsonWebContentEncryptionAlgorithm as Deserialize>::deserialize(deser)?;
+
+        if !matches!(signing, JsonWebSigningAlgorithm::Other(_)) {
+            return Ok(Self::Signing(signing));
+        }
+
+        if !matches!(encryption, JsonWebEncryptionAlgorithm::Other(_)) {
+            return Ok(Self::Encryption(encryption));
+        }
+
+        if !matches!(content, JsonWebContentEncryptionAlgorithm::Other(_)) {
+            return Ok(Self::ContentEncryption(content));
+        }
+
+        Ok(Self::Other(val.into_owned()))
+    }
 }
 
 /// A JSON Web Algorithm (JWA) for singing operations (JWS) as defined in [RFC
@@ -118,8 +214,6 @@ impl_serde_jwa!(
 
         "none" => Self::None; Self::None,
 
-        contrary: <JsonWebEncryptionAlgorithm>::Other,
-
         expected: "a JSON Web Signing Algorithm",
         got: "JSON Web Encryption Algorithm",
     ]
@@ -194,8 +288,6 @@ impl_serde_jwa!(
         "PBES2-HS384+A192KW" => Self::Pbes2(Pbes2::Hs384Aes192); Self::Pbes2(Pbes2::Hs384Aes192),
         "PBES2-HS512+A256KW" => Self::Pbes2(Pbes2::Hs512Aes256); Self::Pbes2(Pbes2::Hs512Aes256),
 
-        contrary: <JsonWebSigningAlgorithm>::Other,
-
         expected: "a JSON Web Encryption Algorithm",
         got: "JSON Web Signing Algorithm",
     ]
@@ -239,14 +331,21 @@ impl_serde_jwa!(
     ]
 );
 
-#[test]
-fn test_others_not_stealing() {
-    use alloc::string::ToString;
-    let jwe = "dir";
-    let jwa: JsonWebAlgorithm =
-        serde_json::from_value(serde_json::Value::String(jwe.to_string())).unwrap();
-    assert!(matches!(
-        jwa,
-        JsonWebAlgorithm::Encryption(JsonWebEncryptionAlgorithm::Direct)
-    ));
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_others_not_stealing() {
+        use alloc::string::ToString;
+        let jwe = "dir";
+        let jwa: JsonWebAlgorithm =
+            serde_json::from_value(serde_json::Value::String(jwe.to_string())).unwrap();
+        extern crate std;
+        std::dbg!(&jwa);
+        assert!(matches!(
+            jwa,
+            JsonWebAlgorithm::Encryption(JsonWebEncryptionAlgorithm::Direct)
+        ));
+    }
 }

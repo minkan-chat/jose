@@ -10,7 +10,7 @@ use hashbrown::HashSet;
 pub use standard::{StandardPolicy, StandardPolicyFail};
 
 use crate::{
-    jwa::JsonWebAlgorithm,
+    jwa::JsonWebKeyAlgorithm,
     jwk::{KeyOperation, KeyUsage},
 };
 
@@ -92,7 +92,7 @@ pub trait Policy {
     ///
     /// This should return an [`Err`] if the algorithm is not accepted (e.g.
     /// because it is considered insecure)
-    fn algorithm(&self, alg: &JsonWebAlgorithm) -> Result<(), Self::Error>;
+    fn algorithm(&self, alg: &JsonWebKeyAlgorithm) -> Result<(), Self::Error>;
 
     /// Compares the `use` and `key_ops` parameters
     ///
@@ -179,7 +179,7 @@ pub enum CryptographicOperation {
 impl<P: Policy> Policy for &P {
     type Error = P::Error;
 
-    fn algorithm(&self, alg: &JsonWebAlgorithm) -> Result<(), Self::Error> {
+    fn algorithm(&self, alg: &JsonWebKeyAlgorithm) -> Result<(), Self::Error> {
         P::algorithm(self, alg)
     }
 

@@ -40,7 +40,7 @@ impl IntoJsonWebKey for RsaPublicKey {
     ) -> Result<crate::JsonWebKey, Self::Error> {
         let alg = alg
             .into()
-            .map(|rsa| jwa::JsonWebAlgorithm::Signing(jwa::JsonWebSigningAlgorithm::Rsa(rsa)));
+            .map(|rsa| jwa::JsonWebKeyAlgorithm::Signing(jwa::JsonWebSigningAlgorithm::Rsa(rsa)));
 
         let key = super::JsonWebKeyType::Asymmetric(Box::new(super::AsymmetricJsonWebKey::Public(
             super::Public::Rsa(self),
@@ -145,7 +145,7 @@ impl IntoJsonWebKey for RsaPrivateKey {
     ) -> Result<crate::JsonWebKey, Self::Error> {
         let alg = alg
             .into()
-            .map(|rsa| jwa::JsonWebAlgorithm::Signing(jwa::JsonWebSigningAlgorithm::Rsa(rsa)));
+            .map(|rsa| jwa::JsonWebKeyAlgorithm::Signing(jwa::JsonWebSigningAlgorithm::Rsa(rsa)));
 
         let key = super::JsonWebKeyType::Asymmetric(Box::new(
             super::AsymmetricJsonWebKey::Private(super::Private::Rsa(Box::new(self))),
