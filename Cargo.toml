@@ -45,7 +45,7 @@ elliptic-curve = { version = "0.13", default-features = false, features = [
   "pem",
 ] }
 
-rsa = { version = "0.8.2", default-features = false }
+rsa = { version = "0.9.1", default-features = false }
 digest = { version = "0.10.6", default-features = false, features = ["mac"] }
 ecdsa = { version = "0.16", default-features = false, features = [
   "digest",
