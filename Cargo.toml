@@ -9,21 +9,19 @@ default = []
 std = ["signature/std", "thiserror-no-std/std", "rsa/std", "rand_core/std"]
 
 [dependencies]
-thiserror-no-std = "2.0.2"
+thiserror-no-std = "2.0"
 base64ct = { version = "1.5", default-features = false, features = ["alloc"] }
-serde = { version = "1.0.139", default-features = false, features = [
+serde = { version = "1.0", default-features = false, features = [
   "alloc",
   "derive",
 ] }
-serde_json = { version = "1.0.50", default-features = false, features = [
-  "alloc",
-] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 hashbrown = { version = "0.13", features = ["serde"] }
 rand_core = { version = "0.6", features = ["getrandom", "alloc"] }
 hmac = { version = "0.12", default-features = false }
 sha1 = { version = "0.10", default-features = false, features = ["oid"] }
 sha2 = { version = "0.10", default-features = false, features = ["oid"] }
-ed25519 = { version = "2.2.1", default-features = false, features = ["alloc"] }
+ed25519 = { version = "2.2", default-features = false, features = ["alloc"] }
 p256 = { version = "0.13", default-features = false, features = [
   "arithmetic",
   "ecdsa",
@@ -45,33 +43,36 @@ elliptic-curve = { version = "0.13", default-features = false, features = [
   "pem",
 ] }
 
-rsa = { version = "0.9.2", default-features = false }
-digest = { version = "0.10.6", default-features = false, features = ["mac"] }
+rsa = { version = "0.9", default-features = false }
+digest = { version = "0.10", default-features = false, features = ["mac"] }
 ecdsa = { version = "0.16", default-features = false, features = [
   "digest",
   "signing",
   "verifying",
   "alloc",
 ] }
-signature = { version = "2.1.0", default-features = false }
+signature = { version = "2.1", default-features = false }
+# digest depends on subtle=2.4
+# this requirement is relaxed in [fa215df595571272750ee4b42ad469346395fbbd](https://github.com/RustCrypto/traits/pull/1260/commits/fa215df595571272750ee4b42ad469346395fbbd
+# but not released
 subtle = { version = "=2.4", default-features = false }
 # FIXME: remove this when we can use const generics
 generic-array = { version = "0.14", default-features = false, features = [
   "serde",
 ] }
 
-typenum = { version = "1.15", default-features = false, features = ["no_std"] }
-num-traits = { version = "0.2.15", default-features = false }
-num-bigint-dig = { version = "0.8.1", default-features = false, features = [
+typenum = { version = "1.16", default-features = false, features = ["no_std"] }
+num-traits = { version = "0.2", default-features = false }
+num-bigint-dig = { version = "0.8", default-features = false, features = [
   "u64_digit",
 ] }
-serde-value = { version = "0.7.0", default-features = false }
+serde-value = { version = "0.7", default-features = false }
 
 # a replacement for the `mime` crate from hyper which seems to be no longer maintained
-mediatype = { version = "0.19.3", features = ["serde"] }
+mediatype = { version = "0.19", features = ["serde"] }
 
 [dev-dependencies]
-rand = "0.8.5"
+rand = "0.8"
 
 # For X.509 certificates of Json Web Keys
 # x509-cert = { git = "https://github.com/RustCrypto/formats.git" }
