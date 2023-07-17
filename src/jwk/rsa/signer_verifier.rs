@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 
 use digest::{Digest, Update};
 use rand_core::OsRng;
-use rsa::{Pkcs1v15Sign, Pss, PublicKey};
+use rsa::{Pkcs1v15Sign, Pss, RsaPublicKey};
 
 use crate::{
     jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm, RsaSigning, RsassaPkcs1V1_5, RsassaPss},
@@ -86,7 +86,7 @@ impl Signer<Vec<u8>> for RsaSigner {
     fn sign_digest(&mut self, digest: Self::Digest) -> Result<Vec<u8>, signature::Error> {
         let key = &mut self.key;
         let hashed = digest.finalize();
-        let mut rng = OsRng::default();
+        let mut rng = OsRng;
 
         let res = match self.alg {
             RsaSigning::Pss(pss) => match pss {
@@ -137,7 +137,7 @@ impl Signer<Vec<u8>> for RsaSigner {
 /// algorithm.
 #[derive(Debug)]
 pub struct RsaVerifier {
-    key: rsa::RsaPublicKey,
+    key: RsaPublicKey,
     alg: RsaSigning,
 }
 

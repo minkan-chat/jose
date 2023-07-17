@@ -18,7 +18,7 @@ serde = { version = "1.0.139", default-features = false, features = [
 serde_json = { version = "1.0.50", default-features = false, features = [
   "alloc",
 ] }
-hashbrown = { version = "0.13", features = ["serde"] }
+hashbrown = { version = "0.14", features = ["serde"] }
 rand_core = { version = "0.6", features = ["getrandom", "alloc"] }
 hmac = { version = "0.12", default-features = false }
 sha1 = { version = "0.10", default-features = false, features = ["oid"] }
@@ -45,7 +45,7 @@ elliptic-curve = { version = "0.13", default-features = false, features = [
   "pem",
 ] }
 
-rsa = { version = "0.8.2", default-features = false }
+rsa = { version = "0.9", default-features = false }
 digest = { version = "0.10.6", default-features = false, features = ["mac"] }
 ecdsa = { version = "0.16", default-features = false, features = [
   "digest",
@@ -54,7 +54,7 @@ ecdsa = { version = "0.16", default-features = false, features = [
   "alloc",
 ] }
 signature = { version = "2.1.0", default-features = false }
-subtle = { version = "=2.4", default-features = false }
+subtle = { version = "2.5", default-features = false }
 # FIXME: remove this when we can use const generics
 generic-array = { version = "0.14", default-features = false, features = [
   "serde",
