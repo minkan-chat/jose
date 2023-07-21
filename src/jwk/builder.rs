@@ -5,7 +5,7 @@ use hashbrown::HashSet;
 
 use super::{serde_impl::Base64DerCertificate, JsonWebKey, JsonWebKeyType, KeyOperation, KeyUsage};
 use crate::{
-    jwa::JsonWebAlgorithm,
+    jwa::JsonWebKeyAlgorithm,
     policy::{Checkable, Checked, Policy},
 };
 
@@ -32,7 +32,7 @@ pub struct JsonWebKeyBuilder<A> {
     pub(super) key_type: JsonWebKeyType,
     pub(super) key_use: Option<KeyUsage>,
     pub(super) key_operations: Option<HashSet<KeyOperation>>,
-    pub(super) algorithm: Option<JsonWebAlgorithm>,
+    pub(super) algorithm: Option<JsonWebKeyAlgorithm>,
     pub(super) kid: Option<String>,
     pub(super) x509_url: Option<String>,
     pub(super) x509_certificate_chain: Vec<Base64DerCertificate>,
@@ -146,7 +146,7 @@ impl<A> JsonWebKeyBuilder<A> {
     gen_builder_methods! {
         key_use: KeyUsage,
         key_operations: HashSet<KeyOperation>,
-        algorithm: JsonWebAlgorithm,
+        algorithm: JsonWebKeyAlgorithm,
         kid: String,
         x509_url: String,
         x509_certificate_sha1_thumbprint: [u8; 20],

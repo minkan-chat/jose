@@ -6,13 +6,17 @@ use thiserror_no_std::Error;
 
 use super::{CryptographicOperation, Policy, PolicyError};
 use crate::{
-    jwa::{JsonWebAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
+    jwa::{JsonWebEncryptionAlgorithm, JsonWebKeyAlgorithm, JsonWebSigningAlgorithm},
     jwk::{KeyOperation, KeyUsage},
 };
 
 /// Reasons a [`StandardPolicy`] can deny a JWK.
 #[derive(Debug, Error)]
 pub enum StandardPolicyFail {
+    /// The `alg` field contains a Content Encryption Key, which shouldn't
+    /// be used in a JWK, as they are only used once and are meant to be temporary.
+    #[error("`alg` field contains a content encryption algorithm")]
+    ContentEncryptionKey,
     /// A [`JsonWebKey`](crate::jwk::JsonWebKey) may not perform a
     /// [`CryptographicOperation`]
     #[error("this key may not perform this cryptographic operation")]
@@ -83,14 +87,18 @@ impl StandardPolicy {
 impl Policy for StandardPolicy {
     type Error = StandardPolicyFail;
 
-    fn algorithm(&self, alg: &JsonWebAlgorithm) -> Result<(), Self::Error> {
+    fn algorithm(&self, alg: &JsonWebKeyAlgorithm) -> Result<(), Self::Error> {
         match alg {
-            JsonWebAlgorithm::Encryption(JsonWebEncryptionAlgorithm::Other(_))
-            | JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::Other(_)) => {
+            JsonWebKeyAlgorithm::Encryption(JsonWebEncryptionAlgorithm::Other(_))
+            | JsonWebKeyAlgorithm::Signing(JsonWebSigningAlgorithm::Other(_)) => {
                 Err(StandardPolicyFail::OtherAlgorithm)
             }
 
-            JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::None) => {
+            JsonWebKeyAlgorithm::ContentEncryption(_) => {
+                Err(StandardPolicyFail::ContentEncryptionKey)
+            }
+
+            JsonWebKeyAlgorithm::Signing(JsonWebSigningAlgorithm::None) => {
                 Err(StandardPolicyFail::NoneAlgorithm)
             }
             _ => Ok(()),

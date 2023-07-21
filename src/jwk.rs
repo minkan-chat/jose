@@ -10,9 +10,12 @@ use hashbrown::HashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    jwa::{EcDSA, JsonWebAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
+    jwa::{
+        EcDSA, JsonWebAlgorithm, JsonWebEncryptionAlgorithm, JsonWebKeyAlgorithm,
+        JsonWebSigningAlgorithm,
+    },
     jwk::ec::{EcPrivate, EcPublic},
-    policy::{Checkable, Checked, CryptographicOperation, Policy},
+    policy::{Checkable, Checked, CryptographicOperation, Policy, PolicyError},
     sealed::Sealed,
 };
 
@@ -199,7 +202,7 @@ pub struct JsonWebKey<A = ()> {
     key_operations: Option<HashSet<KeyOperation>>,
     /// `alg` parameter section 4.4
     #[serde(rename = "alg", skip_serializing_if = "Option::is_none")]
-    algorithm: Option<JsonWebAlgorithm>,
+    algorithm: Option<JsonWebKeyAlgorithm>,
     /// `kid` parameter section 4.4
     // FIXME: Consider an enum if this value is a valid JWK Thumbprint,
     // see <https://www.rfc-editor.org/rfc/rfc7638>
@@ -313,7 +316,7 @@ impl<T> JsonWebKey<T> {
     /// See the documentation of [`JsonWebAlgorithm`] for details.
     ///
     /// [Section 4.4 of RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4.4>
-    pub fn algorithm(&self) -> Option<&JsonWebAlgorithm> {
+    pub fn algorithm(&self) -> Option<&JsonWebKeyAlgorithm> {
         self.algorithm.as_ref()
     }
 
@@ -401,12 +404,21 @@ where
             }
 
             let operations = match alg {
-                JsonWebAlgorithm::Encryption(..) => [
+                JsonWebKeyAlgorithm::Encryption(..)
+                | JsonWebKeyAlgorithm::ContentEncryption(..) => &[
                     CryptographicOperation::Encrypt,
                     CryptographicOperation::Decrypt,
                 ],
-                JsonWebAlgorithm::Signing(..) => {
-                    [CryptographicOperation::Sign, CryptographicOperation::Verify]
+                JsonWebKeyAlgorithm::Signing(..) => {
+                    &[CryptographicOperation::Sign, CryptographicOperation::Verify]
+                }
+                JsonWebKeyAlgorithm::Other(..) => {
+                    return Err((
+                        self,
+                        <P::Error as PolicyError>::custom(
+                            "unknown algorithm that can't be checked",
+                        ),
+                    ));
                 }
             };
             debug_assert!(!operations.is_empty());
@@ -502,8 +514,8 @@ pub enum JsonWebKeyType {
 }
 
 impl JsonWebKeyType {
-    pub(self) fn compatible_with(&self, alg: &JsonWebAlgorithm) -> bool {
-        use JsonWebAlgorithm::*;
+    pub(self) fn compatible_with(&self, alg: &JsonWebKeyAlgorithm) -> bool {
+        use JsonWebKeyAlgorithm::*;
         use JsonWebKeyType::*;
 
         // it is unreadable with the matches! macro and there's no benefit
