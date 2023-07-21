@@ -7,7 +7,10 @@ use core::convert::Infallible;
 
 use num_bigint_dig::ModInverse;
 use num_traits::One;
-use rsa::{BigUint, PublicKeyParts};
+use rsa::{
+    traits::{PrivateKeyParts, PublicKeyParts},
+    BigUint,
+};
 use serde::{de::Error as _, ser::Error as _, Deserialize, Serialize};
 pub use signer_verifier::{RsaSigner, RsaSigningDigest, RsaVerifier};
 

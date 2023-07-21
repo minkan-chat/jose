@@ -58,7 +58,7 @@ impl sealed::SealedFormat<JsonGeneral> for JsonGeneral {
         signer: &dyn Signer<S, Digest = D>,
     ) {
         let Some(first) = header.first_mut() else {
-            return
+            return;
         };
 
         first.overwrite_alg_and_key_id(signer.algorithm(), signer.key_id());
