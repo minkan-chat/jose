@@ -39,6 +39,8 @@ pub mod jws;
 mod jwt;
 pub mod policy;
 
+use alloc::string::String;
+
 pub use base64_url::Base64UrlString;
 
 #[doc(inline)]
@@ -49,3 +51,8 @@ pub type Jws<F, T> = JsonWebSignature<F, T>;
 
 /// Type alias to make `JsonWebToken` easier to access.
 pub type Jwt<F> = JsonWebToken<F>;
+
+/// This type is used when the type of the additional parameters
+/// of a [`JsonWebKey`], or a [`JoseHeader`] can not be
+/// specified, but must not be discarded.
+pub type UntypedAdditionalProperties = serde_json::Map<String, serde_json::Value>;

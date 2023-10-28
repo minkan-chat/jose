@@ -29,7 +29,7 @@ pub use self::{
 use crate::{
     format::Format,
     jwa::{JsonWebContentEncryptionAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
-    JsonWebKey,
+    JsonWebKey, UntypedAdditionalProperties,
 };
 
 /// A [`JoseHeader`] is primarily used to specify how a JSON Web Signature or
@@ -200,7 +200,7 @@ where
     /// RFC 7515].
     ///
     /// [section 4.1.3 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.3>
-    pub fn json_web_key(&self) -> Option<HeaderValue<&JsonWebKey<Value>>> {
+    pub fn json_web_key(&self) -> Option<HeaderValue<&JsonWebKey<UntypedAdditionalProperties>>> {
         self.parameters
             .json_web_key
             .as_ref()

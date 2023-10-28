@@ -7,13 +7,14 @@ use core::{
 };
 
 use hashbrown::HashSet;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
     jwa::{EcDSA, JsonWebAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
     jwk::ec::{EcPrivate, EcPublic},
     policy::{Checkable, Checked, CryptographicOperation, Policy},
     sealed::Sealed,
+    UntypedAdditionalProperties,
 };
 
 pub mod ec;
@@ -387,6 +388,62 @@ impl<T> JsonWebKey<T> {
     /// [section 4 in RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4>
     pub fn additional(&self) -> &T {
         &self.additional
+    }
+}
+
+impl<T: Serialize> JsonWebKey<T> {
+    /// Converts this [`JsonWebKey`] with custom additional parameters,
+    /// into a [`JsonWebKey`] with untyped additional parameters.
+    ///
+    /// # Errors
+    ///
+    /// This function fails if the serialization of the additional parameters
+    /// failed, or the serialization does not result in a JSON object.
+    pub fn into_untyped_additional(
+        self,
+    ) -> Result<JsonWebKey<UntypedAdditionalProperties>, serde_json::Error> {
+        let value = serde_json::to_value(&self.additional)?;
+        let additional: UntypedAdditionalProperties = serde_json::from_value(value)?;
+
+        Ok(JsonWebKey {
+            additional,
+            key_type: self.key_type,
+            key_use: self.key_use,
+            key_operations: self.key_operations,
+            algorithm: self.algorithm,
+            kid: self.kid,
+            x509_url: self.x509_url,
+            x509_certificate_chain: self.x509_certificate_chain,
+            x509_certificate_sha1_thumbprint: self.x509_certificate_sha1_thumbprint,
+            x509_certificate_sha256_thumbprint: self.x509_certificate_sha256_thumbprint,
+        })
+    }
+}
+
+impl JsonWebKey<UntypedAdditionalProperties> {
+    /// Deserializes the additional members of this [`JsonWebKey`]
+    /// to the given type.
+    ///
+    /// # Errors
+    ///
+    /// The given type failed to be deserialized from the additional members.
+    pub fn deserialize_additional<T: DeserializeOwned>(
+        self,
+    ) -> Result<JsonWebKey<T>, serde_json::Error> {
+        let additional = serde_json::from_value(self.additional.into())?;
+
+        Ok(JsonWebKey {
+            additional,
+            key_type: self.key_type,
+            key_use: self.key_use,
+            key_operations: self.key_operations,
+            algorithm: self.algorithm,
+            kid: self.kid,
+            x509_url: self.x509_url,
+            x509_certificate_chain: self.x509_certificate_chain,
+            x509_certificate_sha1_thumbprint: self.x509_certificate_sha1_thumbprint,
+            x509_certificate_sha256_thumbprint: self.x509_certificate_sha256_thumbprint,
+        })
     }
 }
 
