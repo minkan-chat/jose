@@ -43,16 +43,15 @@ impl sealed::SealedFormat<JsonFlattened> for JsonFlattened {
         Option<serde_json::Map<String, Value>>,
     );
 
-    fn update_header<S: AsRef<[u8]>, D: digest::Update>(
+    fn update_header<S: AsRef<[u8]>>(
         header: &mut Self::JwsHeader,
-        signer: &dyn crate::jws::Signer<S, Digest = D>,
+        signer: &dyn crate::jws::Signer<S>,
     ) {
         header.overwrite_alg_and_key_id(signer.algorithm(), signer.key_id());
     }
 
-    fn provide_header<D: digest::Update>(
+    fn serialize_header(
         header: Self::JwsHeader,
-        digest: &mut D,
     ) -> Result<Self::SerializedJwsHeader, SignError<core::convert::Infallible>> {
         let (protected, unprotected) = header.into_values().map_err(SignError::InvalidHeader)?;
 
@@ -61,13 +60,16 @@ impl sealed::SealedFormat<JsonFlattened> for JsonFlattened {
                 let json = serde_json::to_string(&hdr).map_err(SignError::SerializeHeader)?;
 
                 let encoded = Base64UrlString::encode(json);
-                digest.update(encoded.as_bytes());
                 Some(encoded)
             }
             None => None,
         };
 
         Ok((protected, unprotected))
+    }
+
+    fn message_from_header(hdr: &Self::SerializedJwsHeader) -> Option<&[u8]> {
+        hdr.0.as_ref().map(|x| x.as_bytes())
     }
 
     fn finalize(

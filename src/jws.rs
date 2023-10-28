@@ -31,7 +31,7 @@ pub enum PayloadKind {
     Standard(Base64UrlString),
 }
 
-/// Represents anything that can be serialized to a raw payload.
+/// Represents anything that can be serialized into a raw payload.
 ///
 /// This is required to be implemented when trying to sign a JWS, or encrypt a
 /// JWE.
@@ -43,27 +43,23 @@ pub enum PayloadKind {
 /// # use alloc::string::{FromUtf8Error, String};
 /// # use core::convert::Infallible;
 /// # use jose::Base64UrlString;
-/// # use jose::jws::{FromRawPayload, ProvidePayload, PayloadKind};
+/// # use jose::jws::{FromRawPayload, IntoPayload, PayloadKind};
 ///
 /// #[derive(Debug, PartialEq, Eq)]
 /// struct StringPayload(String);
 ///
-/// impl ProvidePayload for StringPayload {
+/// impl IntoPayload for StringPayload {
 ///     type Error = Infallible;
 ///
-///     fn provide_payload<D: digest::Update>(
-///         &mut self,
-///         digest: &mut D,
-///     ) -> Result<PayloadKind, Self::Error> {
-///         let s = Base64UrlString::encode(&self.0);
-///         digest.update(s.as_bytes());
+///     fn into_payload(self) -> Result<PayloadKind, Self::Error> {
+///         let s = Base64UrlString::encode(self.0);
 ///         Ok(PayloadKind::Standard(s))
 ///     }
 /// }
 /// ```
-pub trait ProvidePayload {
+pub trait IntoPayload {
     /// The error that can occurr while providing the payload in the
-    /// [`Self::provide_payload`] method.
+    /// [`Self::into_payload`] method.
     type Error;
 
     /// First, this method must insert the raw bytes representation of this
@@ -74,21 +70,7 @@ pub trait ProvidePayload {
     /// # Errors
     ///
     /// Returns an error if it failed to provide the payload.
-    fn provide_payload<D: digest::Update>(
-        &mut self,
-        digest: &mut D,
-    ) -> Result<PayloadKind, Self::Error>;
-}
-
-impl<P: ProvidePayload> ProvidePayload for &mut P {
-    type Error = P::Error;
-
-    fn provide_payload<D: digest::Update>(
-        &mut self,
-        digest: &mut D,
-    ) -> Result<PayloadKind, Self::Error> {
-        <P as ProvidePayload>::provide_payload(self, digest)
-    }
+    fn into_payload(self) -> Result<PayloadKind, Self::Error>;
 }
 
 /// Represents anything that can be parsed from a raw payload.
@@ -116,7 +98,7 @@ pub enum SignError<P> {
     /// This error is only possible when using the [`JsonGeneral`] format.
     #[error("the number of headers does not match the number of signers")]
     HeaderCountMismatch,
-    /// Failed to serialize the [`JoseHeader`](crate::header::JoseHeader).
+    /// Failed to serialize the [`JoseHeader`].
     #[error("failed to serialize header: {0}")]
     SerializeHeader(#[source] serde_json::Error),
     /// The `protected` part of the header was empty, which is disallowed in the
@@ -146,7 +128,7 @@ pub enum SignError<P> {
 /// * `F`: The format of the JWS. This can be either [`Compact`] or
 ///   [`JsonFlattened`].
 /// * `T`: The type of the payload. This can be any type that implements the
-///   [`ProvidePayload`] trait and also the [`FromRawPayload`] trait.
+///   [`IntoPayload`] trait and also the [`FromRawPayload`] trait.
 ///
 /// [RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515>
 #[derive(Debug)]
@@ -174,7 +156,7 @@ impl<F: Format, T> JsonWebSignature<F, T> {
 }
 
 impl<T> JsonWebSignature<Compact, T> {
-    /// Returns a reference to the [`JoseHeader`](crate::header::JoseHeader) of
+    /// Returns a reference to the [`JoseHeader`] of
     /// this JWS.
     pub fn header(&self) -> &JoseHeader<Compact, header::Jws> {
         &self.header
@@ -182,7 +164,7 @@ impl<T> JsonWebSignature<Compact, T> {
 }
 
 impl<T> JsonWebSignature<JsonFlattened, T> {
-    /// Returns a reference to the [`JoseHeader`](crate::header::JoseHeader) of
+    /// Returns a reference to the [`JoseHeader`] of
     /// this JWS.
     pub fn header(&self) -> &JoseHeader<JsonFlattened, header::Jws> {
         &self.header
@@ -196,7 +178,7 @@ impl<T> JsonWebSignature<JsonGeneral, T> {
     }
 }
 
-impl<F: Format, T: ProvidePayload> JsonWebSignature<F, T> {
+impl<F: Format, T: IntoPayload> JsonWebSignature<F, T> {
     /// Signs this [`JsonWebSignature`] using the given `signer`.
     ///
     /// When signing the JWS, some fields of the header of this JWS may be
@@ -212,30 +194,32 @@ impl<F: Format, T: ProvidePayload> JsonWebSignature<F, T> {
     /// - The header is invalid after updating it with the given signer.
     /// - The underlying signing operation of the given signer failed.
     /// - The payload failed to provide it's raw byte representation.
-    pub fn sign<S: AsRef<[u8]>, D: digest::Update>(
+    pub fn sign<S: AsRef<[u8]>>(
         mut self,
-        signer: &mut dyn Signer<S, Digest = D>,
+        signer: &mut dyn Signer<S>,
     ) -> Result<Signed<F>, SignError<T::Error>> {
         F::update_header(&mut self.header, signer);
 
-        let mut digest = signer.new_digest();
-        let serialized_header =
-            F::provide_header(self.header, &mut digest).map_err(|x| match x {
-                SignError::HeaderCountMismatch => SignError::HeaderCountMismatch,
-                SignError::SerializeHeader(x) => SignError::SerializeHeader(x),
-                SignError::InvalidHeader(x) => SignError::InvalidHeader(x),
-                SignError::EmptyProtectedHeader => SignError::EmptyProtectedHeader,
-                SignError::Sign(x) => SignError::Sign(x),
-                SignError::Payload(x) => match x {},
-            })?;
+        let serialized_header = F::serialize_header(self.header).map_err(|x| match x {
+            SignError::HeaderCountMismatch => SignError::HeaderCountMismatch,
+            SignError::SerializeHeader(x) => SignError::SerializeHeader(x),
+            SignError::InvalidHeader(x) => SignError::InvalidHeader(x),
+            SignError::EmptyProtectedHeader => SignError::EmptyProtectedHeader,
+            SignError::Sign(x) => SignError::Sign(x),
+            SignError::Payload(x) => match x {},
+        })?;
 
-        digest.update(b".");
+        let mut msg = F::message_from_header(&serialized_header)
+            .map(|x| x.to_vec())
+            .unwrap_or_default();
+        msg.push(b'.');
 
-        let payload = self
-            .payload
-            .provide_payload(&mut digest)
-            .map_err(SignError::Payload)?;
-        let signature = signer.sign_digest(digest).map_err(SignError::Sign)?;
+        let payload = self.payload.into_payload().map_err(SignError::Payload)?;
+        match payload {
+            PayloadKind::Standard(ref b64) => msg.extend(b64.as_bytes()),
+        }
+
+        let signature = signer.sign(&msg).map_err(SignError::Sign)?;
 
         Ok(Signed {
             value: F::finalize(serialized_header, payload, signature.as_ref())
@@ -244,7 +228,7 @@ impl<F: Format, T: ProvidePayload> JsonWebSignature<F, T> {
     }
 }
 
-impl<T: ProvidePayload> JsonWebSignature<JsonGeneral, T> {
+impl<T: IntoPayload> JsonWebSignature<JsonGeneral, T> {
     /// Signs this JWS using multiple signers.
     ///
     /// This is only supported when the JWS is in the [`JsonGeneral`] format.
@@ -255,9 +239,9 @@ impl<T: ProvidePayload> JsonWebSignature<JsonGeneral, T> {
     /// not match the number of headers in this JWS.
     /// Otherwise, this method may return the same errors as the normal sign
     /// operation.
-    pub fn sign_many<'s, S: AsRef<[u8]> + 's, D: digest::Update + 's>(
-        mut self,
-        signers: impl IntoIterator<Item = &'s mut dyn Signer<S, Digest = D>>,
+    pub fn sign_many<'s, S: AsRef<[u8]> + 's>(
+        self,
+        signers: impl IntoIterator<Item = &'s mut dyn Signer<S>>,
     ) -> Result<Signed<JsonGeneral>, SignError<T::Error>> {
         if self.header.is_empty() {
             // this is unreachable right now, but we don't want to panic, so just return a
@@ -271,13 +255,17 @@ impl<T: ProvidePayload> JsonWebSignature<JsonGeneral, T> {
             return Err(SignError::HeaderCountMismatch);
         }
 
-        let mut final_payload = None;
+        let payload = self.payload.into_payload().map_err(SignError::Payload)?;
+        let payload_msg = match payload {
+            PayloadKind::Standard(ref b64) => b64.as_bytes(),
+        };
+
         let mut signatures = vec![];
 
         for (mut hdr, signer) in self.header.into_iter().zip(signers) {
             hdr.overwrite_alg_and_key_id(signer.algorithm(), signer.key_id());
 
-            let mut digest = signer.new_digest();
+            let mut msg = vec![];
 
             let serialized_hdr = {
                 let (protected, unprotected) =
@@ -289,7 +277,7 @@ impl<T: ProvidePayload> JsonWebSignature<JsonGeneral, T> {
                             serde_json::to_string(&hdr).map_err(SignError::SerializeHeader)?;
 
                         let encoded = Base64UrlString::encode(json);
-                        digest.update(encoded.as_bytes());
+                        msg.extend(encoded.as_bytes());
                         Some(encoded)
                     }
                     None => None,
@@ -298,18 +286,10 @@ impl<T: ProvidePayload> JsonWebSignature<JsonGeneral, T> {
                 (protected, unprotected)
             };
 
-            digest.update(b".");
+            msg.push(b'.');
+            msg.extend(payload_msg);
 
-            let payload = self
-                .payload
-                .provide_payload(&mut digest)
-                .map_err(SignError::Payload)?;
-
-            if final_payload.is_none() {
-                final_payload = Some(payload);
-            }
-
-            let signature = signer.sign_digest(digest).map_err(SignError::Sign)?;
+            let signature = signer.sign(&msg).map_err(SignError::Sign)?;
 
             signatures.push(JsonGeneralSignature {
                 protected: serialized_hdr.0,
@@ -318,8 +298,7 @@ impl<T: ProvidePayload> JsonWebSignature<JsonGeneral, T> {
             });
         }
 
-        let final_payload = final_payload.expect("payload must be set");
-        let PayloadKind::Standard(payload) = final_payload;
+        let PayloadKind::Standard(payload) = payload;
 
         Ok(Signed {
             value: JsonGeneral {

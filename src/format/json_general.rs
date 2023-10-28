@@ -53,10 +53,7 @@ impl sealed::SealedFormat<JsonGeneral> for JsonGeneral {
         Option<serde_json::Map<String, Value>>,
     );
 
-    fn update_header<S: AsRef<[u8]>, D: digest::Update>(
-        header: &mut Self::JwsHeader,
-        signer: &dyn Signer<S, Digest = D>,
-    ) {
+    fn update_header<S: AsRef<[u8]>>(header: &mut Self::JwsHeader, signer: &dyn Signer<S>) {
         let Some(first) = header.first_mut() else {
             return;
         };
@@ -64,9 +61,8 @@ impl sealed::SealedFormat<JsonGeneral> for JsonGeneral {
         first.overwrite_alg_and_key_id(signer.algorithm(), signer.key_id());
     }
 
-    fn provide_header<D: digest::Update>(
+    fn serialize_header(
         mut header: Self::JwsHeader,
-        digest: &mut D,
     ) -> Result<Self::SerializedJwsHeader, SignError<Infallible>> {
         let len = header.len();
 
@@ -81,13 +77,16 @@ impl sealed::SealedFormat<JsonGeneral> for JsonGeneral {
                 let json = serde_json::to_string(&hdr).map_err(SignError::SerializeHeader)?;
 
                 let encoded = Base64UrlString::encode(json);
-                digest.update(encoded.as_bytes());
                 Some(encoded)
             }
             None => None,
         };
 
         Ok((protected, unprotected))
+    }
+
+    fn message_from_header(hdr: &Self::SerializedJwsHeader) -> Option<&[u8]> {
+        hdr.0.as_ref().map(|x| x.as_bytes())
     }
 
     fn finalize(

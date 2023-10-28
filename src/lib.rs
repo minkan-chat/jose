@@ -33,7 +33,7 @@ pub(crate) mod sealed;
 pub mod format;
 pub mod header;
 pub mod jwa;
-mod jwe;
+pub mod jwe;
 pub mod jwk;
 pub mod jws;
 mod jwt;

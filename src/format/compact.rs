@@ -21,16 +21,12 @@ impl sealed::SealedFormat<Compact> for Compact {
     type JwsHeader = JoseHeader<Compact, header::Jws>;
     type SerializedJwsHeader = Base64UrlString;
 
-    fn update_header<S: AsRef<[u8]>, D: digest::Update>(
-        header: &mut Self::JwsHeader,
-        signer: &dyn Signer<S, Digest = D>,
-    ) {
+    fn update_header<S: AsRef<[u8]>>(header: &mut Self::JwsHeader, signer: &dyn Signer<S>) {
         header.overwrite_alg_and_key_id(signer.algorithm(), signer.key_id());
     }
 
-    fn provide_header<D: digest::Update>(
+    fn serialize_header(
         header: Self::JwsHeader,
-        digest: &mut D,
     ) -> Result<Self::SerializedJwsHeader, SignError<core::convert::Infallible>> {
         let (protected_header, _) = header.into_values().map_err(SignError::InvalidHeader)?;
 
@@ -47,9 +43,11 @@ impl sealed::SealedFormat<Compact> for Compact {
 
         let header = Base64UrlString::encode(header.as_bytes());
 
-        digest.update(header.as_bytes());
-
         Ok(header)
+    }
+
+    fn message_from_header(hdr: &Self::SerializedJwsHeader) -> Option<&[u8]> {
+        Some(hdr.as_bytes())
     }
 
     fn finalize(

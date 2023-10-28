@@ -1,7 +1,5 @@
 use alloc::{borrow::ToOwned, string::String, vec::Vec};
 
-use digest::Update;
-
 use super::{
     ec::{p256::P256Signer, p384::P384Signer, secp256k1::Secp256k1Signer, EcPrivate},
     rsa::RsaSigner,
@@ -119,65 +117,16 @@ impl JwkSigner {
     }
 }
 
-/// The [`Digest`](digest::Digest) for an [`JwkSigner`].
-#[derive(Debug)]
-pub struct JwkSigningDigest(JwkDigestInner);
-
-impl Update for JwkSigningDigest {
-    fn update(&mut self, data: &[u8]) {
-        match &mut self.0 {
-            JwkDigestInner::Rsa(x) => Update::update(x, data),
-            JwkDigestInner::Hs256(x) => Update::update(x, data),
-            JwkDigestInner::Hs384(x) => Update::update(x, data),
-            JwkDigestInner::Hs512(x) => Update::update(x, data),
-            JwkDigestInner::Es256(x) => Update::update(x, data),
-            JwkDigestInner::Es384(x) => Update::update(x, data),
-            JwkDigestInner::Secp256k1(x) => Update::update(x, data),
-        }
-    }
-}
-
-#[derive(Debug)]
-enum JwkDigestInner {
-    Rsa(super::rsa::RsaSigningDigest),
-    Hs256(::hmac::Hmac<sha2::Sha256>),
-    Hs384(::hmac::Hmac<sha2::Sha384>),
-    Hs512(::hmac::Hmac<sha2::Sha512>),
-    Es256(<P256Signer as Signer<ecdsa::SignatureBytes<p256::NistP256>>>::Digest),
-    Es384(<P384Signer as Signer<ecdsa::SignatureBytes<p384::NistP384>>>::Digest),
-    Secp256k1(<Secp256k1Signer as Signer<ecdsa::SignatureBytes<k256::Secp256k1>>>::Digest),
-}
-
 impl Signer<Vec<u8>> for JwkSigner {
-    type Digest = JwkSigningDigest;
-
-    fn new_digest(&self) -> Self::Digest {
-        let inner = match &self.inner {
-            InnerSigner::Hs256(s) => JwkDigestInner::Hs256(s.new_digest()),
-            InnerSigner::Hs384(s) => JwkDigestInner::Hs384(s.new_digest()),
-            InnerSigner::Hs512(s) => JwkDigestInner::Hs512(s.new_digest()),
-            InnerSigner::Rsa(s) => JwkDigestInner::Rsa(s.new_digest()),
-            InnerSigner::Es256(s) => JwkDigestInner::Es256(s.new_digest()),
-            InnerSigner::Es384(s) => JwkDigestInner::Es384(s.new_digest()),
-            InnerSigner::Secp256k1(s) => JwkDigestInner::Secp256k1(s.new_digest()),
-        };
-
-        JwkSigningDigest(inner)
-    }
-
-    fn sign_digest(&mut self, digest: Self::Digest) -> Result<Vec<u8>, signature::Error> {
-        use JwkDigestInner::*;
-
-        // FIXME: try to avoid this double match and the `unreachable!` panic
-        match (&mut self.inner, digest.0) {
-            (InnerSigner::Rsa(s), Rsa(x)) => s.sign_digest(x),
-            (InnerSigner::Hs256(s), Hs256(x)) => s.sign_digest(x).map(|x| x.to_vec()),
-            (InnerSigner::Hs384(s), Hs384(x)) => s.sign_digest(x).map(|x| x.to_vec()),
-            (InnerSigner::Hs512(s), Hs512(x)) => s.sign_digest(x).map(|x| x.to_vec()),
-            (InnerSigner::Es256(s), Es256(x)) => s.sign_digest(x).map(|x| x.to_vec()),
-            (InnerSigner::Es384(s), Es384(x)) => s.sign_digest(x).map(|x| x.to_vec()),
-            (InnerSigner::Secp256k1(s), Secp256k1(x)) => s.sign_digest(x).map(|x| x.to_vec()),
-            _ => unreachable!(),
+    fn sign(&mut self, x: &[u8]) -> Result<Vec<u8>, signature::Error> {
+        match &mut self.inner {
+            InnerSigner::Rsa(s) => s.sign(x),
+            InnerSigner::Hs256(s) => s.sign(x).map(|x| x.to_vec()),
+            InnerSigner::Hs384(s) => s.sign(x).map(|x| x.to_vec()),
+            InnerSigner::Hs512(s) => s.sign(x).map(|x| x.to_vec()),
+            InnerSigner::Es256(s) => s.sign(x).map(|x| x.to_vec()),
+            InnerSigner::Es384(s) => s.sign(x).map(|x| x.to_vec()),
+            InnerSigner::Secp256k1(s) => s.sign(x).map(|x| x.to_vec()),
         }
     }
 

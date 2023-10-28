@@ -32,15 +32,19 @@ pub(crate) mod sealed {
         type JwsHeader: fmt::Debug;
         type SerializedJwsHeader: fmt::Debug;
 
-        fn update_header<S: AsRef<[u8]>, D: digest::Update>(
-            header: &mut Self::JwsHeader,
-            signer: &dyn Signer<S, Digest = D>,
-        );
+        fn update_header<S: AsRef<[u8]>>(header: &mut Self::JwsHeader, signer: &dyn Signer<S>);
 
-        fn provide_header<D: digest::Update>(
+        /// Serializes the header for this format.
+        ///
+        /// The returned values must be the serializd header and the
+        /// bytes that must be appended to the message for the signature.
+        fn serialize_header(
             header: Self::JwsHeader,
-            digest: &mut D,
         ) -> Result<Self::SerializedJwsHeader, SignError<Infallible>>;
+
+        /// This method converts a serialized header into the message bytes
+        /// that are used for the signature.
+        fn message_from_header(hdr: &Self::SerializedJwsHeader) -> Option<&[u8]>;
 
         fn finalize(
             header: Self::SerializedJwsHeader,
