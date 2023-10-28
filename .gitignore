@@ -6,3 +6,8 @@
 
 # local env
 **/.env
+
+# Nix / Direnv
+/result
+.direnv
+.envrc
