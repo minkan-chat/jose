@@ -157,13 +157,9 @@ impl<H: HmacVariant> Verifier for HmacKey<H> {
 }
 
 impl<H: HmacVariant> Signer<HmacSignature<H>> for HmacKey<H> {
-    type Digest = H::HmacType;
-
-    fn new_digest(&self) -> Self::Digest {
-        self.alg.clone()
-    }
-
-    fn sign_digest(&mut self, digest: Self::Digest) -> Result<HmacSignature<H>, signature::Error> {
+    fn sign(&mut self, msg: &[u8]) -> Result<HmacSignature<H>, signature::Error> {
+        let mut digest = self.alg.clone();
+        digest.update(msg);
         let out = digest.finalize_fixed();
         Ok(HmacSignature(out))
     }

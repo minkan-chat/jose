@@ -8,21 +8,16 @@ use std::{convert::Infallible, string::FromUtf8Error};
 use jose::{
     format::{Compact, JsonFlattened, JsonGeneral},
     header::HeaderValue,
-    jwa::{EcDSA, Hmac, JsonWebSigningAlgorithm},
+    jwa::{EcDSA, JsonWebSigningAlgorithm},
     jwk::{
-        ec::p256::{P256PrivateKey, P256Signer, P256Verifier},
-        rsa::{RsaPrivateKey, RsaSigner},
-        symmetric::{
-            hmac::{HmacKey, Hs256},
-            OctetSequence,
-        },
-        JwkSigner, JwkVerifier, SymmetricJsonWebKey,
+        ec::p256::{P256PrivateKey, P256Signer},
+        JwkSigner, JwkVerifier,
     },
     jws::{
-        FromRawPayload, IntoSigner, IntoVerifier, ManyUnverified, PayloadKind, ProvidePayload,
-        Signer, Unverified, Verifier,
+        FromRawPayload, IntoPayload, IntoSigner, ManyUnverified, PayloadKind, Signer, Unverified,
+        Verifier,
     },
-    policy::{Checkable, StandardPolicy, StandardPolicyFail},
+    policy::{Checkable, StandardPolicy},
     Base64UrlString, JsonWebKey, Jws,
 };
 
@@ -45,15 +40,11 @@ impl FromRawPayload for StringPayload {
     }
 }
 
-impl ProvidePayload for StringPayload {
+impl IntoPayload for StringPayload {
     type Error = Infallible;
 
-    fn provide_payload<D: digest::Update>(
-        &mut self,
-        digest: &mut D,
-    ) -> Result<PayloadKind, Self::Error> {
-        let s = Base64UrlString::encode(&self.0);
-        digest.update(s.as_bytes());
+    fn into_payload(self) -> Result<PayloadKind, Self::Error> {
+        let s = Base64UrlString::encode(self.0);
         Ok(PayloadKind::Standard(s))
     }
 }
@@ -65,13 +56,7 @@ impl digest::Update for DummyDigest {
 
 struct NoneKey;
 impl Signer<[u8; 0]> for NoneKey {
-    type Digest = DummyDigest;
-
-    fn new_digest(&self) -> Self::Digest {
-        DummyDigest
-    }
-
-    fn sign_digest(&mut self, _digest: Self::Digest) -> Result<[u8; 0], signature::Error> {
+    fn sign(&mut self, _msg: &[u8]) -> Result<[u8; 0], signature::Error> {
         Ok([])
     }
 
@@ -214,7 +199,7 @@ fn smoke() {
     let payload = r#"{"iss":"joe","exp":1300819380,"http://example.com/is_root":true}"#;
     let payload = StringPayload::from(payload);
 
-    let signers: [&mut dyn Signer<Vec<u8>, Digest = _>; 2] = [&mut signer, &mut signer2];
+    let signers: [&mut dyn Signer<Vec<u8>>; 2] = [&mut signer, &mut signer2];
 
     let jws = Jws::<JsonGeneral, _>::builder()
         .header(|b| b)
@@ -224,6 +209,7 @@ fn smoke() {
         .sign_many(signers)
         .unwrap()
         .encode();
+    println!("{}", jws);
 
     let verifiers: [&mut dyn Verifier; 2] = [&mut verifier, &mut verifier2];
     let parsed_jws = ManyUnverified::<Jws<JsonGeneral, StringPayload>>::decode(jws)

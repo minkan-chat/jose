@@ -37,35 +37,22 @@ impl<F: Format> Signed<F> {
 /// This trait represents anything that can be used to sign a JWS, JWE, or
 /// whatever.
 ///
-/// A message is signed using a [`Signer`] by first getting an instance of a
-/// digest using the [`new_digest`] method. Then the whole message is put into
-/// the returned digest using the [`digest::Update`] trait bound, and to finally
-/// get the signature, one uses the [`sign_digest`] method.
+/// A message is signed by just passing the raw bytes that should be signed.
 ///
 /// To be able to be used as a [`Signer`], one must provide the sign operation
 /// itself, and also needs to [specify the algorithm] used for signing. The
 /// algorithm will be used as the value for the `alg` field inside the
 /// [`JoseHeader`](crate::header::JoseHeader) for the signed type.
 ///
-/// [`new_digest`]: Signer::new_digest
-/// [`sign_digest`]: Signer::sign_digest
 /// [specify the algorithm]: Signer::algorithm
 pub trait Signer<S: AsRef<[u8]>> {
-    /// The [`Digest`](digest::Digest) for this signer that will be used to
-    /// create the hash.
-    type Digest: digest::Update;
-
-    /// Create a new instance of digest for this signer.
-    fn new_digest(&self) -> Self::Digest;
-
-    /// Signs a pre-hashed message that was created using the digest for this
-    /// siger.
+    /// Signs a raw byte message using this signer, returning a signature.
     ///
     /// # Errors
     ///
     /// Returns an error if the signing operation fails.
     /// An error usually only appears when communicating with external signers.
-    fn sign_digest(&mut self, digest: Self::Digest) -> Result<S, signature::Error>;
+    fn sign(&mut self, msg: &[u8]) -> Result<S, signature::Error>;
 
     /// Return the type of signing algorithm used by this signer.
     fn algorithm(&self) -> JsonWebSigningAlgorithm;
@@ -97,14 +84,8 @@ pub struct SignerWithoutKeyId<S> {
 }
 
 impl<SIG: AsRef<[u8]>, S: Signer<SIG>> Signer<SIG> for SignerWithoutKeyId<S> {
-    type Digest = S::Digest;
-
-    fn new_digest(&self) -> Self::Digest {
-        S::new_digest(&self.inner)
-    }
-
-    fn sign_digest(&mut self, digest: Self::Digest) -> Result<SIG, signature::Error> {
-        S::sign_digest(&mut self.inner, digest)
+    fn sign(&mut self, msg: &[u8]) -> Result<SIG, signature::Error> {
+        S::sign(&mut self.inner, msg)
     }
 
     fn algorithm(&self) -> JsonWebSigningAlgorithm {

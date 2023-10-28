@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 
-use digest::{Digest, Update};
+use digest::Digest;
 use rand_core::OsRng;
 use rsa::{Pkcs1v15Sign, Pss, RsaPublicKey};
 
@@ -31,61 +31,22 @@ impl FromKey<super::RsaPrivateKey> for RsaSigner {
     }
 }
 
-/// The [`Digest`](digest::Digest) for an [`RsaSigner`].
-#[derive(Debug)]
-pub struct RsaSigningDigest(RsaDigestInner);
-
-#[derive(Debug)]
-enum RsaDigestInner {
-    Sha256(sha2::Sha256),
-    Sha384(sha2::Sha384),
-    Sha512(sha2::Sha512),
-}
-
-impl RsaSigningDigest {
-    pub(crate) fn finalize(self) -> Vec<u8> {
-        match self.0 {
-            RsaDigestInner::Sha256(x) => x.finalize().to_vec(),
-            RsaDigestInner::Sha384(x) => x.finalize().to_vec(),
-            RsaDigestInner::Sha512(x) => x.finalize().to_vec(),
-        }
-    }
-}
-
-impl Update for RsaSigningDigest {
-    fn update(&mut self, data: &[u8]) {
-        match self.0 {
-            RsaDigestInner::Sha256(ref mut x) => Update::update(x, data),
-            RsaDigestInner::Sha384(ref mut x) => Update::update(x, data),
-            RsaDigestInner::Sha512(ref mut x) => Update::update(x, data),
-        }
-    }
-}
-
 impl Signer<Vec<u8>> for RsaSigner {
-    type Digest = RsaSigningDigest;
+    fn sign(&mut self, msg: &[u8]) -> Result<Vec<u8>, signature::Error> {
+        let key = &mut self.key;
 
-    fn new_digest(&self) -> Self::Digest {
-        use RsaSigning::*;
-
-        let inner = match self.alg {
-            Pss(RsassaPss::Ps256) | RsPkcs1V1_5(RsassaPkcs1V1_5::Rs256) => {
-                RsaDigestInner::Sha256(sha2::Sha256::default())
+        let hashed = match self.alg {
+            RsaSigning::Pss(RsassaPss::Ps256) | RsaSigning::RsPkcs1V1_5(RsassaPkcs1V1_5::Rs256) => {
+                sha2::Sha256::digest(msg).to_vec()
             }
-            Pss(RsassaPss::Ps384) | RsPkcs1V1_5(RsassaPkcs1V1_5::Rs384) => {
-                RsaDigestInner::Sha384(sha2::Sha384::default())
+            RsaSigning::Pss(RsassaPss::Ps384) | RsaSigning::RsPkcs1V1_5(RsassaPkcs1V1_5::Rs384) => {
+                sha2::Sha384::digest(msg).to_vec()
             }
-            Pss(RsassaPss::Ps512) | RsPkcs1V1_5(RsassaPkcs1V1_5::Rs512) => {
-                RsaDigestInner::Sha512(sha2::Sha512::default())
+            RsaSigning::Pss(RsassaPss::Ps512) | RsaSigning::RsPkcs1V1_5(RsassaPkcs1V1_5::Rs512) => {
+                sha2::Sha512::digest(msg).to_vec()
             }
         };
 
-        RsaSigningDigest(inner)
-    }
-
-    fn sign_digest(&mut self, digest: Self::Digest) -> Result<Vec<u8>, signature::Error> {
-        let key = &mut self.key;
-        let hashed = digest.finalize();
         let mut rng = OsRng;
 
         let res = match self.alg {

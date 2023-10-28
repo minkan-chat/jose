@@ -12,7 +12,7 @@ use rsa::{
     BigUint,
 };
 use serde::{de::Error as _, ser::Error as _, Deserialize, Serialize};
-pub use signer_verifier::{RsaSigner, RsaSigningDigest, RsaVerifier};
+pub use signer_verifier::{RsaSigner, RsaVerifier};
 
 use super::IntoJsonWebKey;
 use crate::{
