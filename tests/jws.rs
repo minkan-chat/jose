@@ -220,6 +220,59 @@ fn smoke() {
     println!("{:#?}", parsed_jws);
 }
 
+#[test]
+fn additional_jwk_parameters_in_header() {
+    let key = std::fs::read_to_string(format!(
+        "{}/tests/keys/p256.json",
+        env!("CARGO_MANIFEST_DIR"),
+    ))
+    .unwrap();
+
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct Additional {
+        #[serde(rename = "example.com/custom-key")]
+        foo: usize,
+    }
+
+    let additional = Additional { foo: 1337 };
+
+    let key: JsonWebKey = serde_json::from_str(&key).unwrap();
+    let key = key.check(StandardPolicy::new()).unwrap();
+    let mut signer = JwkSigner::try_from(key.clone()).unwrap();
+    let mut verifier = JwkVerifier::try_from(key.clone()).unwrap();
+
+    let key = key
+        .into_inner()
+        .0
+        .into_builder()
+        .additional(additional)
+        .build()
+        .unwrap();
+    let key = key.into_untyped_additional().unwrap();
+
+    let jws: Jws<Compact, StringPayload> = Jws::builder()
+        .header(|b| b.json_web_key(Some(HeaderValue::Protected(key))))
+        .build(StringPayload::from("abc"))
+        .unwrap();
+
+    let jws = jws.sign(&mut signer).unwrap().encode();
+
+    let parsed_jws = Unverified::<Jws<Compact, StringPayload>>::decode(jws)
+        .unwrap()
+        .verify(&mut verifier)
+        .unwrap();
+
+    let jwk = parsed_jws
+        .header()
+        .json_web_key()
+        .unwrap()
+        .into_inner()
+        .clone();
+    let jwk: JsonWebKey<Additional> = jwk.deserialize_additional().unwrap();
+
+    assert_eq!(jwk.additional().foo, 1337);
+}
+
 // #[test]
 // fn sign_jws_using_hs256() {
 //     let key = std::fs::read_to_string(format!(

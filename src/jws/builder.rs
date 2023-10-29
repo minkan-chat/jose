@@ -51,7 +51,7 @@ impl<F: Format> JsonWebSignatureBuilder<F> {
     ///
     /// [JWS RFC]: <https://datatracker.ietf.org/doc/html/rfc7515>
     pub fn header<
-        CB: Fn(JoseHeaderBuilder<F, header::Jws>) -> JoseHeaderBuilder<F, header::Jws>,
+        CB: FnOnce(JoseHeaderBuilder<F, header::Jws>) -> JoseHeaderBuilder<F, header::Jws>,
     >(
         mut self,
         callback: CB,

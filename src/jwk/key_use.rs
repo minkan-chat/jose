@@ -1,4 +1,4 @@
-use alloc::string::{String, ToString};
+use alloc::string::String;
 
 use serde::{Deserialize, Serialize};
 
@@ -39,11 +39,11 @@ impl<'de> Deserialize<'de> for KeyUsage {
     where
         D: serde::Deserializer<'de>,
     {
-        let val = <&str as Deserialize>::deserialize(deserializer)?;
-        Ok(match val {
+        let val = <alloc::borrow::Cow<'_, str>>::deserialize(deserializer)?;
+        Ok(match &*val {
             "sig" => Self::Signing,
             "enc" => Self::Encryption,
-            _ => Self::Other(val.to_string()),
+            _ => Self::Other(val.into_owned()),
         })
     }
 }
