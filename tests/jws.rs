@@ -49,11 +49,6 @@ impl IntoPayload for StringPayload {
     }
 }
 
-struct DummyDigest;
-impl digest::Update for DummyDigest {
-    fn update(&mut self, _data: &[u8]) {}
-}
-
 struct NoneKey;
 impl Signer<[u8; 0]> for NoneKey {
     fn sign(&mut self, _msg: &[u8]) -> Result<[u8; 0], signature::Error> {
@@ -220,51 +215,55 @@ fn smoke() {
     println!("{:#?}", parsed_jws);
 }
 
-// #[test]
-// fn sign_jws_using_hs256() {
-//     let key = std::fs::read_to_string(format!(
-//         "{}/tests/keys/hs256.json",
-//         env!("CARGO_MANIFEST_DIR")
-//     ))
-//     .unwrap();
-//
-//     let key: SymmetricJsonWebKey = serde_json::from_str(&key).unwrap();
-//
-//     match key {
-//         SymmetricJsonWebKey::OctetSequence(ref key) => {
-//             let mut signer: HmacKey<Hs256> = key
-//                 .into_signer(JsonWebSigningAlgorithm::Hmac(Hmac::Hs256))
-//                 .unwrap();
-//             let jws = JWS::builder()
-//                 .build(StringPayload("Here be dragons".to_string()))
-//                 .sign(&mut signer)
-//                 .unwrap();
-//
-//             println!("{}", jws.encode::<Compact>());
-//         }
-//         _ => panic!("unexpected key type"),
-//     }
-// }
+#[test]
+fn additional_jwk_parameters_in_header() {
+    let key = std::fs::read_to_string(format!(
+        "{}/tests/keys/p256.json",
+        env!("CARGO_MANIFEST_DIR"),
+    ))
+    .unwrap();
 
-// #[test]
-// fn sign_jws_using_rsa() {
-//     let key = std::fs::read_to_string(format!(
-//         "{}/tests/keys/rsa.json",
-//         env!("CARGO_MANIFEST_DIR")
-//     ))
-//     .unwrap();
-//
-//     let key = serde_json::from_str::<JsonWebKey>(&key)
-//         .unwrap()
-//         .check(StandardPolicy::default())
-//         .unwrap();
-//
-//     let mut signer: JwkSigner = key.try_into().unwrap();
-//
-//     let jws = JWS::builder()
-//         .build(StringPayload("Here be dragons".to_string()))
-//         .sign(&mut signer)
-//         .unwrap();
-//
-//     println!("{}", jws.encode::<Compact>());
-// }
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct Additional {
+        #[serde(rename = "example.com/custom-key")]
+        foo: usize,
+    }
+
+    let additional = Additional { foo: 1337 };
+
+    let key: JsonWebKey = serde_json::from_str(&key).unwrap();
+    let key = key.check(StandardPolicy::new()).unwrap();
+    let mut signer = JwkSigner::try_from(key.clone()).unwrap();
+    let mut verifier = JwkVerifier::try_from(key.clone()).unwrap();
+
+    let key = key
+        .into_inner()
+        .0
+        .into_builder()
+        .additional(additional)
+        .build()
+        .unwrap();
+    let key = key.into_untyped_additional().unwrap();
+
+    let jws: Jws<Compact, StringPayload> = Jws::builder()
+        .header(|b| b.json_web_key(Some(HeaderValue::Protected(key))))
+        .build(StringPayload::from("abc"))
+        .unwrap();
+
+    let jws = jws.sign(&mut signer).unwrap().encode();
+
+    let parsed_jws = Unverified::<Jws<Compact, StringPayload>>::decode(jws)
+        .unwrap()
+        .verify(&mut verifier)
+        .unwrap();
+
+    let jwk = parsed_jws
+        .header()
+        .json_web_key()
+        .unwrap()
+        .into_inner()
+        .clone();
+    let jwk: JsonWebKey<Additional> = jwk.deserialize_additional().unwrap();
+
+    assert_eq!(jwk.additional().foo, 1337);
+}

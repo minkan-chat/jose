@@ -8,7 +8,7 @@ use mediatype::MediaTypeBuf;
 use serde_json::Value;
 
 use super::HeaderValue;
-use crate::{jwk::serde_impl::Base64DerCertificate, JsonWebKey};
+use crate::{jwk::serde_impl::Base64DerCertificate, JsonWebKey, UntypedAdditionalProperties};
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -18,7 +18,7 @@ pub(crate) struct Parameters<T> {
     /// `jku` parameter defined in section 4.1.2 of JWS and section 4.1.4 of JWE
     pub(crate) jwk_set_url: Option<HeaderValue<String>>,
     /// `jwk` parameter defined in section 4.1.3 of JWS and section 4.1.5 of JWE
-    pub(crate) json_web_key: Option<HeaderValue<JsonWebKey<Value>>>,
+    pub(crate) json_web_key: Option<HeaderValue<JsonWebKey<UntypedAdditionalProperties>>>,
     // `kid` parameter defined in section 4.1.4 of JWS and section 4.1.6 of JWE
     pub(crate) key_id: Option<HeaderValue<String>>,
     /// `x5u` parameter defined in section 4.1.5 of JWS and section 4.1.7 of JWE

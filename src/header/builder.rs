@@ -14,7 +14,7 @@ use crate::{
     header::parameters::Parameters,
     jwa::{JsonWebContentEncryptionAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
     jwk::serde_impl::Base64DerCertificate,
-    JoseHeader, JsonWebKey,
+    JoseHeader, JsonWebKey, UntypedAdditionalProperties,
 };
 
 /// A builder for a [`JoseHeader`].
@@ -24,7 +24,7 @@ pub struct JoseHeaderBuilder<F, T> {
     // data
     critical_headers: Option<BTreeSet<String>>,
     jwk_set_url: Option<HeaderValue<String>>,
-    json_web_key: Option<HeaderValue<JsonWebKey<Value>>>,
+    json_web_key: Option<HeaderValue<JsonWebKey<UntypedAdditionalProperties>>>,
     key_identifier: Option<HeaderValue<String>>,
     x509_url: Option<HeaderValue<String>>,
     x509_certificate_chain: Option<HeaderValue<Vec<Vec<u8>>>>,
@@ -368,7 +368,7 @@ macro_rules! setter {
 setter! {
     x509_certificate_chain: Vec<Vec<u8>>,
     jwk_set_url: String,
-    json_web_key: JsonWebKey<Value>,
+    json_web_key: JsonWebKey<UntypedAdditionalProperties>,
     key_identifier: String,
     x509_url: String,
     x509_certificate_sha1_thumbprint: [u8; 20],

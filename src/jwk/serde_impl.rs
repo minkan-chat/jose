@@ -99,9 +99,9 @@ impl<'de> Deserialize<'de> for Base64DerCertificate {
     where
         D: Deserializer<'de>,
     {
-        let val = <&str as Deserialize>::deserialize(deserializer)?;
+        let val = <alloc::borrow::Cow<'_, str>>::deserialize(deserializer)?;
         Ok(Self(
-            base64ct::Base64::decode_vec(val).map_err(<D::Error as Error>::custom)?,
+            base64ct::Base64::decode_vec(&val).map_err(<D::Error as Error>::custom)?,
         ))
     }
 }
