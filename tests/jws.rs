@@ -49,11 +49,6 @@ impl IntoPayload for StringPayload {
     }
 }
 
-struct DummyDigest;
-impl digest::Update for DummyDigest {
-    fn update(&mut self, _data: &[u8]) {}
-}
-
 struct NoneKey;
 impl Signer<[u8; 0]> for NoneKey {
     fn sign(&mut self, _msg: &[u8]) -> Result<[u8; 0], signature::Error> {
