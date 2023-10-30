@@ -295,3 +295,26 @@ fn ed25519_json_web_key() {
         _ => panic!(),
     }
 }
+
+#[test]
+fn convert_to_public_key() {
+    let private_json = read_key_file("p256");
+    let public_json = read_key_file("p256.pub");
+
+    let private: JsonWebKey = serde_json::from_str(&private_json).unwrap();
+    let public: JsonWebKey = serde_json::from_str(&public_json).unwrap();
+
+    let public_converted = private.clone().into_verifying_key();
+    assert_eq!(public, public_converted);
+
+    let public_converted = private.strip_secret_material().unwrap();
+    assert_eq!(public, public_converted);
+}
+
+#[test]
+fn symmetric_key_can_not_strip_secret() {
+    let key = read_key_file("hs256");
+    let key: JsonWebKey = serde_json::from_str(&key).unwrap();
+
+    assert!(key.strip_secret_material().is_none());
+}
