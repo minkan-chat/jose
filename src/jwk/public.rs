@@ -1,6 +1,8 @@
+use alloc::string::String;
+
 use serde::{Deserialize, Serialize};
 
-use super::{ec::EcPublic, okp::OkpPublic, rsa::RsaPublicKey};
+use super::{ec::EcPublic, okp::OkpPublic, rsa::RsaPublicKey, Thumbprint};
 
 /// The `public` part of some asymmetric cryptographic key
 #[non_exhaustive]
@@ -14,4 +16,15 @@ pub enum Public {
     /// The public part of an `OKP` key type, probably the public part of a
     /// curve25519 or curve448 key
     Okp(OkpPublic),
+}
+
+impl crate::sealed::Sealed for Public {}
+impl Thumbprint for Public {
+    fn thumbprint_prehashed(&self) -> String {
+        match self {
+            Public::Rsa(key) => key.thumbprint_prehashed(),
+            Public::Ec(key) => key.thumbprint_prehashed(),
+            Public::Okp(key) => key.thumbprint_prehashed(),
+        }
+    }
 }

@@ -14,7 +14,7 @@ use rsa::{
 use serde::{de::Error as _, ser::Error as _, Deserialize, Serialize};
 pub use signer_verifier::{RsaSigner, RsaVerifier};
 
-use super::IntoJsonWebKey;
+use super::{thumbprint::Thumbprint, IntoJsonWebKey};
 use crate::{
     base64_url::Base64UrlBytes,
     jwa::{self, RsaSigning},
@@ -52,6 +52,12 @@ impl IntoJsonWebKey for RsaPublicKey {
         let mut jwk = crate::JsonWebKey::new(key);
         jwk.algorithm = alg;
         Ok(jwk)
+    }
+}
+
+impl Thumbprint for RsaPublicKey {
+    fn thumbprint_prehashed(&self) -> String {
+        crate::jwk::thumbprint::serialize_key_thumbprint(self)
     }
 }
 
@@ -157,6 +163,12 @@ impl IntoJsonWebKey for RsaPrivateKey {
         let mut jwk = crate::JsonWebKey::new(key);
         jwk.algorithm = alg;
         Ok(jwk)
+    }
+}
+
+impl Thumbprint for RsaPrivateKey {
+    fn thumbprint_prehashed(&self) -> String {
+        self.to_public_key().thumbprint_prehashed()
     }
 }
 

@@ -36,6 +36,7 @@ mod private;
 mod public;
 pub(crate) mod serde_impl;
 mod signer;
+pub(crate) mod thumbprint;
 mod verifier;
 
 use self::serde_impl::Base64DerCertificate;
@@ -49,6 +50,7 @@ pub use self::{
     public::Public,
     signer::{FromJwkError, JwkSigner},
     symmetric::SymmetricJsonWebKey,
+    thumbprint::Thumbprint,
     verifier::JwkVerifier,
 };
 
@@ -657,6 +659,13 @@ where
     }
 }
 
+impl Sealed for JsonWebKey {}
+impl Thumbprint for JsonWebKey {
+    fn thumbprint_prehashed(&self) -> String {
+        self.key_type().thumbprint_prehashed()
+    }
+}
+
 /// A [`JsonWebKey`] represents a cryptographic key. It can either be symmetric
 /// or asymmetric. In the latter case, it can store public or private
 /// information about the key. This enum represents the key types as defined in
@@ -670,6 +679,16 @@ pub enum JsonWebKeyType {
     Symmetric(SymmetricJsonWebKey),
     /// An asymmetric cryptographic key
     Asymmetric(Box<AsymmetricJsonWebKey>),
+}
+
+impl Sealed for JsonWebKeyType {}
+impl Thumbprint for JsonWebKeyType {
+    fn thumbprint_prehashed(&self) -> String {
+        match self {
+            JsonWebKeyType::Symmetric(key) => key.thumbprint_prehashed(),
+            JsonWebKeyType::Asymmetric(key) => key.thumbprint_prehashed(),
+        }
+    }
 }
 
 impl JsonWebKeyType {

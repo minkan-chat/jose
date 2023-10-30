@@ -1,8 +1,8 @@
-use alloc::boxed::Box;
+use alloc::{boxed::Box, string::String};
 
 use serde::{Deserialize, Serialize};
 
-use super::{ec::EcPrivate, okp::OkpPrivate, rsa::RsaPrivateKey};
+use super::{ec::EcPrivate, okp::OkpPrivate, rsa::RsaPrivateKey, Thumbprint};
 
 /// The `private` part of some asymmetric cryptographic key
 #[non_exhaustive]
@@ -23,5 +23,16 @@ impl From<Private> for super::JsonWebKeyType {
         super::JsonWebKeyType::Asymmetric(alloc::boxed::Box::new(
             super::AsymmetricJsonWebKey::Private(x),
         ))
+    }
+}
+
+impl crate::sealed::Sealed for Private {}
+impl Thumbprint for Private {
+    fn thumbprint_prehashed(&self) -> String {
+        match self {
+            Private::Rsa(key) => key.thumbprint_prehashed(),
+            Private::Ec(key) => key.thumbprint_prehashed(),
+            Private::Okp(key) => key.thumbprint_prehashed(),
+        }
     }
 }

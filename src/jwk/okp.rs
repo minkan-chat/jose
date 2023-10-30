@@ -4,7 +4,11 @@ use self::curve25519::{Curve25519Private, Curve25519Public};
 
 pub mod curve25519;
 
+use alloc::string::String;
+
 use serde::{Deserialize, Serialize};
+
+use super::Thumbprint;
 
 /// TODO: unsupported, no implementation available
 #[allow(missing_docs)]
@@ -49,6 +53,15 @@ pub enum OkpPublic {
     // Curve448(Curve448Public),
 }
 
+impl crate::sealed::Sealed for OkpPublic {}
+impl Thumbprint for OkpPublic {
+    fn thumbprint_prehashed(&self) -> String {
+        match self {
+            OkpPublic::Curve25519(key) => key.thumbprint_prehashed(),
+        }
+    }
+}
+
 /// The private part of an `OKP` key type
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -58,4 +71,13 @@ pub enum OkpPrivate {
     Curve25519(Curve25519Private),
     // /// `kty` is `OKP` and `crv` is either `Ed448` or `X448`
     // Curve448(Curve448Private),
+}
+
+impl crate::sealed::Sealed for OkpPrivate {}
+impl Thumbprint for OkpPrivate {
+    fn thumbprint_prehashed(&self) -> String {
+        match self {
+            OkpPrivate::Curve25519(key) => key.thumbprint_prehashed(),
+        }
+    }
 }

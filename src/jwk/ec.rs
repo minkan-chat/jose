@@ -19,6 +19,7 @@ use self::{
     p384::{P384PrivateKey, P384PublicKey},
     secp256k1::{Secp256k1PrivateKey, Secp256k1PublicKey},
 };
+use super::Thumbprint;
 use crate::{base64_url::Base64UrlEncodedField, tagged_visitor::TaggedContentVisitor};
 
 // FIXME: support all curves specified in IANA "JWK Elliptic Curve"
@@ -39,6 +40,17 @@ pub enum EcPublic {
     // P521(P521PublicKey),
     /// Public part of the secp251k1 curve
     Secp256k1(Secp256k1PublicKey),
+}
+
+impl crate::sealed::Sealed for EcPublic {}
+impl Thumbprint for EcPublic {
+    fn thumbprint_prehashed(&self) -> String {
+        match self {
+            EcPublic::P256(key) => key.thumbprint_prehashed(),
+            EcPublic::P384(key) => key.thumbprint_prehashed(),
+            EcPublic::Secp256k1(key) => key.thumbprint_prehashed(),
+        }
+    }
 }
 
 impl From<EcPublic> for super::JsonWebKeyType {
@@ -72,6 +84,17 @@ pub enum EcPrivate {
     // P521(P521PrivateKey),
     /// Private part of the secp251k1 curve
     Secp256k1(Secp256k1PrivateKey),
+}
+
+impl crate::sealed::Sealed for EcPrivate {}
+impl Thumbprint for EcPrivate {
+    fn thumbprint_prehashed(&self) -> String {
+        match self {
+            EcPrivate::P256(key) => key.thumbprint_prehashed(),
+            EcPrivate::P384(key) => key.thumbprint_prehashed(),
+            EcPrivate::Secp256k1(key) => key.thumbprint_prehashed(),
+        }
+    }
 }
 
 impl From<EcPrivate> for super::JsonWebKeyType {

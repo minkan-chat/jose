@@ -58,6 +58,13 @@ macro_rules! impl_ec {
             }
         }
 
+        #[allow(unused_qualifications)]
+        impl crate::jwk::Thumbprint for $public {
+            fn thumbprint_prehashed(&self) -> alloc::string::String {
+                crate::jwk::thumbprint::serialize_key_thumbprint(self)
+            }
+        }
+
         impl crate::sealed::Sealed for $priv {}
         impl crate::jwk::IntoJsonWebKey for $priv {
             /// Algorithm is `()` because there's only
@@ -78,6 +85,13 @@ macro_rules! impl_ec {
                 let mut jwk = crate::JsonWebKey::new(key);
                 jwk.algorithm = alg.into().map(|_| crate::jwa::JsonWebAlgorithm::Signing($alg));
                 Ok(jwk)
+            }
+        }
+
+        #[allow(unused_qualifications)]
+        impl crate::jwk::Thumbprint for $priv {
+            fn thumbprint_prehashed(&self) -> alloc::string::String {
+                self.to_public_key().thumbprint_prehashed()
             }
         }
 
