@@ -3,7 +3,7 @@
 // - additional (private, public) headers
 // - for supporting all MUST BE UNDERSTOOD params
 
-use std::{convert::Infallible, string::FromUtf8Error};
+use std::{convert::Infallible, str::FromStr, string::FromUtf8Error};
 
 use jose::{
     format::{Compact, JsonFlattened, JsonGeneral},
@@ -11,15 +11,25 @@ use jose::{
     jwa::{EcDSA, JsonWebSigningAlgorithm},
     jwk::{
         ec::p256::{P256PrivateKey, P256Signer},
+        okp::curve25519::{Ed25519PrivateKey, Ed25519PublicKey, Ed25519Signer, Ed25519Verifier},
         JwkSigner, JwkVerifier,
     },
     jws::{
-        FromRawPayload, IntoPayload, IntoSigner, ManyUnverified, PayloadKind, Signer, Unverified,
-        Verifier,
+        FromRawPayload, IntoPayload, IntoSigner, IntoVerifier, ManyUnverified, PayloadKind, Signer,
+        Unverified, Verifier,
     },
     policy::{Checkable, StandardPolicy},
     Base64UrlString, JsonWebKey, Jws,
 };
+
+fn read_key_file(name: &str) -> String {
+    std::fs::read_to_string(format!(
+        "{}/tests/keys/{}.json",
+        env!("CARGO_MANIFEST_DIR"),
+        name,
+    ))
+    .unwrap()
+}
 
 #[derive(Debug, PartialEq, Eq)]
 struct StringPayload(String);
@@ -266,4 +276,60 @@ fn additional_jwk_parameters_in_header() {
     let jwk: JsonWebKey<Additional> = jwk.deserialize_additional().unwrap();
 
     assert_eq!(jwk.additional().foo, 1337);
+}
+
+#[test]
+fn ed25519() {
+    let private: Ed25519PrivateKey =
+        serde_json::from_str(&read_key_file("ed25519")).expect("valid ed25519 private key");
+    let _wrong_private = serde_json::from_str::<Ed25519PrivateKey>(&read_key_file("ed25519.pub"))
+        .expect_err("is a public key");
+
+    let public: Ed25519PublicKey =
+        serde_json::from_str(&read_key_file("ed25519.pub")).expect("is a valid public key");
+    let _wrong_public = serde_json::from_str::<Ed25519PublicKey>(&read_key_file("ed25519"))
+        .expect("public key can be parsed from private key");
+
+    let msg = "I was cured all right.";
+
+    let mut signer: Ed25519Signer = private
+        .into_signer(jose::jwa::JsonWebSigningAlgorithm::EdDSA)
+        .unwrap();
+
+    let jws = Jws::<Compact, _>::builder()
+        .build(StringPayload(msg.to_string()))
+        .unwrap();
+
+    let jws = jws.sign(&mut signer).unwrap();
+
+    println!("{:#?}", jws);
+
+    let mut verifier: Ed25519Verifier = public
+        .into_verifier(JsonWebSigningAlgorithm::EdDSA)
+        .unwrap();
+
+    let encoded = jws.encode().to_string();
+    assert_eq!(
+        encoded,
+        "eyJhbGciOiJFZERTQSJ9.SSB3YXMgY3VyZWQgYWxsIHJpZ2h0Lg.\
+         JtDl6Eq4ORiI_fYmeik8QLMUPur0s37AgaK-o8W2ywEXnomeSPpf3Je0EvCI8K55k0uu0zkdHmGs2vu-DiuLDw"
+    );
+
+    let unverified_jws =
+        Unverified::<Jws<Compact, StringPayload>>::decode(Compact::from_str(&encoded).unwrap())
+            .unwrap();
+    unverified_jws
+        .verify(&mut verifier)
+        .expect("valid signature");
+
+    let signature_by_different_key =
+        "eyJhbGciOiJFZERTQSJ9.SSB3YXMgY3VyZWQgYWxsIHJpZ2h0Lg.\
+         xuBNTX8MSX1Du5sAdSGBUKijn8yqHG8v-3CYrZpoHizzwU9T6aT-XqbS5FBuMR9_pGagmpO6EiPHqZiTUpxXDQ";
+
+    let wrong_jws: Unverified<Jws<Compact, StringPayload>> =
+        Unverified::decode(Compact::from_str(signature_by_different_key).unwrap()).unwrap();
+
+    wrong_jws
+        .verify(&mut verifier)
+        .expect_err("signature made by different private key");
 }

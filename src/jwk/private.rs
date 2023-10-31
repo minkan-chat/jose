@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 
 use serde::{Deserialize, Serialize};
 
-use super::{ec::EcPrivate, rsa::RsaPrivateKey};
+use super::{ec::EcPrivate, okp::OkpPrivate, rsa::RsaPrivateKey};
 
 /// The `private` part of some asymmetric cryptographic key
 #[non_exhaustive]
@@ -13,9 +13,9 @@ pub enum Private {
     Rsa(Box<RsaPrivateKey>),
     /// The private part of an elliptic curve
     Ec(EcPrivate),
-    // /// The private part of an `OKP` key type, probably the private part of a
-    // /// curve25519 or curve448 key
-    // Okp(OkpPrivate),
+    /// The private part of an `OKP` key type, probably the private part of a
+    /// curve25519 or curve448 key
+    Okp(OkpPrivate),
 }
 
 impl From<Private> for super::JsonWebKeyType {

@@ -4,6 +4,10 @@ use super::{
     ec::{
         p256::P256Verifier, p384::P384Verifier, secp256k1::Secp256k1Verifier, EcPrivate, EcPublic,
     },
+    okp::{
+        curve25519::{Curve25519Private, Curve25519Public, Ed25519Verifier},
+        OkpPrivate, OkpPublic,
+    },
     rsa::RsaVerifier,
     symmetric::{self, hmac::HmacKey},
     AsymmetricJsonWebKey, FromJwkError, FromKey, Private, Public, SymmetricJsonWebKey,
@@ -44,6 +48,13 @@ impl JwkVerifier {
                             }
                         },
                         Public::Rsa(key) => InnerVerifier::Rsa(key.into_verifier(alg)?),
+                        Public::Okp(key) => match key {
+                            OkpPublic::Curve25519(key) => match key {
+                                Curve25519Public::Ed(key) => {
+                                    InnerVerifier::Ed25519(key.into_verifier(alg)?)
+                                }
+                            },
+                        },
                     },
                     AsymmetricJsonWebKey::Private(key) => match key {
                         Private::Ec(key) => match key {
@@ -54,6 +65,13 @@ impl JwkVerifier {
                             }
                         },
                         Private::Rsa(key) => InnerVerifier::Rsa((*key).into_verifier(alg)?),
+                        Private::Okp(key) => match key {
+                            OkpPrivate::Curve25519(key) => match key {
+                                Curve25519Private::Ed(key) => {
+                                    InnerVerifier::Ed25519(key.into_verifier(alg)?)
+                                }
+                            },
+                        },
                     },
                 },
                 JsonWebKeyType::Symmetric(key) => match key {
@@ -81,6 +99,7 @@ impl Verifier for JwkVerifier {
             InnerVerifier::Es256(verifier) => verifier.verify(msg, signature),
             InnerVerifier::Es384(verifier) => verifier.verify(msg, signature),
             InnerVerifier::Secp256k1(verifier) => verifier.verify(msg, signature),
+            InnerVerifier::Ed25519(verifier) => verifier.verify(msg, signature),
         }
     }
 }
@@ -148,5 +167,6 @@ enum InnerVerifier {
     Es384(P384Verifier),
     Secp256k1(Secp256k1Verifier),
     // P-512 not supported yet
-    // Curve-25519 and 448 not supported yet
+    Ed25519(Ed25519Verifier),
+    // Curve-448 not supported yet
 }
