@@ -2,6 +2,7 @@ use jose::{
     jwa::{EcDSA, Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::{
         ec::{EcPrivate, EcPublic},
+        okp::{curve25519::Curve25519Private, OkpPrivate},
         symmetric::{
             hmac::{HmacKey, Hs256},
             FromOctetSequenceError, OctetSequence,
@@ -159,6 +160,15 @@ pub mod ec {
     }
 }
 
+pub mod okp_ed25519 {
+    key_roundtrip_test! {
+        jose::jwk::okp::curve25519::Curve25519Private,
+        jose::jwk::okp::curve25519::Curve25519Public,
+        "ed25519",
+        ["crv", "x", "d"],
+        ["crv", "x"],
+    }
+}
 #[test]
 fn generic_public_key_roundtrip() {
     let json = read_key_file("p256.pub");
@@ -270,4 +280,18 @@ fn deny_hmac_key_with_short_key() {
         hmac.unwrap_err(),
         FromOctetSequenceError::InvalidLength(digest::InvalidLength)
     );
+}
+
+#[test]
+fn ed25519_json_web_key() {
+    let jwk: JsonWebKey = serde_json::from_str(&read_key_file("ed25519")).unwrap();
+    match jwk.key_type() {
+        JsonWebKeyType::Asymmetric(key) => match **key {
+            AsymmetricJsonWebKey::Private(Private::Okp(OkpPrivate::Curve25519(
+                Curve25519Private::Ed(_),
+            ))) => (),
+            _ => panic!(),
+        },
+        _ => panic!(),
+    }
 }

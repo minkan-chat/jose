@@ -2,6 +2,10 @@ use alloc::{borrow::ToOwned, string::String, vec::Vec};
 
 use super::{
     ec::{p256::P256Signer, p384::P384Signer, secp256k1::Secp256k1Signer, EcPrivate},
+    okp::{
+        curve25519::{Curve25519Private, Ed25519Signer},
+        OkpPrivate,
+    },
     rsa::RsaSigner,
     symmetric::{
         hmac::{self, HmacKey},
@@ -78,6 +82,13 @@ impl JwkSigner {
                             }
                         },
                         Private::Rsa(key) => InnerSigner::Rsa((*key).into_signer(alg)?),
+                        Private::Okp(key) => match key {
+                            OkpPrivate::Curve25519(key) => match key {
+                                Curve25519Private::Ed(key) => {
+                                    InnerSigner::Ed25519(key.into_signer(alg)?)
+                                }
+                            },
+                        },
                     },
                 },
                 JsonWebKeyType::Symmetric(key) => match key {
@@ -127,6 +138,7 @@ impl Signer<Vec<u8>> for JwkSigner {
             InnerSigner::Es256(s) => s.sign(x).map(|x| x.to_vec()),
             InnerSigner::Es384(s) => s.sign(x).map(|x| x.to_vec()),
             InnerSigner::Secp256k1(s) => s.sign(x).map(|x| x.to_vec()),
+            InnerSigner::Ed25519(s) => s.sign(x).map(|x| x.to_vec()),
         }
     }
 
@@ -139,6 +151,7 @@ impl Signer<Vec<u8>> for JwkSigner {
             InnerSigner::Es384(_) => JsonWebSigningAlgorithm::EcDSA(EcDSA::Es384),
             InnerSigner::Secp256k1(_) => JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256K),
             InnerSigner::Rsa(ref rsa) => rsa.algorithm(),
+            InnerSigner::Ed25519(_) => JsonWebSigningAlgorithm::EdDSA,
         }
     }
 
@@ -246,5 +259,6 @@ enum InnerSigner {
     Es384(P384Signer),
     Secp256k1(Secp256k1Signer),
     // P-512 not supported yet
-    // Curve-25519 and 448 not supported yet
+    Ed25519(Ed25519Signer),
+    // Curve-448 not supported yet
 }
