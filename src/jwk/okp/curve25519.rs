@@ -2,8 +2,9 @@
 mod ed25519;
 mod x25519;
 
-pub use ed25519::{Ed25519PrivateKey, Ed25519PublicKey, Ed25519Signer, Ed25519Verifier};
 use serde::{Deserialize, Serialize};
+
+pub use self::ed25519::{Ed25519PrivateKey, Ed25519PublicKey, Ed25519Signer, Ed25519Verifier};
 
 /// Either a public key for Ed25519 or X25519 (Diffie-Hellman)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
