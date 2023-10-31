@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 /// Either a public key for Ed25519 or X25519 (Diffie-Hellman)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 #[serde(untagged)]
 pub enum Curve25519Public {
     /// Public Ed25519 part
@@ -17,6 +18,7 @@ pub enum Curve25519Public {
 
 /// Either a private key for Ed25519 or X25519 (Diffie-Hellman)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 #[serde(untagged)]
 pub enum Curve25519Private {
     /// Private Ed25519 part

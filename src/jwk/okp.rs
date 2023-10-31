@@ -6,49 +6,6 @@ pub mod curve25519;
 
 use serde::{Deserialize, Serialize};
 
-// /// Curve25519 key types (EdDSA and ECDH)
-// pub mod curve25519 {
-//     /// EdDSA part of Curve25519
-//     pub mod ed25519 {
-//         /// An Ed25519 public key used to verify signatures
-//         #[derive(Debug)]
-//         pub struct Ed25519PublicKey;
-
-//         /// An Ed25519 private key used to create signatures
-//         #[derive(Debug)]
-//         pub struct Ed25519PrivateKey;
-//     }
-
-//     /// ECDH part of Curve25519
-//     pub mod x25519 {
-//         /// An ECDH public key
-//         #[derive(Debug)]
-//         pub struct X25519PublicKey;
-
-//         /// An ECDH private key
-//         #[derive(Debug)]
-//         pub struct X25519PrivateKey;
-//     }
-
-//     /// Either a public key for Ed25519 or X25519 (Diffie-Hellman)
-//     #[derive(Debug, Clone)]
-//     pub enum Curve25519Public {
-//         /// Public Ed25519 part
-//         Ed(ed25519::Ed25519PublicKey),
-//         /// Public X25519 part
-//         X(x25519::X25519PublicKey),
-//     }
-
-//     /// Either a private key for Ed25519 or X25519 (Diffie-Hellman)
-//     #[derive(Debug)]
-//     pub enum Curve25519Private {
-//         /// Private Ed25519 part
-//         Ed(ed25519::Ed25519PrivateKey),
-//         /// Private X25519 part
-//         X(x25519::X25519PrivateKey),
-//     }
-// }
-
 /// TODO: unsupported, no implementation available
 #[allow(missing_docs)]
 pub mod curve448 {
