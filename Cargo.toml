@@ -57,7 +57,6 @@ ecdsa = { version = "0.16", default-features = false, features = [
 ed25519-dalek = { version = "2", default-features = false, features = [
   "zeroize",
   "rand_core",
-  "asm",
 ] }
 
 signature = { version = "2.1.0", default-features = false }
