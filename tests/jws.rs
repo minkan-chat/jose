@@ -3,7 +3,7 @@
 // - additional (private, public) headers
 // - for supporting all MUST BE UNDERSTOOD params
 
-use std::{convert::Infallible, string::FromUtf8Error};
+use std::convert::Infallible;
 
 use jose::{
     format::{Compact, JsonFlattened, JsonGeneral},
@@ -14,8 +14,8 @@ use jose::{
         JwkSigner, JwkVerifier,
     },
     jws::{
-        FromRawPayload, IntoPayload, IntoSigner, ManyUnverified, PayloadKind, Signer, Unverified,
-        Verifier,
+        FromRawPayload, IntoPayload, IntoSigner, ManyUnverified, PayloadData, PayloadKind, Signer,
+        Unverified, Verifier,
     },
     policy::{Checkable, StandardPolicy},
     Base64UrlString, JsonWebKey, Jws,
@@ -31,12 +31,24 @@ impl From<&str> for StringPayload {
 }
 
 impl FromRawPayload for StringPayload {
-    type Error = FromUtf8Error;
+    type Error = String;
 
-    fn from_raw_payload(payload: PayloadKind) -> Result<Self, Self::Error> {
+    fn from_attached(payload: PayloadData) -> Result<Self, Self::Error> {
         match payload {
-            PayloadKind::Standard(s) => String::from_utf8(s.decode()).map(StringPayload),
+            PayloadData::Standard(s) => String::from_utf8(s.decode())
+                .map(StringPayload)
+                .map_err(|e| e.to_string()),
         }
+    }
+
+    fn from_detached<F, T>(_: &jose::JoseHeader<F, T>) -> Result<(Self, PayloadData), Self::Error> {
+        Err(String::from("detached payload not supported"))
+    }
+
+    fn from_detached_many<F, T>(
+        _: &[jose::JoseHeader<F, T>],
+    ) -> Result<(Self, PayloadData), Self::Error> {
+        Err(String::from("detached payload not supported"))
     }
 }
 
@@ -45,7 +57,7 @@ impl IntoPayload for StringPayload {
 
     fn into_payload(self) -> Result<PayloadKind, Self::Error> {
         let s = Base64UrlString::encode(self.0);
-        Ok(PayloadKind::Standard(s))
+        Ok(PayloadKind::Attached(PayloadData::Standard(s)))
     }
 }
 

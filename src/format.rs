@@ -22,7 +22,7 @@ pub(crate) mod sealed {
 
     use crate::{
         header::{self, JoseHeaderBuilder, JoseHeaderBuilderError},
-        jws::{PayloadKind, SignError, Signer},
+        jws::{PayloadData, SignError, Signer},
     };
 
     // We put all methods, types, etc into a sealed trait, so
@@ -48,7 +48,7 @@ pub(crate) mod sealed {
 
         fn finalize(
             header: Self::SerializedJwsHeader,
-            payload: PayloadKind,
+            payload: Option<PayloadData>,
             signature: &[u8],
         ) -> Result<Self, serde_json::Error>;
 

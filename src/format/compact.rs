@@ -5,7 +5,7 @@ use super::{sealed, Format};
 use crate::{
     base64_url::NoBase64UrlString,
     header,
-    jws::{PayloadKind, SignError, Signer},
+    jws::{PayloadData, SignError, Signer},
     Base64UrlString, JoseHeader,
 };
 
@@ -52,14 +52,17 @@ impl sealed::SealedFormat<Compact> for Compact {
 
     fn finalize(
         header: Self::SerializedJwsHeader,
-        payload: PayloadKind,
+        payload: Option<PayloadData>,
         signature: &[u8],
     ) -> Result<Self, serde_json::Error> {
         let mut compact = Compact::with_capacity(3);
 
         compact.push_base64url(header);
 
-        let PayloadKind::Standard(payload) = payload;
+        let payload = match payload {
+            Some(PayloadData::Standard(b64)) => b64,
+            None => Base64UrlString::new(),
+        };
 
         compact.parts.push(payload);
         compact.push(signature);

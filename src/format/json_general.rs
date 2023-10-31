@@ -7,7 +7,7 @@ use serde_json::Value;
 use super::{sealed, Format};
 use crate::{
     header::{self, JoseHeaderBuilder, JoseHeaderBuilderError},
-    jws::{PayloadKind, SignError, Signer},
+    jws::{PayloadData, SignError, Signer},
     Base64UrlString, JoseHeader,
 };
 
@@ -26,7 +26,7 @@ pub(crate) struct Signature {
 /// [Section 7.2.1]: https://datatracker.ietf.org/doc/html/rfc7515#section-7.2.1
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JsonGeneral {
-    pub(crate) payload: Base64UrlString,
+    pub(crate) payload: Option<Base64UrlString>,
     pub(crate) signatures: Vec<Signature>,
 }
 
@@ -91,10 +91,10 @@ impl sealed::SealedFormat<JsonGeneral> for JsonGeneral {
 
     fn finalize(
         header: Self::SerializedJwsHeader,
-        payload: PayloadKind,
+        payload: Option<PayloadData>,
         signature: &[u8],
     ) -> Result<Self, serde_json::Error> {
-        let PayloadKind::Standard(payload) = payload;
+        let payload = payload.map(|PayloadData::Standard(b64)| b64);
 
         let signature = Base64UrlString::encode(signature);
 

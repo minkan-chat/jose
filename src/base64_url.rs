@@ -24,7 +24,7 @@ impl std::error::Error for NoBase64UrlString {}
 
 /// A wrapper around a [`String`] that guarantees that the inner string is a
 /// valid Base64Url string.
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Default)]
 #[repr(transparent)]
 #[serde(transparent)]
 pub struct Base64UrlString(String);
@@ -61,6 +61,12 @@ impl FromStr for Base64UrlString {
 }
 
 impl Base64UrlString {
+    /// Creates a new, empty Base64Url string.
+    #[inline]
+    pub const fn new() -> Self {
+        Self(String::new())
+    }
+
     /// Encode the given bytes using Base64Url format.
     #[inline]
     pub fn encode(x: impl AsRef<[u8]>) -> Self {
