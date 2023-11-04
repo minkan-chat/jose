@@ -2,7 +2,6 @@
 **/*.rs.bk
 
 /target
-/Cargo.lock
 
 # local env
 **/.env
