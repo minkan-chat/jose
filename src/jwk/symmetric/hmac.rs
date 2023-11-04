@@ -6,7 +6,7 @@ use core::{
     ops::{Deref, DerefMut},
 };
 
-use digest::{FixedOutput, FixedOutputReset, KeyInit, Output, OutputSizeUser, Update};
+use digest::{FixedOutputReset, KeyInit, Mac, Output, OutputSizeUser, Update};
 use typenum::Unsigned;
 
 use super::{FromOctetSequenceError, OctetSequence};
@@ -23,7 +23,7 @@ pub trait HmacVariant: Sealed {
     const ALGORITHM: JsonWebSigningAlgorithm;
 
     /// The [`hmac::Hmac`] type for this variant.
-    type HmacType: Clone + KeyInit + FixedOutput + FixedOutputReset + Update + fmt::Debug;
+    type HmacType: Mac + FixedOutputReset + KeyInit + fmt::Debug;
 }
 
 /// Marker type that represents Hmac using the Sha256 digest.
@@ -101,7 +101,7 @@ impl<H: HmacVariant> HmacKey<H> {
         rng.fill_bytes(&mut key);
 
         HmacKey {
-            alg: H::HmacType::new(&key),
+            alg: <H::HmacType as KeyInit>::new(&key),
             key: key.to_vec(),
         }
     }
@@ -138,29 +138,18 @@ impl<H: HmacVariant> IntoJsonWebKey for HmacKey<H> {
 
 impl<H: HmacVariant> Verifier for HmacKey<H> {
     fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<(), signature::Error> {
-        // FIXME: use the verify method from the `digest::Mac` trait instead then it has
-        // a method which does not consume self. See <https://github.com/RustCrypto/traits/issues/1050>
-        self.alg.update(msg);
-
-        // the signature that this Hmac would calculate
-        let expected = self.alg.finalize_fixed_reset();
-
-        // constant time check to avoid potential leakage
-        use subtle::ConstantTimeEq as _;
-
-        // this u8 is 1 for true, 0 for false
-        match expected.ct_eq(signature).unwrap_u8() {
-            1 => Ok(()),
-            _ => Err(signature::Error::new()),
-        }
+        <H::HmacType as Update>::update(&mut self.alg, msg);
+        self.alg
+            .verify_slice_reset(signature)
+            .map_err(|_| signature::Error::new())
     }
 }
 
 impl<H: HmacVariant> Signer<HmacSignature<H>> for HmacKey<H> {
     fn sign(&mut self, msg: &[u8]) -> Result<HmacSignature<H>, signature::Error> {
-        let mut digest = self.alg.clone();
-        digest.update(msg);
-        let out = digest.finalize_fixed();
+        <H::HmacType as Update>::update(&mut self.alg, msg);
+        let out = self.alg.finalize_fixed_reset();
+
         Ok(HmacSignature(out))
     }
 
@@ -190,7 +179,7 @@ impl<H: HmacVariant> FromKey<&OctetSequence> for HmacKey<H> {
                     return Err(digest::InvalidLength.into());
                 }
 
-                let hmac = H::HmacType::new_from_slice(key)
+                let hmac = <H::HmacType as KeyInit>::new_from_slice(key)
                     .map_err(FromOctetSequenceError::InvalidLength)?;
                 Ok(Self {
                     alg: hmac,
@@ -216,7 +205,7 @@ impl<H: HmacVariant> FromKey<OctetSequence> for HmacKey<H> {
                     ));
                 }
 
-                let hmac = H::HmacType::new_from_slice(&value.0 .0)
+                let hmac = <H::HmacType as KeyInit>::new_from_slice(&value.0 .0)
                     .map_err(FromOctetSequenceError::InvalidLength)?;
                 Ok(Self {
                     alg: hmac,
