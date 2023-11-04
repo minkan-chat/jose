@@ -10,13 +10,17 @@ use hashbrown::HashSet;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
-    jwa::{EcDSA, JsonWebAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
+    jwa::{
+        AesGcm, AesKw, EcDSA, Hmac, JsonWebAlgorithm, JsonWebEncryptionAlgorithm,
+        JsonWebSigningAlgorithm, Pbes2,
+    },
     jwk::{
         ec::{EcPrivate, EcPublic},
         okp::{
             curve25519::{Curve25519Private, Curve25519Public},
             OkpPrivate, OkpPublic,
         },
+        symmetric::hmac::{HmacVariant, Hs256, Hs384, Hs512},
     },
     policy::{Checkable, Checked, CryptographicOperation, Policy},
     sealed::Sealed,
@@ -728,12 +732,38 @@ impl JsonWebKeyType {
         #[allow(clippy::match_like_matches_macro)]
         match (self, alg) {
             (
+                Symmetric(SymmetricJsonWebKey::OctetSequence(key)),
+                Signing(JsonWebSigningAlgorithm::Hmac(hmac)),
+            ) => match (hmac, key.len()) {
+                (Hmac::Hs256, Hs256::OUTPUT_SIZE..)
+                | (Hmac::Hs384, Hs384::OUTPUT_SIZE..)
+                | (Hmac::Hs512, Hs512::OUTPUT_SIZE..) => true,
+                _ => false,
+            },
+            (
+                Symmetric(SymmetricJsonWebKey::OctetSequence(key)),
+                Encryption(JsonWebEncryptionAlgorithm::AesKw(aes)),
+            ) => matches!(
+                (aes, key.len()),
+                (AesKw::Aes128, 16) | (AesKw::Aes192, 24) | (AesKw::Aes256, 32)
+            ),
+            (
+                Symmetric(SymmetricJsonWebKey::OctetSequence(key)),
+                Encryption(JsonWebEncryptionAlgorithm::AesGcmKw(aes)),
+            ) => matches!(
+                (aes, key.len()),
+                (AesGcm::Aes128, 16) | (AesGcm::Aes192, 24) | (AesGcm::Aes256, 32)
+            ),
+            (
+                Symmetric(SymmetricJsonWebKey::OctetSequence(key)),
+                Encryption(JsonWebEncryptionAlgorithm::Pbes2(pbes2)),
+            ) => matches!(
+                (pbes2, key.len()),
+                (Pbes2::Hs256Aes128, 16) | (Pbes2::Hs384Aes192, 24) | (Pbes2::Hs512Aes256, 32)
+            ),
+            (
                 Symmetric(SymmetricJsonWebKey::OctetSequence(..)),
-                Signing(JsonWebSigningAlgorithm::Hmac(..))
-                | Encryption(JsonWebEncryptionAlgorithm::Direct)
-                | Encryption(JsonWebEncryptionAlgorithm::AesKw(..))
-                | Encryption(JsonWebEncryptionAlgorithm::AesGcmKw(..))
-                | Encryption(JsonWebEncryptionAlgorithm::Pbes2(..)),
+                Encryption(JsonWebEncryptionAlgorithm::Direct),
             ) => true,
             (Asymmetric(key), alg) => match (&**key, alg) {
                 (

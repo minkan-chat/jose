@@ -36,6 +36,18 @@ impl OctetSequence {
     pub(crate) fn new(x: impl Into<Vec<u8>>) -> Self {
         Self(Base64UrlBytes(x.into()))
     }
+
+    /// Returns the number of bytes that are in this octet sequence.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.0 .0.len()
+    }
+
+    /// Returns `true` if this octet sequence has a length of zero.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl crate::sealed::Sealed for OctetSequence {}

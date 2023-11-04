@@ -22,6 +22,9 @@ pub trait HmacVariant: Sealed {
     /// The JWA algorithm for this variant.
     const ALGORITHM: JsonWebSigningAlgorithm;
 
+    /// The output size of this HMAC variant in bytes.
+    const OUTPUT_SIZE: usize = <<Self::HmacType as OutputSizeUser>::OutputSize as Unsigned>::USIZE;
+
     /// The [`hmac::Hmac`] type for this variant.
     type HmacType: Mac + FixedOutputReset + KeyInit + fmt::Debug;
 }
@@ -175,7 +178,7 @@ impl<H: HmacVariant> FromKey<&OctetSequence> for HmacKey<H> {
                 // This check is not required for normal Hmac implementations based on RFC 2104
                 // but RFC 7518 section 3.2 requires this check and forbids keys with a length <
                 // output
-                if key.len() < <<H::HmacType as OutputSizeUser>::OutputSize as Unsigned>::USIZE {
+                if key.len() < <H as HmacVariant>::OUTPUT_SIZE {
                     return Err(digest::InvalidLength.into());
                 }
 
