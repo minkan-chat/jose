@@ -11,7 +11,13 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
     jwa::{EcDSA, JsonWebAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
-    jwk::ec::{EcPrivate, EcPublic},
+    jwk::{
+        ec::{EcPrivate, EcPublic},
+        okp::{
+            curve25519::{Curve25519Private, Curve25519Public},
+            OkpPrivate, OkpPublic,
+        },
+    },
     policy::{Checkable, Checked, CryptographicOperation, Policy},
     sealed::Sealed,
     UntypedAdditionalProperties,
@@ -30,6 +36,7 @@ mod private;
 mod public;
 pub(crate) mod serde_impl;
 mod signer;
+pub(crate) mod thumbprint;
 mod verifier;
 
 use self::serde_impl::Base64DerCertificate;
@@ -43,6 +50,7 @@ pub use self::{
     public::Public,
     signer::{FromJwkError, JwkSigner},
     symmetric::SymmetricJsonWebKey,
+    thumbprint::Thumbprint,
     verifier::JwkVerifier,
 };
 
@@ -389,6 +397,142 @@ impl<T> JsonWebKey<T> {
     pub fn additional(&self) -> &T {
         &self.additional
     }
+
+    /// Checks if this [`JsonWebKey`] is a symmetric key.
+    #[inline]
+    pub fn is_symmetric(&self) -> bool {
+        matches!(self.key_type, JsonWebKeyType::Symmetric(_))
+    }
+
+    /// Checks if this [`JsonWebKey`] is an asymmetric key.
+    #[inline]
+    pub fn is_asymmetric(&self) -> bool {
+        matches!(self.key_type, JsonWebKeyType::Asymmetric(_))
+    }
+
+    /// Checks if this [`JsonWebKey`] can be used for signing.
+    ///
+    /// For asymmetric keys, this method is equivalent to checking
+    /// if this key is a private key.
+    /// For symmetric keys, this always returns `true`.
+    #[inline]
+    pub fn is_signing_key(&self) -> bool {
+        match self.key_type() {
+            JsonWebKeyType::Symmetric(_) => true,
+            JsonWebKeyType::Asymmetric(ref key) => match &**key {
+                AsymmetricJsonWebKey::Private(_) => true,
+                AsymmetricJsonWebKey::Public(_) => false,
+            },
+        }
+    }
+
+    /// Strips the secret material from this [`JsonWebKey`].
+    ///
+    /// After calling this method, the key can safely be shared as it
+    /// only contains the public parts.
+    ///
+    /// For symmetric keys, this method returns [`None`], as symmetric
+    /// keys will always hold the secret material.
+    #[doc(alias = "strip_private_material")]
+    pub fn strip_secret_material(mut self) -> Option<Self> {
+        let key = match self.key_type {
+            JsonWebKeyType::Symmetric(_) => return None,
+            JsonWebKeyType::Asymmetric(ref key) => key,
+        };
+
+        match &**key {
+            // public keys are no-ops
+            AsymmetricJsonWebKey::Public(_) => Some(self),
+            AsymmetricJsonWebKey::Private(Private::Okp(okp)) => {
+                let key = match okp {
+                    OkpPrivate::Curve25519(Curve25519Private::Ed(key)) => {
+                        OkpPublic::Curve25519(Curve25519Public::Ed(key.to_public_key()))
+                    }
+                };
+
+                self.key_type = JsonWebKeyType::Asymmetric(Box::new(AsymmetricJsonWebKey::Public(
+                    Public::Okp(key),
+                )));
+
+                Some(self)
+            }
+            AsymmetricJsonWebKey::Private(Private::Ec(ec)) => {
+                let pub_key = match ec {
+                    EcPrivate::P256(key) => EcPublic::P256(key.to_public_key()),
+                    EcPrivate::P384(key) => EcPublic::P384(key.to_public_key()),
+                    EcPrivate::Secp256k1(key) => EcPublic::Secp256k1(key.to_public_key()),
+                };
+
+                self.key_type = JsonWebKeyType::Asymmetric(Box::new(AsymmetricJsonWebKey::Public(
+                    Public::Ec(pub_key),
+                )));
+
+                Some(self)
+            }
+            AsymmetricJsonWebKey::Private(Private::Rsa(rsa)) => {
+                let pub_key = Public::Rsa(rsa.to_public_key());
+
+                self.key_type =
+                    JsonWebKeyType::Asymmetric(Box::new(AsymmetricJsonWebKey::Public(pub_key)));
+
+                Some(self)
+            }
+        }
+    }
+
+    /// Converts this [`JsonWebKey`] into a [`JsonWebKey`] that is only meant to
+    /// be uesd for verifying signatures.
+    ///
+    /// For asymmetric keys, this operation is equivalent to converting a
+    /// private key into it's public key.
+    ///
+    /// For symmetric keys, this operation is a no-op, as the secret material
+    /// can not be removed from the key.
+    #[doc(alias = "into_public_key")]
+    pub fn into_verifying_key(mut self) -> Self {
+        match self.key_type {
+            // symmetric keys are no-op
+            JsonWebKeyType::Symmetric(_) => self,
+            JsonWebKeyType::Asymmetric(ref key) => match &**key {
+                // public keys are no-ops too
+                AsymmetricJsonWebKey::Public(_) => self,
+                AsymmetricJsonWebKey::Private(Private::Okp(okp)) => {
+                    let key = match okp {
+                        OkpPrivate::Curve25519(Curve25519Private::Ed(key)) => {
+                            OkpPublic::Curve25519(Curve25519Public::Ed(key.to_public_key()))
+                        }
+                    };
+
+                    self.key_type = JsonWebKeyType::Asymmetric(Box::new(
+                        AsymmetricJsonWebKey::Public(Public::Okp(key)),
+                    ));
+
+                    self
+                }
+                AsymmetricJsonWebKey::Private(Private::Ec(ec)) => {
+                    let pub_key = match ec {
+                        EcPrivate::P256(key) => EcPublic::P256(key.to_public_key()),
+                        EcPrivate::P384(key) => EcPublic::P384(key.to_public_key()),
+                        EcPrivate::Secp256k1(key) => EcPublic::Secp256k1(key.to_public_key()),
+                    };
+
+                    self.key_type = JsonWebKeyType::Asymmetric(Box::new(
+                        AsymmetricJsonWebKey::Public(Public::Ec(pub_key)),
+                    ));
+
+                    self
+                }
+                AsymmetricJsonWebKey::Private(Private::Rsa(rsa)) => {
+                    let pub_key = Public::Rsa(rsa.to_public_key());
+
+                    self.key_type =
+                        JsonWebKeyType::Asymmetric(Box::new(AsymmetricJsonWebKey::Public(pub_key)));
+
+                    self
+                }
+            },
+        }
+    }
 }
 
 impl<T: Serialize> JsonWebKey<T> {
@@ -543,6 +687,13 @@ where
     }
 }
 
+impl Sealed for JsonWebKey {}
+impl Thumbprint for JsonWebKey {
+    fn thumbprint_prehashed(&self) -> String {
+        self.key_type().thumbprint_prehashed()
+    }
+}
+
 /// A [`JsonWebKey`] represents a cryptographic key. It can either be symmetric
 /// or asymmetric. In the latter case, it can store public or private
 /// information about the key. This enum represents the key types as defined in
@@ -556,6 +707,16 @@ pub enum JsonWebKeyType {
     Symmetric(SymmetricJsonWebKey),
     /// An asymmetric cryptographic key
     Asymmetric(Box<AsymmetricJsonWebKey>),
+}
+
+impl Sealed for JsonWebKeyType {}
+impl Thumbprint for JsonWebKeyType {
+    fn thumbprint_prehashed(&self) -> String {
+        match self {
+            JsonWebKeyType::Symmetric(key) => key.thumbprint_prehashed(),
+            JsonWebKeyType::Asymmetric(key) => key.thumbprint_prehashed(),
+        }
+    }
 }
 
 impl JsonWebKeyType {

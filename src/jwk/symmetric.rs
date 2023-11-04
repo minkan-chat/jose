@@ -7,6 +7,7 @@ use alloc::{string::String, vec::Vec};
 use digest::InvalidLength;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 
+use super::thumbprint::{self, Thumbprint};
 use crate::{base64_url::Base64UrlBytes, jws::InvalidSigningAlgorithmError};
 
 /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4>
@@ -18,6 +19,15 @@ pub enum SymmetricJsonWebKey {
     OctetSequence(OctetSequence),
 }
 
+impl crate::sealed::Sealed for SymmetricJsonWebKey {}
+impl Thumbprint for SymmetricJsonWebKey {
+    fn thumbprint_prehashed(&self) -> String {
+        match self {
+            SymmetricJsonWebKey::OctetSequence(key) => key.thumbprint_prehashed(),
+        }
+    }
+}
+
 /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4.1>
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct OctetSequence(pub(self) Base64UrlBytes);
@@ -25,6 +35,13 @@ pub struct OctetSequence(pub(self) Base64UrlBytes);
 impl OctetSequence {
     pub(crate) fn new(x: impl Into<Vec<u8>>) -> Self {
         Self(Base64UrlBytes(x.into()))
+    }
+}
+
+impl crate::sealed::Sealed for OctetSequence {}
+impl Thumbprint for OctetSequence {
+    fn thumbprint_prehashed(&self) -> String {
+        thumbprint::serialize_key_thumbprint(self)
     }
 }
 

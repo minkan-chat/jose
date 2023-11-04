@@ -21,7 +21,7 @@
         with pkgs; {
           devShells.default = mkShell {
             buildInputs = [
-              rust-bin.stable.latest.default
+              rust-bin.nightly.latest.default
               step-cli
               cargo-audit
               cargo-outdated

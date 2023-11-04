@@ -1,4 +1,4 @@
-use alloc::{borrow::Cow, boxed::Box, format};
+use alloc::{borrow::Cow, boxed::Box, format, string::String};
 use core::convert::Infallible;
 
 use ed25519::Signature;
@@ -15,7 +15,7 @@ use crate::{
     jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::{
         okp::{OkpPrivate, OkpPublic},
-        AsymmetricJsonWebKey, FromKey, IntoJsonWebKey, JsonWebKeyType, Private, Public,
+        AsymmetricJsonWebKey, FromKey, IntoJsonWebKey, JsonWebKeyType, Private, Public, Thumbprint,
     },
     jws::{InvalidSigningAlgorithmError, Signer, Verifier},
     sealed::Sealed,
@@ -25,9 +25,21 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ed25519PublicKey(VerifyingKey);
 
+impl Thumbprint for Ed25519PublicKey {
+    fn thumbprint_prehashed(&self) -> String {
+        crate::jwk::thumbprint::serialize_key_thumbprint(self)
+    }
+}
+
 /// An Ed25519 private key used to create signatures
 #[derive(Debug, Clone)]
 pub struct Ed25519PrivateKey(SigningKey);
+
+impl Thumbprint for Ed25519PrivateKey {
+    fn thumbprint_prehashed(&self) -> String {
+        crate::jwk::thumbprint::serialize_key_thumbprint(self)
+    }
+}
 
 impl Ed25519PrivateKey {
     /// Generate a new private key using the provided rng

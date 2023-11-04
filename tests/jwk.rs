@@ -8,10 +8,13 @@ use jose::{
             FromOctetSequenceError, OctetSequence,
         },
         AsymmetricJsonWebKey, FromKey, JsonWebKey, JsonWebKeyType, JwkSigner, Private, Public,
+        Thumbprint,
     },
     jws::Signer,
     policy::{Checkable, Checked, StandardPolicy},
+    Base64UrlString,
 };
+use serde_json::json;
 
 fn read_key_file(name: &str) -> String {
     std::fs::read_to_string(format!(
@@ -294,4 +297,61 @@ fn ed25519_json_web_key() {
         },
         _ => panic!(),
     }
+}
+
+#[test]
+fn convert_to_public_key() {
+    let private_json = read_key_file("p256");
+    let public_json = read_key_file("p256.pub");
+
+    let private: JsonWebKey = serde_json::from_str(&private_json).unwrap();
+    let public: JsonWebKey = serde_json::from_str(&public_json).unwrap();
+
+    let public_converted = private.clone().into_verifying_key();
+    assert_eq!(public, public_converted);
+
+    let public_converted = private.strip_secret_material().unwrap();
+    assert_eq!(public, public_converted);
+}
+
+#[test]
+fn symmetric_key_can_not_strip_secret() {
+    let key = read_key_file("hs256");
+    let key: JsonWebKey = serde_json::from_str(&key).unwrap();
+
+    assert!(key.strip_secret_material().is_none());
+}
+
+#[test]
+fn ec_p256_thumbprint() {
+    let jwk = read_key_file("p256");
+    let jwk: JsonWebKey = serde_json::from_str(&jwk).unwrap();
+
+    let p = jwk.thumbprint_sha256();
+    let p = Base64UrlString::encode(p);
+    assert_eq!(&*p, "6j1ImYAlN6DnVupozzN13UKnLR7BfEvngNmVl5bLlI0");
+}
+
+#[test]
+fn rsa_thumbprint() {
+    let jwk = read_key_file("rsa");
+    let jwk: JsonWebKey = serde_json::from_str(&jwk).unwrap();
+
+    let p = jwk.thumbprint_sha256();
+    let p = Base64UrlString::encode(p);
+    assert_eq!(&*p, "nYPs6qc5zj3VOVKr4yY-EzirO-AcdUl0JC5bcXKGE6Y");
+}
+
+#[test]
+fn symmetric_thumbprint() {
+    let jwk = json!({
+        "k": "FyCq1CKBflh3I5gikEjpYrdOXllzxB_yc02za8ERknI",
+        "kty": "oct",
+    });
+
+    let jwk: JsonWebKey = serde_json::from_value(jwk).unwrap();
+
+    let p = jwk.thumbprint_sha256();
+    let p = Base64UrlString::encode(p);
+    assert_eq!(&*p, "prDKy90VJzrDTpm8-W2Q_pv_kzrX_zyZ7ANjRAasDxc");
 }
