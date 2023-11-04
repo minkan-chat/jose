@@ -398,6 +398,34 @@ impl<T> JsonWebKey<T> {
         &self.additional
     }
 
+    /// Checks if this [`JsonWebKey`] is a symmetric key.
+    #[inline]
+    pub fn is_symmetric(&self) -> bool {
+        matches!(self.key_type, JsonWebKeyType::Symmetric(_))
+    }
+
+    /// Checks if this [`JsonWebKey`] is an asymmetric key.
+    #[inline]
+    pub fn is_asymmetric(&self) -> bool {
+        matches!(self.key_type, JsonWebKeyType::Asymmetric(_))
+    }
+
+    /// Checks if this [`JsonWebKey`] can be used for signing.
+    ///
+    /// For asymmetric keys, this method is equivalent to checking
+    /// if this key is a private key.
+    /// For symmetric keys, this always returns `true`.
+    #[inline]
+    pub fn is_signing_key(&self) -> bool {
+        match self.key_type() {
+            JsonWebKeyType::Symmetric(_) => true,
+            JsonWebKeyType::Asymmetric(ref key) => match &**key {
+                AsymmetricJsonWebKey::Private(_) => true,
+                AsymmetricJsonWebKey::Public(_) => false,
+            },
+        }
+    }
+
     /// Strips the secret material from this [`JsonWebKey`].
     ///
     /// After calling this method, the key can safely be shared as it
