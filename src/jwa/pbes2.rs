@@ -4,7 +4,7 @@
 /// [section 4.8 of RFC 7518]: <https://datatracker.ietf.org/doc/html/rfc7518#section-4.8>
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Pbes2 {
-    /// PBES2 with HMAC SHA56 and "A128KW" wrapping
+    /// PBES2 with HMAC SHA-256 and "A128KW" wrapping
     Hs256Aes128,
     /// PBES2 with HMAC SHA-384 and "A192KW" wrapping
     Hs384Aes192,
