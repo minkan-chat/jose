@@ -20,9 +20,7 @@ pub enum Private {
 
 impl From<Private> for super::JsonWebKeyType {
     fn from(x: Private) -> Self {
-        super::JsonWebKeyType::Asymmetric(alloc::boxed::Box::new(
-            super::AsymmetricJsonWebKey::Private(x),
-        ))
+        super::JsonWebKeyType::Asymmetric(Box::new(super::AsymmetricJsonWebKey::Private(x)))
     }
 }
 
