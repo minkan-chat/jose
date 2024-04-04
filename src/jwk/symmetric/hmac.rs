@@ -132,9 +132,7 @@ impl<H: HmacVariant> IntoJsonWebKey for HmacKey<H> {
         ));
 
         let mut jwk = crate::JsonWebKey::new(key);
-        jwk.algorithm = alg
-            .into()
-            .map(|_| jwa::JsonWebAlgorithm::Signing(H::ALGORITHM));
+        jwk.algorithm = alg.into().map(|_| JsonWebAlgorithm::Signing(H::ALGORITHM));
         Ok(jwk)
     }
 }
