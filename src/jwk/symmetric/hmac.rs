@@ -125,14 +125,14 @@ impl<H: HmacVariant> IntoJsonWebKey for HmacKey<H> {
 
     fn into_jwk(
         self,
-        alg: impl Into<Option<Self::Algorithm>>,
+        alg: Option<impl Into<Self::Algorithm>>,
     ) -> Result<crate::JsonWebKey, Self::Error> {
         let key = jwk::JsonWebKeyType::Symmetric(jwk::SymmetricJsonWebKey::OctetSequence(
             OctetSequence::new(self.key),
         ));
 
         let mut jwk = crate::JsonWebKey::new(key);
-        jwk.algorithm = alg.into().map(|_| JsonWebAlgorithm::Signing(H::ALGORITHM));
+        jwk.algorithm = alg.map(|_| JsonWebAlgorithm::Signing(H::ALGORITHM));
         Ok(jwk)
     }
 }

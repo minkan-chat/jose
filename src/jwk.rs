@@ -838,5 +838,5 @@ pub trait IntoJsonWebKey: Sealed {
     /// # Errors
     ///
     /// Returns an [`Err`] if the conversion fails.
-    fn into_jwk(self, alg: impl Into<Option<Self::Algorithm>>) -> Result<JsonWebKey, Self::Error>;
+    fn into_jwk(self, alg: Option<impl Into<Self::Algorithm>>) -> Result<JsonWebKey, Self::Error>;
 }
