@@ -29,6 +29,7 @@ pub use self::{
 use crate::{
     format::Format,
     jwa::{JsonWebContentEncryptionAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
+    uri::BorrowedUri,
     JsonWebKey, UntypedAdditionalProperties,
 };
 
@@ -185,11 +186,11 @@ where
     /// [section 4.1.2 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.2>
     /// [section 5 of RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-5>
     // FIXME: use url type instead
-    pub fn jwk_set_url(&self) -> Option<HeaderValue<&str>> {
+    pub fn jwk_set_url(&self) -> Option<HeaderValue<BorrowedUri<'_>>> {
         self.parameters
             .jwk_set_url
             .as_ref()
-            .map(HeaderValue::as_deref)
+            .map(|x| x.as_ref().map(|x| x.borrow()))
     }
 
     /// Depending where this [`JoseHeader`] is being used, in JWE it contains
@@ -232,8 +233,11 @@ where
     /// [RFC 3986]: <https://datatracker.ietf.org/doc/html/rfc3986>
     /// [RFC 5280]: <https://datatracker.ietf.org/doc/html/rfc5280>
     /// [section 4.1.5 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.5>
-    pub fn x509_url(&self) -> Option<HeaderValue<&str>> {
-        self.parameters.x509_url.as_ref().map(HeaderValue::as_deref)
+    pub fn x509_url(&self) -> Option<HeaderValue<BorrowedUri<'_>>> {
+        self.parameters
+            .x509_url
+            .as_ref()
+            .map(|x| x.as_ref().map(|x| x.borrow()))
     }
 
     /// An [`Iterator`] over a X.509 certificate chain that certify the public

@@ -24,7 +24,8 @@ use crate::{
     },
     policy::{Checkable, Checked, CryptographicOperation, Policy},
     sealed::Sealed,
-    UntypedAdditionalProperties,
+    uri::BorrowedUri,
+    UntypedAdditionalProperties, Uri,
 };
 
 pub mod ec;
@@ -219,11 +220,11 @@ pub struct JsonWebKey<A = ()> {
     #[serde(skip_serializing_if = "Option::is_none")]
     kid: Option<String>,
     /// `x5u` parameter section 4.6
-    // FIXME: consider using an dedicated URL type for this and ensure the protocol
+    // FIXME: considerung to ensure the protocol
     // uses TLS or some other form of integrity protection.
     // There are other things to consider, see the relevant section in the RFC.
     #[serde(rename = "x5u", skip_serializing_if = "Option::is_none")]
-    x509_url: Option<String>,
+    x509_url: Option<Uri>,
     /// `x5c` parameter section 4.7
     // If the `x5c` parameter is not present, this will be an empty Vec
     // FIXME: find a good way and crate to parse the DER-encoded X.509 certificate(s)
@@ -340,8 +341,8 @@ impl<T> JsonWebKey<T> {
     /// [Section 4.6 of RFC 7517] defines the `x5u` (X.509 URL) Parameter.
     ///
     /// [Section 4.6 of RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517#section-4.6>
-    pub fn x509_url(&self) -> Option<&str> {
-        self.x509_url.as_deref()
+    pub fn x509_url(&self) -> Option<BorrowedUri<'_>> {
+        self.x509_url.as_ref().map(|x| x.borrow())
     }
 
     /// [Section 4.7 of RFC 7517] defines the `x5c` (X.509 Certificate Chain)
