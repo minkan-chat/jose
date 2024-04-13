@@ -4,11 +4,13 @@
 
 use alloc::{format, string::String, vec, vec::Vec};
 
-use base64ct::{Base64UrlUnpadded, Encoding};
 use thiserror_no_std::Error;
 
 use crate::{
-    format::{Compact, DecodeFormat, Format, JsonFlattened, JsonGeneral, JsonGeneralSignature},
+    format::{
+        Compact, DecodeFormat, DecodeFormatWithContext, Format, JsonFlattened, JsonGeneral,
+        JsonGeneralSignature,
+    },
     header, Base64UrlString, JoseHeader,
 };
 
@@ -20,13 +22,36 @@ mod verify;
 pub use {builder::*, sign::*, verify::*};
 
 // FIXME: check section 5.3. (string comparison) and verify correctness
-// FIXME: Appendix F: Detached Content
 // FIXME: protected headers
+// FIXME: unencoded payload (IMPORTANT: check that string is all ascii, except
+// `.` character)
 
-/// Different interpretations of a JWS payload.
-// FIXME: unencoded payload (IMPORTANT: check that string is all ascii, except `.` character)
+/// The kind of payload used in a JWS.
+///
+/// Kind means that a payload data is either attached, or detached.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum PayloadKind {
+    /// Attached payload.
+    ///
+    /// The payload data will be put into the JWS.
+    /// This is the standard kind.
+    Attached(PayloadData),
+
+    /// Detached payload.
+    ///
+    /// Detached payload is a special payload
+    /// representation of a JWS, specified
+    /// in [Appendix F](https://datatracker.ietf.org/doc/html/rfc7515#appendix-F)
+    /// of the JWS RFC.
+    ///
+    /// Essentially, the payload is not put into the JWS,
+    /// instead it's only used for signing.
+    Detached(PayloadData),
+}
+
+/// The raw payload data that should be stored in the JWS.
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum PayloadData {
     /// The given base64 string will just be used as the payload.
     Standard(Base64UrlString),
 }
@@ -43,7 +68,7 @@ pub enum PayloadKind {
 /// # use alloc::string::{FromUtf8Error, String};
 /// # use core::convert::Infallible;
 /// # use jose::Base64UrlString;
-/// # use jose::jws::{FromRawPayload, IntoPayload, PayloadKind};
+/// # use jose::jws::{FromRawPayload, IntoPayload, PayloadKind, PayloadData};
 ///
 /// #[derive(Debug, PartialEq, Eq)]
 /// struct StringPayload(String);
@@ -53,7 +78,7 @@ pub enum PayloadKind {
 ///
 ///     fn into_payload(self) -> Result<PayloadKind, Self::Error> {
 ///         let s = Base64UrlString::encode(self.0);
-///         Ok(PayloadKind::Standard(s))
+///         Ok(PayloadKind::Attached(PayloadData::Standard(s)))
 ///     }
 /// }
 /// ```
@@ -78,15 +103,51 @@ pub trait IntoPayload {
 /// This is required to be implemented when trying to decoe a JWS, or encrypt a
 /// JWE, from it's format representation.
 pub trait FromRawPayload: Sized {
-    /// The error that can occurr in the [`Self::from_raw_payload`] method.
+    /// The error that can occurr in any of the `from_*` methods.
     type Error;
 
-    /// Converts a raw [`PayloadKind`] enum into this payload type.
+    /// The additional context that is passed when decoding a payload.
+    type Context;
+
+    /// Converts a standard, attached [`PayloadData`] into this payload type.
     ///
     /// # Errors
     ///
     /// Returns an error if the operation failed.
-    fn from_raw_payload(payload: PayloadKind) -> Result<Self, Self::Error>;
+    fn from_attached(context: &Self::Context, payload: PayloadData) -> Result<Self, Self::Error>;
+
+    /// Construts this payload type from a detached content.
+    ///
+    /// For context, the header of the JWS will be provided,
+    /// to get / construct the payload.
+    ///
+    /// In addition to `Self`, the raw payload data must be
+    /// returned, in order to verify the signature.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation failed.
+    fn from_detached<F, T>(
+        context: &Self::Context,
+        header: &JoseHeader<F, T>,
+    ) -> Result<(Self, PayloadData), Self::Error>;
+
+    /// Construts this payload type from a detached content.
+    ///
+    /// This method is only used when verifying JWS in JSON General format.
+    /// For context, all the header of the JWS will be provided,
+    /// to get / construct the payload.
+    ///
+    /// In addition to `Self`, the raw payload data must be
+    /// returned, in order to verify the signature.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation failed.
+    fn from_detached_many<F, T>(
+        context: &Self::Context,
+        headers: &[JoseHeader<F, T>],
+    ) -> Result<(Self, PayloadData), Self::Error>;
 }
 
 /// Different kinds of errors that can occurr while signing a JWS.
@@ -215,9 +276,16 @@ impl<F: Format, T: IntoPayload> JsonWebSignature<F, T> {
         msg.push(b'.');
 
         let payload = self.payload.into_payload().map_err(SignError::Payload)?;
-        match payload {
-            PayloadKind::Standard(ref b64) => msg.extend(b64.as_bytes()),
-        }
+        let payload = match payload {
+            PayloadKind::Attached(PayloadData::Standard(b64)) => {
+                msg.extend(b64.as_bytes());
+                Some(PayloadData::Standard(b64))
+            }
+            PayloadKind::Detached(PayloadData::Standard(b64)) => {
+                msg.extend(b64.as_bytes());
+                None
+            }
+        };
 
         let signature = signer.sign(&msg).map_err(SignError::Sign)?;
 
@@ -257,7 +325,8 @@ impl<T: IntoPayload> JsonWebSignature<JsonGeneral, T> {
 
         let payload = self.payload.into_payload().map_err(SignError::Payload)?;
         let payload_msg = match payload {
-            PayloadKind::Standard(ref b64) => b64.as_bytes(),
+            PayloadKind::Attached(PayloadData::Standard(ref b64)) => b64.as_bytes(),
+            PayloadKind::Detached(_) => todo!(),
         };
 
         let mut signatures = vec![];
@@ -298,7 +367,10 @@ impl<T: IntoPayload> JsonWebSignature<JsonGeneral, T> {
             });
         }
 
-        let PayloadKind::Standard(payload) = payload;
+        let payload = match payload {
+            PayloadKind::Attached(PayloadData::Standard(s)) => Some(s),
+            PayloadKind::Detached(_) => None,
+        };
 
         Ok(Signed {
             value: JsonGeneral {
@@ -335,11 +407,22 @@ pub enum ParseCompactError<P> {
 
 impl<F: Format, T> crate::sealed::Sealed for JsonWebSignature<F, T> {}
 
-impl<T: FromRawPayload> DecodeFormat<Compact> for JsonWebSignature<Compact, T> {
+impl<T: FromRawPayload<Context = ()>> DecodeFormat<Compact> for JsonWebSignature<Compact, T> {
     type Decoded<D> = Unverified<D>;
     type Error = ParseCompactError<T::Error>;
 
-    fn decode(input: Compact) -> Result<Unverified<Self>, Self::Error> {
+    fn decode(input: Compact) -> Result<Self::Decoded<Self>, Self::Error> {
+        Self::decode_with_context(input, &())
+    }
+}
+
+impl<C, T: FromRawPayload<Context = C>> DecodeFormatWithContext<Compact, C>
+    for JsonWebSignature<Compact, T>
+{
+    type Decoded<D> = Unverified<D>;
+    type Error = ParseCompactError<T::Error>;
+
+    fn decode_with_context(input: Compact, context: &C) -> Result<Unverified<Self>, Self::Error> {
         if input.len() != 3 {
             return Err(ParseCompactError::InvalidLength);
         }
@@ -360,14 +443,24 @@ impl<T: FromRawPayload> DecodeFormat<Compact> for JsonWebSignature<Compact, T> {
 
         let (payload, raw_payload) = {
             let raw = input.part(1).expect("`len()` is checked above to be 3");
-            let payload = PayloadKind::Standard(raw.clone());
-            let payload = T::from_raw_payload(payload).map_err(ParseCompactError::Payload)?;
-            (payload, raw.decode())
+
+            // if payload is empty, detached payload
+            let (payload, raw) = if raw.is_empty() {
+                T::from_detached(context, &header).map_err(ParseCompactError::Payload)?
+            } else {
+                let data = PayloadData::Standard(raw.clone());
+
+                (
+                    T::from_attached(context, data.clone()).map_err(ParseCompactError::Payload)?,
+                    data,
+                )
+            };
+
+            (payload, raw)
         };
+        let PayloadData::Standard(raw_payload) = raw_payload;
 
         let signature = input.part(2).expect("`len()` is checked above to be 3");
-
-        let raw_payload = Base64UrlUnpadded::encode_string(&raw_payload);
 
         let msg = format!("{}.{}", raw_header, raw_payload);
 
@@ -380,7 +473,7 @@ impl<T: FromRawPayload> DecodeFormat<Compact> for JsonWebSignature<Compact, T> {
 }
 
 fn parse_json_header<F: Format, E>(
-    protected: Option<Base64UrlString>,
+    protected: Option<&Base64UrlString>,
     header: Option<serde_json::Map<String, serde_json::Value>>,
 ) -> Result<JoseHeader<F, header::Jws>, ParseJsonError<E>> {
     let protected = match protected {
@@ -421,30 +514,46 @@ pub enum ParseJsonError<P> {
     Payload(P),
 }
 
-impl<T: FromRawPayload> DecodeFormat<JsonFlattened> for JsonWebSignature<JsonFlattened, T> {
+impl<T: FromRawPayload<Context = ()>> DecodeFormat<JsonFlattened>
+    for JsonWebSignature<JsonFlattened, T>
+{
     type Decoded<D> = Unverified<D>;
     type Error = ParseJsonError<T::Error>;
 
-    fn decode(
+    fn decode(input: JsonFlattened) -> Result<Self::Decoded<Self>, Self::Error> {
+        Self::decode_with_context(input, &())
+    }
+}
+
+impl<C, T: FromRawPayload<Context = C>> DecodeFormatWithContext<JsonFlattened, C>
+    for JsonWebSignature<JsonFlattened, T>
+{
+    type Decoded<D> = Unverified<D>;
+    type Error = ParseJsonError<T::Error>;
+
+    fn decode_with_context(
         JsonFlattened {
             payload,
             protected,
             header,
             signature,
         }: JsonFlattened,
+        context: &C,
     ) -> Result<Self::Decoded<Self>, Self::Error> {
-        let msg = match protected {
-            Some(ref protected) => format!("{}.{}", protected, payload),
-            None => format!(".{}", payload),
+        let protected_str = protected.clone().unwrap_or_default().into_inner();
+        let header = parse_json_header(protected.as_ref(), header)?;
+
+        let (payload, raw_payload) = match payload {
+            Some(b64) => (
+                T::from_attached(context, PayloadData::Standard(b64.clone()))
+                    .map_err(ParseJsonError::Payload)?,
+                PayloadData::Standard(b64),
+            ),
+            None => T::from_detached(context, &header).map_err(ParseJsonError::Payload)?,
         };
+        let PayloadData::Standard(raw_payload) = raw_payload;
 
-        let header = parse_json_header(protected, header)?;
-
-        let payload = {
-            let payload_kind = PayloadKind::Standard(payload);
-            T::from_raw_payload(payload_kind).map_err(ParseJsonError::Payload)?
-        };
-
+        let msg = format!("{}.{}", protected_str, raw_payload);
         Ok(Unverified {
             value: JsonWebSignature { header, payload },
             signature: signature.decode(),
@@ -453,39 +562,62 @@ impl<T: FromRawPayload> DecodeFormat<JsonFlattened> for JsonWebSignature<JsonFla
     }
 }
 
-impl<T: FromRawPayload> DecodeFormat<JsonGeneral> for JsonWebSignature<JsonGeneral, T> {
+impl<T: FromRawPayload<Context = ()>> DecodeFormat<JsonGeneral>
+    for JsonWebSignature<JsonGeneral, T>
+{
     type Decoded<D> = ManyUnverified<D>;
     type Error = ParseJsonError<T::Error>;
 
-    fn decode(
+    fn decode(input: JsonGeneral) -> Result<Self::Decoded<Self>, Self::Error> {
+        Self::decode_with_context(input, &())
+    }
+}
+
+impl<C, T: FromRawPayload<Context = C>> DecodeFormatWithContext<JsonGeneral, C>
+    for JsonWebSignature<JsonGeneral, T>
+{
+    type Decoded<D> = ManyUnverified<D>;
+    type Error = ParseJsonError<T::Error>;
+
+    fn decode_with_context(
         JsonGeneral {
             payload,
             signatures,
         }: JsonGeneral,
+        context: &C,
     ) -> Result<Self::Decoded<Self>, Self::Error> {
         if signatures.is_empty() {
             return Err(ParseJsonError::EmptySignatures);
         }
 
-        let mut headers = vec![];
-        let mut unverified_signatures = vec![];
+        let mut headers = Vec::with_capacity(signatures.len());
+        let mut sigs = Vec::with_capacity(signatures.len());
 
         for sig in signatures {
-            let msg = match sig.protected {
-                Some(ref protected) => format!("{}.{}", protected, payload),
-                None => format!(".{}", payload),
-            };
-
-            let header = parse_json_header(sig.protected, sig.header)?;
+            let header = parse_json_header(sig.protected.as_ref(), sig.header)?;
 
             headers.push(header);
-            unverified_signatures.push((msg.into_bytes(), sig.signature.decode()));
+            sigs.push((sig.protected.unwrap_or_default(), sig.signature.decode()));
         }
 
-        let payload = {
-            let payload_kind = PayloadKind::Standard(payload);
-            T::from_raw_payload(payload_kind).map_err(ParseJsonError::Payload)?
+        let (payload, raw_payload) = match payload {
+            Some(b64) => (
+                T::from_attached(context, PayloadData::Standard(b64.clone()))
+                    .map_err(ParseJsonError::Payload)?,
+                PayloadData::Standard(b64),
+            ),
+            None => T::from_detached_many(context, &headers).map_err(ParseJsonError::Payload)?,
         };
+        let PayloadData::Standard(raw_payload) = raw_payload;
+
+        let unverified_signatures = sigs
+            .into_iter()
+            .map(|(protected, signature)| {
+                let msg = format!("{}.{}", protected, raw_payload);
+
+                (msg.into_bytes(), signature)
+            })
+            .collect();
 
         Ok(ManyUnverified {
             value: JsonWebSignature {

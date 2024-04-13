@@ -7,14 +7,14 @@ use serde_json::Value;
 use super::{sealed, Format};
 use crate::{
     header,
-    jws::{PayloadKind, SignError},
+    jws::{PayloadData, SignError},
     Base64UrlString, JoseHeader,
 };
 
 /// The flattened json serialization format.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JsonFlattened {
-    pub(crate) payload: Base64UrlString,
+    pub(crate) payload: Option<Base64UrlString>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) protected: Option<Base64UrlString>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -74,10 +74,10 @@ impl sealed::SealedFormat<JsonFlattened> for JsonFlattened {
 
     fn finalize(
         (protected, unprotected): Self::SerializedJwsHeader,
-        payload: PayloadKind,
+        payload: Option<PayloadData>,
         signature: &[u8],
     ) -> Result<Self, serde_json::Error> {
-        let PayloadKind::Standard(payload) = payload;
+        let payload = payload.map(|PayloadData::Standard(b64)| b64);
 
         let signature = Base64UrlString::encode(signature);
 

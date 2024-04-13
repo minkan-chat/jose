@@ -22,7 +22,7 @@ pub(crate) mod sealed {
 
     use crate::{
         header::{self, JoseHeaderBuilder, JoseHeaderBuilderError},
-        jws::{PayloadKind, SignError, Signer},
+        jws::{PayloadData, SignError, Signer},
     };
 
     // We put all methods, types, etc into a sealed trait, so
@@ -48,7 +48,7 @@ pub(crate) mod sealed {
 
         fn finalize(
             header: Self::SerializedJwsHeader,
-            payload: PayloadKind,
+            payload: Option<PayloadData>,
             signature: &[u8],
         ) -> Result<Self, serde_json::Error>;
 
@@ -63,7 +63,8 @@ pub(crate) mod sealed {
 /// represented.
 pub trait Format: fmt::Display + sealed::SealedFormat<Self> + Sized {}
 
-/// to this type.
+/// Used to parse a [`Compact`] or another format representation
+/// into a concrete type.
 pub trait DecodeFormat<F>: Sealed + Sized {
     /// The error that can occurr while parsing `Self` from the input.
     type Error;
@@ -79,4 +80,23 @@ pub trait DecodeFormat<F>: Sealed + Sized {
     /// Returns an error if the input format has an invalid representation for
     /// this type.
     fn decode(input: F) -> Result<Self::Decoded<Self>, Self::Error>;
+}
+
+/// Used to parse a [`Compact`] or another format representation
+/// into a concrete type.
+pub trait DecodeFormatWithContext<F, C>: Sealed + Sized {
+    /// The error that can occurr while parsing `Self` from the input.
+    type Error;
+
+    /// The decoded type to return.
+    type Decoded<T>;
+
+    /// Parse the input into a new [`Decoded`](Self::Decoded) instance of
+    /// `Self`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input format has an invalid representation for
+    /// this type.
+    fn decode_with_context(input: F, context: &C) -> Result<Self::Decoded<Self>, Self::Error>;
 }
