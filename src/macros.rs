@@ -44,7 +44,7 @@ macro_rules! impl_ec {
 
             fn into_jwk(
                 self,
-                alg: impl Into<Option<Self::Algorithm>>,
+                alg: Option<impl Into<Self::Algorithm>>,
             ) -> Result<crate::JsonWebKey, Self::Error> {
                 let key = crate::jwk::JsonWebKeyType::Asymmetric(alloc::boxed::Box::new(
                     crate::jwk::AsymmetricJsonWebKey::Public(crate::jwk::Public::Ec(
@@ -53,7 +53,7 @@ macro_rules! impl_ec {
                 ));
 
                 let mut jwk = crate::JsonWebKey::new(key);
-                jwk.algorithm = alg.into().map(|_| crate::jwa::JsonWebAlgorithm::Signing($alg));
+                jwk.algorithm = alg.map(|_| crate::jwa::JsonWebAlgorithm::Signing($alg.into()));
                 Ok(jwk)
             }
         }
@@ -74,7 +74,7 @@ macro_rules! impl_ec {
 
             fn into_jwk(
                 self,
-                alg: impl Into<Option<Self::Algorithm>>,
+                alg: Option<impl Into<Self::Algorithm>>,
             ) -> Result<crate::JsonWebKey, Self::Error> {
                 let key = crate::jwk::JsonWebKeyType::Asymmetric(alloc::boxed::Box::new(
                     crate::jwk::AsymmetricJsonWebKey::Private(crate::jwk::Private::Ec(
@@ -83,7 +83,7 @@ macro_rules! impl_ec {
                 ));
 
                 let mut jwk = crate::JsonWebKey::new(key);
-                jwk.algorithm = alg.into().map(|_| crate::jwa::JsonWebAlgorithm::Signing($alg));
+                jwk.algorithm = alg.map(|_| crate::jwa::JsonWebAlgorithm::Signing($alg.into()));
                 Ok(jwk)
             }
         }
