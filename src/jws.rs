@@ -193,7 +193,7 @@ pub enum SignError<P> {
 ///
 /// [RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515>
 #[derive(Debug)]
-pub struct JsonWebSignature<F: Format, T> {
+pub struct JsonWebSignature<F: Format, T = ()> {
     header: F::JwsHeader,
     payload: T,
 }
