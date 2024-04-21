@@ -69,6 +69,18 @@ pub use self::{
 /// an abstract representation of all possible key types. The [`JsonWebKeyType`]
 /// enum is used to specialize on concrete key type.
 ///
+/// # Comparison and equality
+///
+/// It is not defined how to determine if a [`JsonWebKey`] is [equal](PartialEq)
+/// to another. Therefore, [`JsonWebKey`] *does not* implement [`PartialEq`].
+/// If you want to compare a [`JsonWebKey`], you should either use something
+/// like the [`kid`](JsonWebKey::key_id) parameter or a [`Thumbprint`] of
+/// the key (or ideally, a [`Thumbprint`] as [`kid`](JsonWebKey::key_id)).
+///
+/// You should *avoid* comparing the serialized form of a [`JsonWebKey`] as it
+/// may contain optional parameters, which may not always be present and would
+/// lead to unexpected results.
+///
 /// # Examples
 ///
 /// Parse a JsonWebKey from its json representation:
@@ -185,7 +197,7 @@ pub use self::{
 /// [RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517>
 /// [section 6 of RFC 7518]: <https://datatracker.ietf.org/doc/html/rfc7518#section-6>
 /// [IANA `Json Web Key Parameters` registry]: <https://www.iana.org/assignments/jose/jose.xhtml#web-key-parameters>
-#[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct JsonWebKey<A = ()> {
     /// Additional members in the JWK as permitted by the fourth paragraph of
     /// [section 4]
