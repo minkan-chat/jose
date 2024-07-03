@@ -68,7 +68,7 @@ ed25519-dalek = { version = "2", default-features = false, features = [
 
 signature = { version = "2.1.0", default-features = false }
 # FIXME: remove this when we can use const generics
-generic-array = { version = "0.14", default-features = false, features = [
+generic-array = { version = "1.0", default-features = false, features = [
   "serde",
 ] }
 
