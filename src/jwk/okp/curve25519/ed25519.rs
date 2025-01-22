@@ -135,14 +135,12 @@ impl IntoJsonWebKey for Ed25519PrivateKey {
     type Algorithm = ();
     type Error = Infallible;
 
-    fn into_jwk(self, alg: impl Into<Option<Self::Algorithm>>) -> Result<JsonWebKey, Self::Error> {
+    fn into_jwk(self, alg: Option<impl Into<Self::Algorithm>>) -> Result<JsonWebKey, Self::Error> {
         let key = JsonWebKeyType::Asymmetric(Box::new(AsymmetricJsonWebKey::Private(
             Private::Okp(OkpPrivate::Curve25519(Curve25519Private::Ed(self))),
         )));
         let mut jwk = JsonWebKey::new(key);
-        jwk.algorithm = alg
-            .into()
-            .map(|_| JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::EdDSA));
+        jwk.algorithm = alg.map(|_| JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::EdDSA));
         Ok(jwk)
     }
 }
@@ -152,14 +150,12 @@ impl IntoJsonWebKey for Ed25519PublicKey {
     type Algorithm = ();
     type Error = Infallible;
 
-    fn into_jwk(self, alg: impl Into<Option<Self::Algorithm>>) -> Result<JsonWebKey, Self::Error> {
+    fn into_jwk(self, alg: Option<impl Into<Self::Algorithm>>) -> Result<JsonWebKey, Self::Error> {
         let key = JsonWebKeyType::Asymmetric(Box::new(AsymmetricJsonWebKey::Public(Public::Okp(
             OkpPublic::Curve25519(Curve25519Public::Ed(self)),
         ))));
         let mut jwk = JsonWebKey::new(key);
-        jwk.algorithm = alg
-            .into()
-            .map(|_| JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::EdDSA));
+        jwk.algorithm = alg.map(|_| JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::EdDSA));
         Ok(jwk)
     }
 }

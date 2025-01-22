@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
 use crate::{
-    format::{DecodeFormat, Format, JsonGeneral},
+    format::{DecodeFormat, DecodeFormatWithContext, Format, JsonGeneral},
     jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::FromKey,
 };
@@ -46,6 +46,20 @@ impl<T> Unverified<T> {
         T: DecodeFormat<F, Decoded<T> = Unverified<T>>,
     {
         T::decode(input)
+    }
+
+    /// Parse the input format to an unverified representation of `T`, with the
+    /// given context.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input format has an invalid representation for
+    /// the `T` type.
+    pub fn decode_with_context<F: Format, C>(input: F, context: &C) -> Result<Self, T::Error>
+    where
+        T: DecodeFormatWithContext<F, C, Decoded<T> = Unverified<T>>,
+    {
+        T::decode_with_context(input, context)
     }
 
     /// Verify this struct using the given verifier, returning a [`Verified`]

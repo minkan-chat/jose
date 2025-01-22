@@ -38,10 +38,12 @@ pub mod jwk;
 pub mod jws;
 mod jwt;
 pub mod policy;
+mod uri;
 
 use alloc::string::String;
 
 pub use base64_url::Base64UrlString;
+pub use uri::Uri;
 
 #[doc(inline)]
 pub use self::{header::JoseHeader, jwk::JsonWebKey, jws::JsonWebSignature, jwt::JsonWebToken};

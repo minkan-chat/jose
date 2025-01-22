@@ -3,20 +3,20 @@
 // - additional (private, public) headers
 // - for supporting all MUST BE UNDERSTOOD params
 
-use std::{convert::Infallible, str::FromStr, string::FromUtf8Error};
+use std::{convert::Infallible, str::FromStr};
 
 use jose::{
     format::{Compact, JsonFlattened, JsonGeneral},
     header::HeaderValue,
     jwa::{EcDSA, JsonWebSigningAlgorithm},
     jwk::{
-        ec::p256::{P256PrivateKey, P256Signer},
+        ec::p256::{P256PrivateKey, P256Signer, P256Verifier},
         okp::curve25519::{Ed25519PrivateKey, Ed25519PublicKey, Ed25519Signer, Ed25519Verifier},
         JwkSigner, JwkVerifier,
     },
     jws::{
-        FromRawPayload, IntoPayload, IntoSigner, IntoVerifier, ManyUnverified, PayloadKind, Signer,
-        Unverified, Verifier,
+        FromRawPayload, IntoPayload, IntoSigner, IntoVerifier, ManyUnverified, PayloadData,
+        PayloadKind, Signer, Unverified, Verifier,
     },
     policy::{Checkable, StandardPolicy},
     Base64UrlString, JsonWebKey, Jws,
@@ -41,12 +41,29 @@ impl From<&str> for StringPayload {
 }
 
 impl FromRawPayload for StringPayload {
-    type Error = FromUtf8Error;
+    type Context = ();
+    type Error = String;
 
-    fn from_raw_payload(payload: PayloadKind) -> Result<Self, Self::Error> {
+    fn from_attached(_: &(), payload: PayloadData) -> Result<Self, Self::Error> {
         match payload {
-            PayloadKind::Standard(s) => String::from_utf8(s.decode()).map(StringPayload),
+            PayloadData::Standard(s) => String::from_utf8(s.decode())
+                .map(StringPayload)
+                .map_err(|e| e.to_string()),
         }
+    }
+
+    fn from_detached<F, T>(
+        _: &(),
+        _: &jose::JoseHeader<F, T>,
+    ) -> Result<(Self, PayloadData), Self::Error> {
+        Err(String::from("detached payload not supported"))
+    }
+
+    fn from_detached_many<F, T>(
+        _: &(),
+        _: &[jose::JoseHeader<F, T>],
+    ) -> Result<(Self, PayloadData), Self::Error> {
+        Err(String::from("detached payload not supported"))
     }
 }
 
@@ -55,7 +72,7 @@ impl IntoPayload for StringPayload {
 
     fn into_payload(self) -> Result<PayloadKind, Self::Error> {
         let s = Base64UrlString::encode(self.0);
-        Ok(PayloadKind::Standard(s))
+        Ok(PayloadKind::Attached(PayloadData::Standard(s)))
     }
 }
 
@@ -110,6 +127,92 @@ fn none_verifier_roundtrip() {
         .unwrap();
 
     assert_eq!(parsed_jws.payload(), &StringPayload::from("abc"));
+}
+
+#[test]
+fn detached_payload_with_context() {
+    #[derive(Debug)]
+    struct MyPayload(String);
+
+    impl IntoPayload for MyPayload {
+        type Error = ();
+
+        fn into_payload(self) -> Result<PayloadKind, Self::Error> {
+            let s = Base64UrlString::encode(self.0);
+            Ok(PayloadKind::Detached(PayloadData::Standard(s)))
+        }
+    }
+
+    impl FromRawPayload for MyPayload {
+        type Context = String;
+        type Error = ();
+
+        fn from_attached(
+            context: &Self::Context,
+            _payload: PayloadData,
+        ) -> Result<Self, Self::Error> {
+            Ok(Self(context.clone()))
+        }
+
+        fn from_detached<F, T>(
+            context: &Self::Context,
+            _header: &jose::JoseHeader<F, T>,
+        ) -> Result<(Self, PayloadData), Self::Error> {
+            let data = PayloadData::Standard(Base64UrlString::encode(context));
+            Ok((Self(context.clone()), data))
+        }
+
+        fn from_detached_many<F, T>(
+            _context: &Self::Context,
+            _headers: &[jose::JoseHeader<F, T>],
+        ) -> Result<(Self, PayloadData), Self::Error> {
+            todo!()
+        }
+    }
+
+    let key = std::fs::read_to_string(format!(
+        "{}/tests/keys/p256.json",
+        env!("CARGO_MANIFEST_DIR"),
+    ))
+    .unwrap();
+    let key: P256PrivateKey = serde_json::from_str(&key).unwrap();
+    let mut signer: P256Signer = key
+        .clone()
+        .into_signer(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
+        .unwrap();
+    let mut verifier: P256Verifier = key
+        .into_verifier(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
+        .unwrap();
+
+    let context = "hello".to_string();
+
+    let jws = Jws::<Compact, _>::builder()
+        .build(MyPayload(context.clone()))
+        .unwrap()
+        .sign(&mut signer)
+        .unwrap()
+        .encode();
+
+    assert_eq!(
+        jws.to_string(),
+        "eyJhbGciOiJFUzI1NiJ9..\
+         66Pd7hVwuNAOP4qFlQW5zSOmLNehj69TbZifg7pD5QjRWMqbxEdalWzMJFmRtQisYunNK2Vhm7H54xOnL6_Q4w"
+    );
+
+    let parsed_jws =
+        Unverified::<Jws<Compact, MyPayload>>::decode_with_context(jws.clone(), &context)
+            .unwrap()
+            .verify(&mut verifier)
+            .unwrap();
+
+    assert_eq!(parsed_jws.payload().0, context);
+
+    // decoding with another context, should fail signature validation
+    let context2 = "world".to_string();
+    Unverified::<Jws<Compact, MyPayload>>::decode_with_context(jws, &context2)
+        .unwrap()
+        .verify(&mut verifier)
+        .unwrap_err();
 }
 
 #[test]

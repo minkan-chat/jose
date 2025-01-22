@@ -7,6 +7,7 @@ use super::{serde_impl::Base64DerCertificate, JsonWebKey, JsonWebKeyType, KeyOpe
 use crate::{
     jwa::JsonWebAlgorithm,
     policy::{Checkable, Checked, Policy},
+    Uri,
 };
 
 /// Reasons the construction of a `JsonWebKey` via the
@@ -34,7 +35,7 @@ pub struct JsonWebKeyBuilder<A> {
     pub(super) key_operations: Option<HashSet<KeyOperation>>,
     pub(super) algorithm: Option<JsonWebAlgorithm>,
     pub(super) kid: Option<String>,
-    pub(super) x509_url: Option<String>,
+    pub(super) x509_url: Option<Uri>,
     pub(super) x509_certificate_chain: Vec<Base64DerCertificate>,
     pub(super) x509_certificate_sha1_thumbprint: Option<[u8; 20]>,
     pub(super) x509_certificate_sha256_thumbprint: Option<[u8; 32]>,
@@ -148,7 +149,7 @@ impl<A> JsonWebKeyBuilder<A> {
         key_operations: HashSet<KeyOperation>,
         algorithm: JsonWebAlgorithm,
         kid: String,
-        x509_url: String,
+        x509_url: Uri,
         x509_certificate_sha1_thumbprint: [u8; 20],
         x509_certificate_sha256_thumbprint: [u8; 32],
     }

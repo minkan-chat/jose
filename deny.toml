@@ -82,13 +82,8 @@ ignore = [
 # See Git Authentication for more information about setting up git authentication.
 #git-fetch-with-cli = true
 
-# This section is considered when running `cargo deny check licenses`
-# More documentation for the licenses section can be found here:
-# https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html
 [licenses]
 # List of explicitly allowed licenses
-# See https://spdx.org/licenses/ for list of possible licenses
-# [possible values: any SPDX 3.11 short identifier (+ optional exception)].
 allow = [
     "MIT",
     "Apache-2.0",
@@ -103,7 +98,7 @@ allow = [
     #   "BSD-2-Clause",
     #   "ISC",
     #   "CC0-1.0",
-]
+] # List of explictly allowed licenses, all other licenses are denied
 # The confidence threshold for detecting a license from license text.
 # The higher the value, the more closely the license text must be to the
 # canonical license text of a valid SPDX license file.
@@ -148,11 +143,7 @@ registries = [
     #"https://sekretz.com/registry
 ]
 
-# This section is considered when running `cargo deny check bans`.
-# More documentation about the 'bans' section can be found here:
-# https://embarkstudios.github.io/cargo-deny/checks/bans/cfg.html
 [bans]
-# Lint level for when multiple versions of the same crate are detected
 multiple-versions = "warn"
 # Lint level for when a crate version requirement is `*`
 wildcards = "warn"
@@ -222,20 +213,10 @@ skip-tree = [
     #{ crate = "ansi_term@0.11.0", depth = 20 },
 ]
 
-# This section is considered when running `cargo deny check sources`.
-# More documentation about the 'sources' section can be found here:
-# https://embarkstudios.github.io/cargo-deny/checks/sources/cfg.html
 [sources]
-# Lint level for what to happen when a crate from a crate registry that is not
-# in the allow list is encountered
 unknown-registry = "warn"
-# Lint level for what to happen when a crate from a git repository that is not
-# in the allow list is encountered
 unknown-git = "warn"
-# List of URLs for allowed crate registries. Defaults to the crates.io index
-# if not specified. If it is specified but empty, no registries are allowed.
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-# List of URLs for allowed Git repositories
 allow-git = []
 
 [sources.allow-org]
