@@ -48,11 +48,7 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           components: clippy
       - name: cargo clippy
-        uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features -- -D warnings
-
+        run: cargo clippy --all-features -- -D warnings
   doc:
     runs-on: ubuntu-latest
     name: nightly / doc
@@ -81,7 +77,7 @@ jobs:
         with:
           submodules: true
       - name: cargo-deny
-        uses: EmbarkStudios/cargo-deny-action@v1
+        uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check ${{ matrix.checks }}
 
@@ -106,7 +102,7 @@ jobs:
     # https://docs.github.com/en/actions/learn-github-actions/contexts#context-availability
     strategy:
       matrix:
-        msrv: ["1.65"]
+        msrv: ["1.84"]
     name: ubuntu / ${{ matrix.msrv }}
     steps:
       - uses: actions/checkout@v4

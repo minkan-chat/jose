@@ -45,7 +45,6 @@ pub mod curve448 {
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
-
 pub enum OkpPublic {
     /// `kty` is `OKP` and `crv` is either `Ed25519` or `X25519`
     Curve25519(Curve25519Public),

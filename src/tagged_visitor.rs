@@ -19,7 +19,7 @@ pub(crate) struct TaggedContentVisitor<'de, T> {
     _content: PhantomData<&'de [u8]>,
 }
 
-impl<'de, T> TaggedContentVisitor<'de, T> {
+impl<T> TaggedContentVisitor<'_, T> {
     pub fn new(tag_name: &'static str, expecting: &'static str) -> Self {
         Self {
             tag_name,

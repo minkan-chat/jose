@@ -18,14 +18,12 @@ std = [
 [dependencies]
 thiserror-no-std = "2.0.2"
 base64ct = { version = "1.5", default-features = false, features = ["alloc"] }
-serde = { version = "1.0.139", default-features = false, features = [
+serde = { version = "1", default-features = false, features = [
   "alloc",
   "derive",
 ] }
-serde_json = { version = "1.0.50", default-features = false, features = [
-  "alloc",
-] }
-hashbrown = { version = "0.14", features = ["serde"] }
+serde_json = { version = "1", default-features = false, features = ["alloc"] }
+hashbrown = { version = "0.15", features = ["serde"] }
 rand_core = { version = "0.6", features = ["getrandom", "alloc"] }
 hmac = { version = "0.12", default-features = false }
 sha1 = { version = "0.10", default-features = false, features = ["oid"] }

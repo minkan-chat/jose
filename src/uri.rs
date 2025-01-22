@@ -78,7 +78,7 @@ impl<'de> Deserialize<'de> for Uri {
 #[derive(Debug)]
 pub struct BorrowedUri<'s>(&'s fluent_uri::Uri<&'s str>);
 
-impl<'s> BorrowedUri<'s> {
+impl BorrowedUri<'_> {
     /// Turns this borrowed URI into an owned [`Uri`].
     pub fn to_owned(&self) -> Uri {
         Uri(self.0.to_owned())
