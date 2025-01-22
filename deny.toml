@@ -93,10 +93,13 @@ allow = [
     "MIT",
     "Apache-2.0",
     # for unicode-ident crate
-    "Unicode-DFS-2016",
+    "Unicode-3.0",
+    #"Unicode-DFS-2016",
     #   "Apache-2.0 WITH LLVM-exception",
     #   "MPL-2.0",
     "BSD-3-Clause",
+    # For hashbrown dependency
+    "Zlib",
     #   "BSD-2-Clause",
     #   "ISC",
     #   "CC0-1.0",
@@ -162,7 +165,7 @@ highlight = "all"
 # The default lint level for `default` features for crates that are members of
 # the workspace that is being checked. This can be overridden by allowing/denying
 # `default` on a crate-by-crate basis if desired.
-workspace-default-features = "warn"
+workspace-default-features = "allow"
 # The default lint level for `default` features for external crates that are not
 # members of the workspace. This can be overridden by allowing/denying `default`
 # on a crate-by-crate basis if desired.
