@@ -6,7 +6,6 @@
     trivial_numeric_casts,
     unused_extern_crates,
     unused_import_braces,
-    unused_qualifications,
     explicit_outlives_requirements,
     clippy::missing_errors_doc
 )]
@@ -19,6 +18,7 @@
 )]
 #![forbid(unsafe_code)]
 #![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(feature = "std", allow(unused_qualifications))]
 
 extern crate alloc;
 
