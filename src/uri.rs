@@ -66,7 +66,7 @@ impl<'de> Deserialize<'de> for Uri {
         let uri = String::deserialize(deserializer)?;
 
         Ok(Uri(
-            fluent_uri::Uri::parse_from(uri).map_err(|(_, e)| serde::de::Error::custom(e))?
+            fluent_uri::Uri::parse(uri).map_err(serde::de::Error::custom)?
         ))
     }
 }
@@ -76,7 +76,7 @@ impl<'de> Deserialize<'de> for Uri {
 /// This is a thing wrapper around a [`fluent_uri::Uri<&str>`] that implements
 /// [`Serialize`].
 #[derive(Debug)]
-pub struct BorrowedUri<'s>(&'s fluent_uri::Uri<&'s str>);
+pub struct BorrowedUri<'s>(fluent_uri::Uri<&'s str>);
 
 impl BorrowedUri<'_> {
     /// Turns this borrowed URI into an owned [`Uri`].
@@ -89,13 +89,13 @@ impl<'s> Deref for BorrowedUri<'s> {
     type Target = fluent_uri::Uri<&'s str>;
 
     fn deref(&self) -> &Self::Target {
-        self.0
+        &self.0
     }
 }
 
 impl fmt::Display for BorrowedUri<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        (*self.0).fmt(f)
+        self.0.fmt(f)
     }
 }
 
