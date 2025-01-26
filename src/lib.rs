@@ -36,7 +36,7 @@ pub mod jwa;
 pub mod jwe;
 pub mod jwk;
 pub mod jws;
-mod jwt;
+pub mod jwt;
 pub mod policy;
 mod uri;
 
