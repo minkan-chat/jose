@@ -1,3 +1,7 @@
+//! JsonWebToken (JWT) implementation
+//!
+//! JWTs are the most common use of JOSE.
+
 use alloc::string::String;
 
 use serde::{Deserialize, Serialize};
