@@ -10,7 +10,16 @@ use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use super::thumbprint::{self, Thumbprint};
 use crate::{base64_url::Base64UrlBytes, jws::InvalidSigningAlgorithmError};
 
-/// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4>
+/// Symmetric Keys
+///
+/// Symmetric keys only have a secret value, therefore, they MUST only be used
+/// in a protected environment.
+/// For example, with a symmetric key, checking the validity of a
+/// [`JsonWebSignature`](crate::JsonWebSignature) cannot be done on the client
+/// side, because it leaks the key and the client can then create own
+/// signatures.
+///
+/// See <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4>
 #[non_exhaustive]
 #[derive(Debug, PartialEq, Eq, Clone, Hash, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -28,6 +37,15 @@ impl Thumbprint for SymmetricJsonWebKey {
     }
 }
 
+/// [`OctetSequence`] is the simplest and only available [`SymmetricJsonWebKey`].
+///
+/// However, because its length is not defined, it cannot be generated directly.
+/// Instead, you should use [`HmacKey<H>`](crate::jwk::symmetric::hmac::HmacKey)
+/// with the appropriate key size, for example
+/// [`Hs512`](crate::jwk::symmetric::hmac::Hs512) and then, if needed, convert
+/// it to a [`JsonWebKey`](crate::JsonWebKey) using
+/// [`IntoJsonWebKey`](crate::jwk::IntoJsonWebKey).
+///
 /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4.1>
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct OctetSequence(pub(self) Base64UrlBytes);
