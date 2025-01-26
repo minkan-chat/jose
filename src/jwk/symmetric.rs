@@ -37,7 +37,8 @@ impl Thumbprint for SymmetricJsonWebKey {
     }
 }
 
-/// [`OctetSequence`] is the simplest and only available [`SymmetricJsonWebKey`].
+/// [`OctetSequence`] is the simplest and only available
+/// [`SymmetricJsonWebKey`].
 ///
 /// However, because its length is not defined, it cannot be generated directly.
 /// Instead, you should use [`HmacKey<H>`](crate::jwk::symmetric::hmac::HmacKey)
