@@ -4,11 +4,11 @@
 
 use alloc::string::String;
 
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
     format::{self, Compact},
-    jws::{IntoPayload, JsonWebSignatureBuilder, PayloadData, PayloadKind},
+    jws::{FromRawPayload, IntoPayload, JsonWebSignatureBuilder, PayloadData, PayloadKind},
     Base64UrlString, JsonWebSignature, Jws,
 };
 
@@ -102,5 +102,57 @@ where
         Ok(PayloadKind::Attached(PayloadData::Standard(
             Base64UrlString::encode(encoded),
         )))
+    }
+}
+
+/// Error returned by [`FromRawPayload`] implementation of [`Claims`]
+#[derive(Debug, thiserror_no_std::Error)]
+#[non_exhaustive]
+pub enum ClaimsDecodeError {
+    /// [`Claims`] does not support this operation.
+    #[error("Operation not supported.")]
+    OperationUnsupported,
+    /// Error while deserializing underlying Json
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+}
+
+impl<A> FromRawPayload for Claims<A>
+where
+    A: DeserializeOwned,
+{
+    type Context = ();
+    type Error = ClaimsDecodeError;
+
+    fn from_attached(_: &Self::Context, payload: PayloadData) -> Result<Self, Self::Error> {
+        let data = match payload {
+            PayloadData::Standard(data) => data.decode(),
+        };
+        let claims: Claims<A> = serde_json::from_slice(&data)?;
+        Ok(claims)
+    }
+
+    /// Detached is not supported with [`JsonWebToken`]
+    ///
+    /// # Returns
+    ///
+    /// Always returns [`ClaimsDecodeError::OperationUnsupported`]
+    fn from_detached<F, T>(
+        _: &Self::Context,
+        _: &crate::JoseHeader<F, T>,
+    ) -> Result<(Self, PayloadData), Self::Error> {
+        Err(ClaimsDecodeError::OperationUnsupported)
+    }
+
+    /// Detached is not supported with [`JsonWebToken`]
+    ///
+    /// # Returns
+    ///
+    /// Always returns [`ClaimsDecodeError::OperationUnsupported`]
+    fn from_detached_many<F, T>(
+        _: &Self::Context,
+        _: &[crate::JoseHeader<F, T>],
+    ) -> Result<(Self, PayloadData), Self::Error> {
+        Err(ClaimsDecodeError::OperationUnsupported)
     }
 }
