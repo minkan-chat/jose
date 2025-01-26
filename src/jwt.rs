@@ -42,48 +42,48 @@ pub struct Claims<A = ()> {
     /// The "iss" (issuer) claim identifies the principal that issued the JWT.
     ///
     /// As defined in [RFC 7519 Section 4.1.1](https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.1).
-    #[serde(rename = "iss")]
+    #[serde(rename = "iss", skip_serializing_if = "Option::is_none")]
     pub issuer: Option<String>,
 
     /// The "sub" (subject) claim identifies the principal that is the subject
     /// of the JWT.
     ///
     /// As defined in [RFC 7519 Section 4.1.2](https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.2).
-    #[serde(rename = "sub")]
+    #[serde(rename = "sub", skip_serializing_if = "Option::is_none")]
     pub subject: Option<String>,
 
     /// The "aud" (audience) claim identifies the recipients that the JWT is
     /// intended for.
     ///
     /// As defined in [RFC 7519 Section 4.1.3](https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.3).
-    #[serde(rename = "aud")]
+    #[serde(rename = "aud", skip_serializing_if = "Option::is_none")]
     pub audience: Option<String>,
 
     /// The "exp" (expiration time) claim identifies the expiration time on or
     /// after which the JWT MUST NOT be accepted for processing.
     ///
     /// As defined in [RFC 7519 Section 4.1.4](https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.4).
-    #[serde(rename = "exp")]
+    #[serde(rename = "exp", skip_serializing_if = "Option::is_none")]
     pub expiration: Option<u64>,
 
     /// The "nbf" (not before) claim identifies the time before which the JWT
     /// MUST NOT be accepted for processing.
     ///
     /// As defined in [RFC 7519 Section 4.1.5](https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.5).
-    #[serde(rename = "nbf")]
+    #[serde(rename = "nbf", skip_serializing_if = "Option::is_none")]
     pub not_before: Option<u64>,
 
     /// The "iat" (issued at) claim identifies the time at which the JWT was
     /// issued.
     ///
     /// As defined in [RFC 7519 Section 4.1.6](https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.6).
-    #[serde(rename = "iat")]
+    #[serde(rename = "iat", skip_serializing_if = "Option::is_none")]
     pub issued_at: Option<u64>,
 
     /// The "jti" (JWT ID) claim provides a unique identifier for the JWT.
     ///
     /// As defined in [RFC 7519 Section 4.1.7](https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.7).
-    #[serde(rename = "jti")]
+    #[serde(rename = "jti", skip_serializing_if = "Option::is_none")]
     pub jwt_id: Option<String>,
 
     /// Additional, potentially unregistered JWT claims.
