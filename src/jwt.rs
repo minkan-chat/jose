@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     format::{self, Compact},
-    jws::JsonWebSignatureBuilder,
-    JsonWebSignature, Jws,
+    jws::{IntoPayload, JsonWebSignatureBuilder, PayloadData, PayloadKind},
+    Base64UrlString, JsonWebSignature, Jws,
 };
 
 /// A JSON Web Token (JWT) as defined in [RFC 7519].
@@ -89,4 +89,18 @@ pub struct Claims<A = ()> {
     /// Additional, potentially unregistered JWT claims.
     #[serde(flatten)]
     pub additional: A,
+}
+
+impl<A> IntoPayload for Claims<A>
+where
+    A: Serialize,
+{
+    type Error = serde_json::Error;
+
+    fn into_payload(self) -> Result<PayloadKind, Self::Error> {
+        let encoded = serde_json::to_vec(&self)?;
+        Ok(PayloadKind::Attached(PayloadData::Standard(
+            Base64UrlString::encode(encoded),
+        )))
+    }
 }
