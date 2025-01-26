@@ -6,7 +6,11 @@ use alloc::string::String;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{format, JsonWebSignature};
+use crate::{
+    format::{self, Compact},
+    jws::JsonWebSignatureBuilder,
+    JsonWebSignature, Jws,
+};
 
 /// A JSON Web Token (JWT) as defined in [RFC 7519].
 ///
@@ -16,6 +20,15 @@ use crate::{format, JsonWebSignature};
 ///
 /// [RFC 7519]: <https://datatracker.ietf.org/doc/html/rfc7519>
 pub type JsonWebToken<A> = JsonWebSignature<format::Compact, Claims<A>>;
+
+impl JsonWebToken<()> {
+    /// Returns a [`JsonWebSignatureBuilder`] for a [`JsonWebToken`]
+    // this method is needed because of interference problems if it is named
+    // builder directly.
+    pub fn builder_jwt() -> JsonWebSignatureBuilder<Compact> {
+        Jws::builder()
+    }
+}
 
 /// The claims of a JSON Web Token (JWT) as defined in [RFC 7519].
 ///
