@@ -800,6 +800,13 @@ impl JsonWebKeyType {
                     Signing(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256K)),
                 )
                 | (
+                    AsymmetricJsonWebKey::Public(Public::Okp(OkpPublic::Curve25519(..)))
+                    | AsymmetricJsonWebKey::Private(Private::Okp(OkpPrivate::Curve25519(..))),
+                    Signing(JsonWebSigningAlgorithm::EdDSA),
+                    // FIXME: look how encryption is handled and which algorithm is used
+                    //| Encryption(JsonWebEncryptionAlgorithm::EcDhES(..)),
+                )
+                | (
                     AsymmetricJsonWebKey::Public(Public::Rsa(..))
                     | AsymmetricJsonWebKey::Private(Private::Rsa(..)),
                     Signing(JsonWebSigningAlgorithm::Rsa(..))
