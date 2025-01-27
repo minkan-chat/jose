@@ -87,7 +87,7 @@ impl<T> HeaderValue<Option<T>> {
 }
 
 impl<T, E> HeaderValue<Result<T, E>> {
-    /// Transpose a [`HeaderValue<Result<T, E>>] into
+    /// Transpose a [`HeaderValue<Result<T, E>>`] into
     /// [`Result<HeaderValue<`T`>, E>`]
     ///
     /// # Errors

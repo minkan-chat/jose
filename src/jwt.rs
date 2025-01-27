@@ -15,7 +15,7 @@ use crate::{
 /// A JSON Web Token (JWT) as defined in [RFC 7519].
 ///
 /// Since a JWT is only allowed to be serialized in the compact format, the
-/// `F` type parameter is fixed to [`Compact`](format::Compact) in this type
+/// `F` type parameter is fixed to [`Compact`] in this type
 /// alias.
 ///
 /// [RFC 7519]: <https://datatracker.ietf.org/doc/html/rfc7519>

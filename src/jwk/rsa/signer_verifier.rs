@@ -118,7 +118,7 @@ impl FromKey<super::RsaPublicKey> for RsaVerifier {
 impl FromKey<super::RsaPrivateKey> for RsaVerifier {
     type Error = InvalidSigningAlgorithmError;
 
-    /// Create a [`Verifier`](crate::jws::Verifier) from the private key by
+    /// Create a [`Verifier`] from the private key by
     /// turning it into the public key and dropping the private parts afterwards
     fn from_key(value: super::RsaPrivateKey, alg: JsonWebAlgorithm) -> Result<Self, Self::Error> {
         Self::from_key(super::RsaPublicKey(value.0.to_public_key()), alg)

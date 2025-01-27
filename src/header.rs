@@ -53,12 +53,12 @@ use crate::{
 /// A [`JoseHeader`] can store parameters in two ways:
 ///
 /// * [protected](HeaderValue::Protected): Parameters stored in the protected
-///   part of a [`JoseHeader`] can not be modified without the knowledge of the
-///   cryptographic key that was used to protected the payload.
+///   part of a [`JoseHeader`] **cannot** be modified without knowledge of the
+///   cryptographic key that was used to protect the payload.
 ///
 /// * [unprotected](HeaderValue::Unprotected): Parameters stored in the
 ///   unprotected part of a [`JoseHeader`] **can** be modified by anybody and
-///   changes cannot be detected. You therefore cannot rely or trust them.
+///   *changes cannot be detected*. You therefore *MUST NOT* trust them.
 ///
 /// Since most parameters are allowed in both of the two header parts, each
 /// parameter is wrapped in a [`HeaderValue<T>`] that specifies the part in
