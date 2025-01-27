@@ -12,10 +12,9 @@ use jose::{
     },
     jwt::Claims,
     policy::{Checkable, StandardPolicy},
-    JsonWebKey, Jwt,
+    JsonWebKey, Jwt, UntypedAdditionalProperties,
 };
 use rand::rngs::ThreadRng;
-use serde_json::Value;
 
 #[derive(Parser)]
 enum Commands {
@@ -58,13 +57,12 @@ fn main() -> eyre::Result<()> {
 
             // If the key can be made public, do so and print it as well
             if let Some(public) = private_key.strip_secret_material() {
-                println!("Public:\n:{}", serde_json::to_string(&public)?)
+                println!("Public:\n{}", serde_json::to_string(&public)?)
             };
         }
         Commands::Sign { key, payload } => {
             let key: JsonWebKey = serde_json::from_reader(key)?;
-            // use serde_json::Value to keep all values in the payload
-            let payload: Claims<serde_json::Value> = serde_json::from_reader(payload)?;
+            let payload: Claims<UntypedAdditionalProperties> = serde_json::from_reader(payload)?;
             if !key.is_signing_key() {
                 return Err(eyre!("Key is not capable of signing"));
             }
@@ -84,7 +82,7 @@ fn main() -> eyre::Result<()> {
             let key = key.check(StandardPolicy::default()).map_err(|(_, e)| e)?;
             let mut verifier: JwkVerifier = key.try_into()?;
             let encoded: Compact = jwt.parse()?;
-            let unverified_jwt = Jwt::<Value>::decode(encoded)?;
+            let unverified_jwt = Jwt::<UntypedAdditionalProperties>::decode(encoded)?;
             let jwt = unverified_jwt.verify(&mut verifier)?;
             let payload = jwt.payload();
             println!(
