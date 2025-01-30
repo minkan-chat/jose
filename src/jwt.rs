@@ -37,7 +37,7 @@ impl JsonWebToken<()> {
 /// the unit type `()` can be used.
 ///
 /// [RFC 7519]: <https://datatracker.ietf.org/doc/html/rfc7519>
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Claims<A = ()> {
     /// The "iss" (issuer) claim identifies the principal that issued the JWT.
     ///
