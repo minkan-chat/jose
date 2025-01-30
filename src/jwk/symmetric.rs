@@ -21,7 +21,7 @@ use crate::{base64_url::Base64UrlBytes, jws::InvalidSigningAlgorithmError};
 ///
 /// See <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4>
 #[non_exhaustive]
-#[derive(Debug, PartialEq, Eq, Clone, Hash, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SymmetricJsonWebKey {
     /// `oct` <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4>
@@ -48,7 +48,7 @@ impl Thumbprint for SymmetricJsonWebKey {
 /// [`IntoJsonWebKey`](crate::jwk::IntoJsonWebKey).
 ///
 /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4.1>
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct OctetSequence(pub(self) Base64UrlBytes);
 
 impl OctetSequence {
