@@ -1,4 +1,4 @@
-//! To be written
+#![doc = include_str!("../README.md")]
 #![warn(
     missing_docs,
     missing_debug_implementations,
