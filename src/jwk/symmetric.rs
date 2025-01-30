@@ -5,7 +5,9 @@ pub mod hmac;
 use alloc::{string::String, vec::Vec};
 
 use digest::InvalidLength;
+use secrecy::{ExposeSecret, SecretBox};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use super::thumbprint::{self, Thumbprint};
 use crate::{base64_url::Base64UrlBytes, jws::InvalidSigningAlgorithmError};
@@ -48,18 +50,19 @@ impl Thumbprint for SymmetricJsonWebKey {
 /// [`IntoJsonWebKey`](crate::jwk::IntoJsonWebKey).
 ///
 /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4.1>
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct OctetSequence(pub(self) Base64UrlBytes);
+#[derive(Debug, Clone, ZeroizeOnDrop, Zeroize)]
+pub struct OctetSequence(pub(self) SecretBox<[u8]>);
 
 impl OctetSequence {
     pub(crate) fn new(x: impl Into<Vec<u8>>) -> Self {
-        Self(Base64UrlBytes(x.into()))
+        let v: Vec<u8> = x.into();
+        Self(SecretBox::new(v.into_boxed_slice()))
     }
 
     /// Returns the number of bytes that are in this octet sequence.
     #[inline]
     pub fn len(&self) -> usize {
-        self.0 .0.len()
+        self.0.expose_secret().len()
     }
 
     /// Returns `true` if this octet sequence has a length of zero.
@@ -68,6 +71,13 @@ impl OctetSequence {
         self.len() == 0
     }
 }
+
+impl PartialEq for OctetSequence {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.expose_secret() == other.0.expose_secret()
+    }
+}
+impl Eq for OctetSequence {}
 
 impl crate::sealed::Sealed for OctetSequence {}
 impl Thumbprint for OctetSequence {
@@ -103,8 +113,7 @@ impl<'de> Deserialize<'de> for OctetSequence {
         if repr.kty != "oct" {
             return Err(D::Error::custom("`kty` field is required to be `oct`"));
         }
-
-        Ok(Self(repr.k))
+        Ok(Self(SecretBox::new(repr.k.0.into_boxed_slice())))
     }
 }
 
@@ -120,7 +129,7 @@ impl Serialize for OctetSequence {
         }
         Repr {
             kty: "oct",
-            k: &self.0,
+            k: &Base64UrlBytes(self.0.expose_secret().to_vec()),
         }
         .serialize(serializer)
     }
