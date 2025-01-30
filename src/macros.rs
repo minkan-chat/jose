@@ -393,3 +393,18 @@ macro_rules! impl_internally_tagged_deserialize {
         }
     };
 }
+
+macro_rules! impl_thumbprint_hash_trait {
+    ($T:ty) => {
+        /// The [`Hash`](core::hash::Hash) implementation uses
+        /// [`Thumbprint::thumbprint_prehashed`](crate::jwk::Thumbprint::thumbprint_prehashed)
+        impl core::hash::Hash for $T {
+            fn hash<H>(&self, state: &mut H)
+            where
+                H: core::hash::Hasher,
+            {
+                <$T as crate::jwk::Thumbprint>::thumbprint_prehashed(&self).hash(state)
+            }
+        }
+    };
+}

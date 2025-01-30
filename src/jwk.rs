@@ -860,3 +860,45 @@ pub trait IntoJsonWebKey: Sealed {
     /// Returns an [`Err`] if the conversion fails.
     fn into_jwk(self, alg: Option<impl Into<Self::Algorithm>>) -> Result<JsonWebKey, Self::Error>;
 }
+
+/// Hash implementation for all types that implement `Thumbprint` trait
+mod hash_impl {
+    use super::{
+        ec::{
+            p256::{P256PrivateKey, P256PublicKey},
+            secp256k1::{Secp256k1PrivateKey, Secp256k1PublicKey},
+            EcPrivate, EcPublic,
+        },
+        okp::{
+            curve25519::{
+                Curve25519Private, Curve25519Public, Ed25519PrivateKey, Ed25519PublicKey,
+            },
+            OkpPrivate, OkpPublic,
+        },
+        rsa::{RsaPrivateKey, RsaPublicKey},
+        symmetric::OctetSequence,
+        AsymmetricJsonWebKey, JsonWebKey, JsonWebKeyType, Private, Public, SymmetricJsonWebKey,
+    };
+
+    impl_thumbprint_hash_trait!(EcPrivate);
+    impl_thumbprint_hash_trait!(EcPublic);
+    impl_thumbprint_hash_trait!(AsymmetricJsonWebKey);
+    impl_thumbprint_hash_trait!(JsonWebKeyType);
+    impl_thumbprint_hash_trait!(Private);
+    impl_thumbprint_hash_trait!(Public);
+    impl_thumbprint_hash_trait!(SymmetricJsonWebKey);
+    impl_thumbprint_hash_trait!(Curve25519Private);
+    impl_thumbprint_hash_trait!(Curve25519Public);
+    impl_thumbprint_hash_trait!(OkpPrivate);
+    impl_thumbprint_hash_trait!(OkpPublic);
+    impl_thumbprint_hash_trait!(JsonWebKey);
+    impl_thumbprint_hash_trait!(P256PrivateKey);
+    impl_thumbprint_hash_trait!(P256PublicKey);
+    impl_thumbprint_hash_trait!(Secp256k1PrivateKey);
+    impl_thumbprint_hash_trait!(Secp256k1PublicKey);
+    impl_thumbprint_hash_trait!(Ed25519PrivateKey);
+    impl_thumbprint_hash_trait!(Ed25519PublicKey);
+    impl_thumbprint_hash_trait!(RsaPrivateKey);
+    impl_thumbprint_hash_trait!(RsaPublicKey);
+    impl_thumbprint_hash_trait!(OctetSequence);
+}
