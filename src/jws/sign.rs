@@ -98,7 +98,7 @@ impl<SIG: AsRef<[u8]>, S: Signer<SIG>> Signer<SIG> for SignerWithoutKeyId<S> {
 }
 
 /// An error returned if something expected a different
-/// [`JsonWebAlgorithm`](crate::jwa::JsonWebAlgorithm)
+/// [`JsonWebAlgorithm`]
 #[derive(Debug, thiserror_no_std::Error, PartialEq, Eq)]
 #[error("Invalid algorithm")]
 pub struct InvalidSigningAlgorithmError;
