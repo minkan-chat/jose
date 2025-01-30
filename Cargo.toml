@@ -13,6 +13,7 @@ std = [
   "rsa/std",
   "rand_core/std",
   "fluent-uri/std",
+  "serde_json/std",
 ]
 
 [dependencies]
@@ -84,5 +85,14 @@ fluent-uri = { version = "0.3.2", default-features = false }
 [dev-dependencies]
 rand = "0.8.5"
 
+# For examples
+eyre = "0.6.12"
+clap = { version = "4.5.27", features = ["derive"] }
+clio = { version = "0.3.5", features = ["clap-parse"] }
+
 # For X.509 certificates of Json Web Keys
 # x509-cert = { git = "https://github.com/RustCrypto/formats.git" }
+
+[[example]]
+name = "basic-jwt"
+required-features = ["std"]
