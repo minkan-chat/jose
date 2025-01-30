@@ -1,12 +1,12 @@
 //! Hmac cryptography.
 
-use alloc::vec::Vec;
 use core::{
     fmt,
     ops::{Deref, DerefMut},
 };
 
 use digest::{FixedOutputReset, KeyInit, Mac, Output, OutputSizeUser, Update};
+use secrecy::{ExposeSecret, SecretBox};
 use typenum::Unsigned;
 
 use super::{FromOctetSequenceError, OctetSequence};
@@ -94,7 +94,7 @@ impl<H: HmacVariant> AsRef<[u8]> for HmacSignature<H> {
 #[derive(Debug)]
 pub struct HmacKey<H: HmacVariant> {
     alg: H::HmacType,
-    key: Vec<u8>,
+    key: SecretBox<[u8]>,
 }
 
 impl<H: HmacVariant> HmacKey<H> {
@@ -105,7 +105,7 @@ impl<H: HmacVariant> HmacKey<H> {
 
         HmacKey {
             alg: <H::HmacType as KeyInit>::new(&key),
-            key: key.to_vec(),
+            key: SecretBox::new(key.to_vec().into_boxed_slice()),
         }
     }
 }
@@ -113,7 +113,7 @@ impl<H: HmacVariant> HmacKey<H> {
 impl<H: HmacVariant> From<HmacKey<H>> for jwk::JsonWebKeyType {
     fn from(key: HmacKey<H>) -> Self {
         jwk::JsonWebKeyType::Symmetric(jwk::SymmetricJsonWebKey::OctetSequence(OctetSequence::new(
-            key.key,
+            key.key.expose_secret().to_vec(),
         )))
     }
 }
@@ -128,7 +128,7 @@ impl<H: HmacVariant> IntoJsonWebKey for HmacKey<H> {
         alg: Option<impl Into<Self::Algorithm>>,
     ) -> Result<crate::JsonWebKey, Self::Error> {
         let key = jwk::JsonWebKeyType::Symmetric(jwk::SymmetricJsonWebKey::OctetSequence(
-            OctetSequence::new(self.key),
+            OctetSequence::new(self.key.expose_secret().to_vec()),
         ));
 
         let mut jwk = crate::JsonWebKey::new(key);
@@ -162,7 +162,7 @@ impl<H: HmacVariant> Signer<HmacSignature<H>> for HmacKey<H> {
 impl<H: HmacVariant> FromKey<&OctetSequence> for HmacKey<H> {
     type Error = FromOctetSequenceError;
 
-    fn from_key(value: &OctetSequence, alg: JsonWebAlgorithm) -> Result<Self, Self::Error> {
+    fn from_key(key: &OctetSequence, alg: JsonWebAlgorithm) -> Result<Self, Self::Error> {
         match alg {
             JsonWebAlgorithm::Signing(alg) => {
                 if alg != H::ALGORITHM {
@@ -171,8 +171,6 @@ impl<H: HmacVariant> FromKey<&OctetSequence> for HmacKey<H> {
                     ));
                 }
 
-                let key = &value.0 .0;
-
                 // This check is not required for normal Hmac implementations based on RFC 2104
                 // but RFC 7518 section 3.2 requires this check and forbids keys with a length <
                 // output
@@ -180,11 +178,11 @@ impl<H: HmacVariant> FromKey<&OctetSequence> for HmacKey<H> {
                     return Err(digest::InvalidLength.into());
                 }
 
-                let hmac = <H::HmacType as KeyInit>::new_from_slice(key)
+                let hmac = <H::HmacType as KeyInit>::new_from_slice(key.0.expose_secret())
                     .map_err(FromOctetSequenceError::InvalidLength)?;
                 Ok(Self {
                     alg: hmac,
-                    key: value.0 .0.clone(),
+                    key: key.0.clone(),
                 })
             }
             _ => Err(FromOctetSequenceError::InvalidSigningAlgorithm(
@@ -206,11 +204,11 @@ impl<H: HmacVariant> FromKey<OctetSequence> for HmacKey<H> {
                     ));
                 }
 
-                let hmac = <H::HmacType as KeyInit>::new_from_slice(&value.0 .0)
+                let hmac = <H::HmacType as KeyInit>::new_from_slice(value.0.expose_secret())
                     .map_err(FromOctetSequenceError::InvalidLength)?;
                 Ok(Self {
                     alg: hmac,
-                    key: value.0 .0,
+                    key: value.0.clone(),
                 })
             }
             _ => Err(FromOctetSequenceError::InvalidSigningAlgorithm(
