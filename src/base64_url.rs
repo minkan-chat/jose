@@ -49,14 +49,10 @@ impl FromStr for Base64UrlString {
     type Err = NoBase64UrlString;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.as_bytes()
-            .iter()
-            .all(|c| c.is_ascii_alphanumeric() || *c == b'_' || *c == b'-')
-        {
-            Ok(Base64UrlString(s.to_owned()))
-        } else {
-            Err(NoBase64UrlString)
-        }
+        // it is an expensive check.. yes
+        base64ct::Base64UrlUnpadded::decode_vec(s)
+            .map(|_| Self(s.to_owned()))
+            .map_err(|_| NoBase64UrlString)
     }
 }
 
