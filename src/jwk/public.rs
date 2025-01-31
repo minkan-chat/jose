@@ -6,7 +6,7 @@ use super::{ec::EcPublic, okp::OkpPublic, rsa::RsaPublicKey, Thumbprint};
 
 /// The `public` part of some asymmetric cryptographic key
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[serde(untagged)]
 pub enum Public {
     /// The public part of a Rsa key

@@ -717,7 +717,7 @@ impl Thumbprint for JsonWebKey {
 /// [RFC 7518 section 6].
 ///
 /// [RFC 7518 section 6]: <https://datatracker.ietf.org/doc/html/rfc7518#section-6>
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize, Hash)]
 #[serde(untagged)]
 pub enum JsonWebKeyType {
     /// A symmetric cryptographic key
@@ -863,42 +863,85 @@ pub trait IntoJsonWebKey: Sealed {
 
 /// Hash implementation for all types that implement `Thumbprint` trait
 mod hash_impl {
+    use core::hash::{Hash, Hasher};
+
     use super::{
         ec::{
             p256::{P256PrivateKey, P256PublicKey},
+            p384::{P384PrivateKey, P384PublicKey},
             secp256k1::{Secp256k1PrivateKey, Secp256k1PublicKey},
-            EcPrivate, EcPublic,
         },
-        okp::{
-            curve25519::{
-                Curve25519Private, Curve25519Public, Ed25519PrivateKey, Ed25519PublicKey,
-            },
-            OkpPrivate, OkpPublic,
+        okp::curve25519::{
+            Curve25519Private, Curve25519Public, Ed25519PrivateKey, Ed25519PublicKey,
         },
         rsa::{RsaPrivateKey, RsaPublicKey},
         symmetric::OctetSequence,
-        AsymmetricJsonWebKey, JsonWebKey, JsonWebKeyType, Private, Public, SymmetricJsonWebKey,
+        JsonWebKey,
     };
 
-    impl_thumbprint_hash_trait!(EcPrivate);
-    impl_thumbprint_hash_trait!(EcPublic);
-    impl_thumbprint_hash_trait!(AsymmetricJsonWebKey);
-    impl_thumbprint_hash_trait!(JsonWebKeyType);
-    impl_thumbprint_hash_trait!(Private);
-    impl_thumbprint_hash_trait!(Public);
-    impl_thumbprint_hash_trait!(SymmetricJsonWebKey);
-    impl_thumbprint_hash_trait!(Curve25519Private);
-    impl_thumbprint_hash_trait!(Curve25519Public);
-    impl_thumbprint_hash_trait!(OkpPrivate);
-    impl_thumbprint_hash_trait!(OkpPublic);
-    impl_thumbprint_hash_trait!(JsonWebKey);
-    impl_thumbprint_hash_trait!(P256PrivateKey);
-    impl_thumbprint_hash_trait!(P256PublicKey);
-    impl_thumbprint_hash_trait!(Secp256k1PrivateKey);
-    impl_thumbprint_hash_trait!(Secp256k1PublicKey);
-    impl_thumbprint_hash_trait!(Ed25519PrivateKey);
-    impl_thumbprint_hash_trait!(Ed25519PublicKey);
-    impl_thumbprint_hash_trait!(RsaPrivateKey);
-    impl_thumbprint_hash_trait!(RsaPublicKey);
+    impl_thumbprint_hash_trait!(Curve25519Public, Curve25519Private);
+    impl_thumbprint_hash_trait!(P256PublicKey, P256PrivateKey);
+    impl_thumbprint_hash_trait!(P384PublicKey, P384PrivateKey);
+    impl_thumbprint_hash_trait!(Secp256k1PublicKey, Secp256k1PrivateKey);
+    impl_thumbprint_hash_trait!(Ed25519PublicKey, Ed25519PrivateKey);
+    impl_thumbprint_hash_trait!(RsaPublicKey, RsaPrivateKey);
     impl_thumbprint_hash_trait!(OctetSequence);
+
+    /// The [`Hash`] implementation of [`JsonWebKey`] uses the [`Hash`]
+    /// implementation of the underlying
+    /// [`JsonWebKeyType`](super::JsonWebKeyType).
+    ///
+    /// **Note**: [`Hash`] and [`Thumbprint`](super::Thumbprint) are used
+    /// differently. A [`Thumbprint`](super::Thumbprint) does does distinguish
+    /// between a private and a public key. But the [`Hash`] implementation of
+    /// all [`JsonWebKey`]s does, because otherwise two different versions of
+    /// [`JsonWebKey`] with different capabilities would have the same hash.
+    impl Hash for JsonWebKey {
+        fn hash<H: Hasher>(&self, state: &mut H) {
+            self.key_type.hash(state);
+        }
+    }
+
+    #[test]
+    fn smoke() {
+        use crate::{jwk::Thumbprint, JsonWebKey};
+        extern crate std;
+        // This is a serialized asymmetric key. The private key part is stored in
+        // the `d` parameter
+        let serialized_private_key = r#"
+{
+    "crv": "P-256",
+    "kty": "EC",
+     "x": "1uiXGPoQ3eLR3VOsCfnx1YzIJZGUQLbVfbl1CpCHcs0",
+     "y": "danaoyQqKi48vlB2jnCoFmq3PdIbYwIRJyNKWiindZM",
+     "d": "eLGzm5zd242okyN9SQBvmaC_4EPvASCgMhFgwtBvf3k",
+     "alg": "ES256"
+}
+"#;
+        let private_key: JsonWebKey =
+            serde_json::from_str(serialized_private_key).expect("valid key");
+
+        let expected_prehash = r#"{"crv":"P-256","kty":"EC","x":"1uiXGPoQ3eLR3VOsCfnx1YzIJZGUQLbVfbl1CpCHcs0","y":"danaoyQqKi48vlB2jnCoFmq3PdIbYwIRJyNKWiindZM"}"#;
+        assert_eq!(private_key.thumbprint_prehashed(), expected_prehash);
+
+        let mut hasher = std::hash::DefaultHasher::default();
+        private_key.hash(&mut hasher);
+        let hash_private = hasher.finish();
+
+        let serialized_public_key = r#"
+{
+    "crv": "P-256",
+    "kty": "EC",
+     "x": "1uiXGPoQ3eLR3VOsCfnx1YzIJZGUQLbVfbl1CpCHcs0",
+     "y": "danaoyQqKi48vlB2jnCoFmq3PdIbYwIRJyNKWiindZM",
+     "alg": "ES256"
+}
+"#;
+
+        let public_key: JsonWebKey = serde_json::from_str(&serialized_public_key).unwrap();
+        let mut hasher = std::hash::DefaultHasher::default();
+        public_key.hash(&mut hasher);
+        let hash_public = hasher.finish();
+        assert_ne!(hash_private, hash_public);
+    }
 }

@@ -43,7 +43,7 @@ pub mod curve448 {
 
 /// The public part of an `OKP` key type
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[serde(untagged)]
 pub enum OkpPublic {
     /// `kty` is `OKP` and `crv` is either `Ed25519` or `X25519`
@@ -63,7 +63,7 @@ impl Thumbprint for OkpPublic {
 
 /// The private part of an `OKP` key type
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[serde(untagged)]
 pub enum OkpPrivate {
     /// `kty` is `OKP` and `crv` is either `Ed25519` or `X25519`
