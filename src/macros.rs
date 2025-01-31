@@ -395,15 +395,50 @@ macro_rules! impl_internally_tagged_deserialize {
 }
 
 macro_rules! impl_thumbprint_hash_trait {
-    ($T:ty) => {
+    ($symmetric:ty) => {
         /// The [`Hash`](core::hash::Hash) implementation uses
         /// [`Thumbprint::thumbprint_prehashed`](crate::jwk::Thumbprint::thumbprint_prehashed)
-        impl core::hash::Hash for $T {
+        impl core::hash::Hash for $symmetric {
             fn hash<H>(&self, state: &mut H)
             where
                 H: core::hash::Hasher,
             {
-                <$T as crate::jwk::Thumbprint>::thumbprint_prehashed(&self).hash(state)
+                alloc::format!(
+                    "symmetric:{}",
+                    <$symmetric as crate::jwk::Thumbprint>::thumbprint_prehashed(&self)
+                )
+                .hash(state)
+            }
+        }
+    };
+    ($public:ty, $private:ty) => {
+        /// The [`Hash`](core::hash::Hash) implementation uses
+        /// [`Thumbprint::thumbprint_prehashed`](crate::jwk::Thumbprint::thumbprint_prehashed)
+        impl core::hash::Hash for $public {
+            fn hash<H>(&self, state: &mut H)
+            where
+                H: core::hash::Hasher,
+            {
+                alloc::format!(
+                    "public:{}",
+                    <$public as crate::jwk::Thumbprint>::thumbprint_prehashed(&self)
+                )
+                .hash(state)
+            }
+        }
+
+        /// The [`Hash`](core::hash::Hash) implementation uses
+        /// [`Thumbprint::thumbprint_prehashed`](crate::jwk::Thumbprint::thumbprint_prehashed)
+        impl core::hash::Hash for $private {
+            fn hash<H>(&self, state: &mut H)
+            where
+                H: core::hash::Hasher,
+            {
+                alloc::format!(
+                    "private:{}",
+                    <$private as crate::jwk::Thumbprint>::thumbprint_prehashed(&self)
+                )
+                .hash(state)
             }
         }
     };
