@@ -1,4 +1,4 @@
-**JOSE** -- JSON Object Signing and Encryption
+# **JOSE**: JSON Object Signing and Encryption
 
 JOSE is mostly known for so called [`Jwt`]. Jwt stands for [`JsonWebToken`]
 and is actually only a subset of the whole JOSE specifications.
@@ -137,6 +137,13 @@ This crate implements various RFCs related to JOSE:
 [RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517>
 [RFC 7516]: <https://datatracker.ietf.org/doc/html/rfc7516>
 [RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515>
+
+[`Jwt`]: <https://docs.rs/jose/latest/jose/type.Jwt.html>
+[`JsonWebToken`]: <https://docs.rs/jose/latest/jose/type.JsonWebToken.html>
+[`JsonWebKey`]: <https://docs.rs/jose/latest/jose/struct.JsonWebKey.html>
+[`String`]: <https://doc.rust-lang.org/nightly/std/string/struct.String.html>
+
+
 
 ## License
 
