@@ -13,6 +13,14 @@ readme = "README.md"
 homepage = "https://github.com/minkan-chat/jose"
 repository = "https://github.com/minkan-chat/jose.git"
 keywords = ["jwt", "JsonWebToken", "json", "jose", "authentication"]
+categories = [
+  "cryptography",
+  "encoding",
+  "parser-implementations",
+  "no-std",
+  "authentication",
+]
+
 [features]
 default = []
 std = [
