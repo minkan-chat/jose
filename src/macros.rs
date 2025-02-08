@@ -396,6 +396,7 @@ macro_rules! impl_internally_tagged_deserialize {
 
 macro_rules! impl_thumbprint_hash_trait {
     ($symmetric:ty) => {
+        #[allow(rustdoc::redundant_explicit_links)]
         /// The [`Hash`](core::hash::Hash) implementation uses
         /// [`Thumbprint::thumbprint_prehashed`](crate::jwk::Thumbprint::thumbprint_prehashed)
         impl core::hash::Hash for $symmetric {
@@ -412,6 +413,7 @@ macro_rules! impl_thumbprint_hash_trait {
         }
     };
     ($public:ty, $private:ty) => {
+        #[allow(rustdoc::redundant_explicit_links)]
         /// The [`Hash`](core::hash::Hash) implementation uses
         /// [`Thumbprint::thumbprint_prehashed`](crate::jwk::Thumbprint::thumbprint_prehashed)
         impl core::hash::Hash for $public {
@@ -426,7 +428,7 @@ macro_rules! impl_thumbprint_hash_trait {
                 .hash(state)
             }
         }
-
+        #[allow(rustdoc::redundant_explicit_links)]
         /// The [`Hash`](core::hash::Hash) implementation uses
         /// [`Thumbprint::thumbprint_prehashed`](crate::jwk::Thumbprint::thumbprint_prehashed)
         impl core::hash::Hash for $private {
