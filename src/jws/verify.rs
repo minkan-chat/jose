@@ -1,6 +1,7 @@
 use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
+use super::JsonWebSignature;
 use crate::{
     format::{DecodeFormat, DecodeFormatWithContext, Format, JsonGeneral},
     jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
@@ -75,6 +76,72 @@ impl<T> Unverified<T> {
     }
 }
 
+impl<T, F> Unverified<JsonWebSignature<F, T>>
+where
+    F: Format,
+{
+    /// Exposes the **unverified** [`JoseHeader`](crate::JoseHeader) of this
+    /// [`JsonWebSignature`]
+    ///
+    /// You usually **should not use this method**. Instead, verify the
+    /// [`JsonWebSignature`] and potentially protected headers first, to avoid
+    /// creating security vulnerabilities.
+    ///
+    /// # When to use
+    ///
+    /// One use case is to determine which key was used to create this signature
+    /// in the first place. For example, consider you have a list of public
+    /// keys used by the same party. If you were not able to peek inside to
+    /// get a hint of the key used, for example via
+    /// [`JoseHeader::key_identifier`](crate::JoseHeader::key_identifier), you
+    /// would have to try each key until either a signature is valid or
+    /// there are no keys left.
+    ///
+    /// However, note that, since the header is not verified yet, an attacker
+    /// can spoof the key hint. For example, you MUST still make sure that the
+    /// key in the hint is actually established and does not belong to some
+    /// other party which might still be in your list of keys but is unrelated.
+    ///
+    /// # Security
+    ///
+    /// Every security garantee given by this crate is broken for the returned
+    /// [`JoseHeader`](crate::JoseHeader), including
+    /// [`HeaderValue::Protected`](crate::header::HeaderValue). Thus, you should
+    /// use this method only within isolated code regions.
+    pub fn expose_unverified_header(&self) -> &F::JwsHeader {
+        &self.value.header
+    }
+
+    /// Exposes the **unverified** [`payload`](JsonWebSignature::payload) of
+    /// this [`JsonWebSignature`]
+    ///
+    /// You **should never have the need to use this method**. If you have
+    /// information in the payload that you need in order to verify the
+    /// signature, you are using it wrong. Instead, such information should be
+    /// put in the [`JoseHeader`](crate::JoseHeader) and can be accessed via
+    /// [`expose_unverified_header]`](Self::expose_unverified_header).
+    ///
+    /// # Security
+    ///
+    /// Every security garantee given by this crate is broken for the returned
+    /// payload `T`. Thus, you should use this method only within isolated code
+    /// regions.
+    pub fn expose_unverified_payload(&self) -> &T {
+        &self.value.payload
+    }
+
+    /// Exposes the **unverified** raw signature in its byte representation
+    ///
+    /// Note: raw means that it is already base64 decoded.
+    ///
+    /// There is absolutely no reason to use this method. If you want to use
+    /// your own code for verification, you should create your own [`Verifier`]
+    /// instead.
+    pub fn expose_unverified_raw_signature(&self) -> &[u8] {
+        self.signature.as_slice()
+    }
+}
+
 /// This wrapper type represents a [JWS](crate::JsonWebSignature) that was
 /// parsed from user input, but the data integrity was not verified, thus it
 /// might contain corrupted or malicious data.
@@ -133,6 +200,76 @@ impl<T> ManyUnverified<T> {
         }
 
         Ok(Verified(self.value))
+    }
+}
+
+impl<T, F> ManyUnverified<JsonWebSignature<F, T>>
+where
+    F: Format,
+{
+    /// Exposes the **unverified** [`JoseHeader`](crate::JoseHeader) of this
+    /// [`JsonWebSignature`]
+    ///
+    /// You usually **should not use this method**. Instead, verify the
+    /// [`JsonWebSignature`] and potentially protected headers first, to avoid
+    /// creating security vulnerabilities.
+    ///
+    /// # When to use
+    ///
+    /// One use case is to determine which key was used to create this signature
+    /// in the first place. For example, consider you have a list of public
+    /// keys used by the same party. If you were not able to peek inside to
+    /// get a hint of the key used, for example via
+    /// [`JoseHeader::key_identifier`](crate::JoseHeader::key_identifier), you
+    /// would have to try each key until either a signature is valid or
+    /// there are no keys left.
+    ///
+    /// However, note that, since the header is not verified yet, an attacker
+    /// can spoof the key hint. For example, you MUST still make sure that the
+    /// key in the hint is actually established and does not belong to some
+    /// other party which might still be in your list of keys but is unrelated.
+    ///
+    /// # Security
+    ///
+    /// Every security garantee given by this crate is broken for the returned
+    /// [`JoseHeader`](crate::JoseHeader), including
+    /// [`HeaderValue::Protected`](crate::header::HeaderValue). Thus, you should
+    /// use this method only within isolated code regions.
+    pub fn expose_unverified_header(&self) -> &F::JwsHeader {
+        &self.value.header
+    }
+
+    /// Exposes the **unverified** [`payload`](JsonWebSignature::payload) of
+    /// this [`JsonWebSignature`]
+    ///
+    /// You **should never have the need to use this method**. If you have
+    /// information in the payload that you need in order to verify the
+    /// signature, you are using it wrong. Instead, such information should be
+    /// put in the [`JoseHeader`](crate::JoseHeader) and can be accessed via
+    /// [`expose_unverified_header]`](Self::expose_unverified_header).
+    ///
+    /// # Security
+    ///
+    /// Every security garantee given by this crate is broken for the returned
+    /// payload `T`. Thus, you should use this method only within isolated code
+    /// regions.
+    pub fn expose_unverified_payload(&self) -> &T {
+        &self.value.payload
+    }
+
+    /// Exposes an [`Iterator`] over the **unverified** signatures and their
+    /// corresponding messages.
+    ///
+    /// It returns an [`Iterator`] over `(message, signature)` for each
+    /// signature. Note: raw means that they are already base64 decoded.
+    ///
+    /// There is absolutely no reason to use this method. If you want to use
+    /// your own code for verification, you should create your own [`Verifier`]
+    /// instead.
+    pub fn expose_unverified_raw_signatures(&self) -> impl Iterator<Item = (&[u8], &[u8])> {
+        self.signatures
+            .iter()
+            .map(|(msg, sig)| (msg.as_slice(), sig.as_slice()))
     }
 }
 
