@@ -1,12 +1,10 @@
 //! Symmetric cryptography for JWS and JWE
 
-pub mod hmac;
+use alloc::string::String;
 
-use alloc::{string::String, vec::Vec};
-
-use digest::InvalidLength;
 use secrecy::{ExposeSecret, SecretBox};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
+use subtle::ConstantTimeEq;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use super::thumbprint::{self, Thumbprint};
@@ -51,12 +49,16 @@ impl Thumbprint for SymmetricJsonWebKey {
 ///
 /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4.1>
 #[derive(Debug, Clone, ZeroizeOnDrop, Zeroize)]
-pub struct OctetSequence(pub(self) SecretBox<[u8]>);
+pub struct OctetSequence(SecretBox<[u8]>);
 
 impl OctetSequence {
-    pub(crate) fn new(x: impl Into<Vec<u8>>) -> Self {
-        let v: Vec<u8> = x.into();
-        Self(SecretBox::new(v.into_boxed_slice()))
+    pub(crate) fn new(x: SecretBox<[u8]>) -> Self {
+        Self(x)
+    }
+
+    /// Returns the bytes of this octet sequence.
+    pub(crate) fn bytes(&self) -> &SecretBox<[u8]> {
+        &self.0
     }
 
     /// Returns the number of bytes that are in this octet sequence.
@@ -74,7 +76,7 @@ impl OctetSequence {
 
 impl PartialEq for OctetSequence {
     fn eq(&self, other: &Self) -> bool {
-        self.0.expose_secret() == other.0.expose_secret()
+        bool::from(self.0.expose_secret().ct_eq(other.0.expose_secret()))
     }
 }
 impl Eq for OctetSequence {}
@@ -134,14 +136,24 @@ impl Serialize for OctetSequence {
         .serialize(serializer)
     }
 }
+
 /// An error that can occur when creating an [`HmacKey`](hmac::HmacKey) from an
 /// [`OctetSequence`].
-#[derive(Debug, thiserror_no_std::Error, PartialEq, Eq)]
+#[derive(Debug, thiserror::Error)]
 pub enum FromOctetSequenceError {
     /// An invalid signing algorithm was used
     #[error(transparent)]
     InvalidSigningAlgorithm(#[from] InvalidSigningAlgorithmError),
+
     /// A key from which a signer should've been created had an invalid length
-    #[error(transparent)]
-    InvalidLength(#[from] InvalidLength),
+    #[error("the length of the is invalid")]
+    InvalidLength,
+
+    /// Crypto backend threw an unknown error.
+    #[error("the crypto backend failed")]
+    Crypto(
+        #[from]
+        #[source]
+        crate::crypto::Error,
+    ),
 }

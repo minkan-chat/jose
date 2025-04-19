@@ -10,6 +10,7 @@ use hashbrown::HashSet;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
+    crypto::hmac::{self, Variant as _},
     jwa::{
         AesGcm, AesKw, EcDSA, Hmac, JsonWebAlgorithm, JsonWebEncryptionAlgorithm,
         JsonWebSigningAlgorithm, Pbes2,
@@ -20,7 +21,6 @@ use crate::{
             curve25519::{Curve25519Private, Curve25519Public},
             OkpPrivate, OkpPublic,
         },
-        symmetric::hmac::{HmacVariant, Hs256, Hs384, Hs512},
     },
     policy::{Checkable, Checked, CryptographicOperation, Policy},
     sealed::Sealed,
@@ -263,12 +263,15 @@ pub struct JsonWebKey<A = ()> {
 }
 
 impl JsonWebKey<()> {
-    fn new(key_type: JsonWebKeyType) -> Self {
+    pub(crate) fn new_with_algorithm(
+        key_type: JsonWebKeyType,
+        alg: Option<JsonWebAlgorithm>,
+    ) -> Self {
         Self {
             key_type,
             key_use: None,
             key_operations: None,
-            algorithm: None,
+            algorithm: alg,
             kid: None,
             x509_url: None,
             x509_certificate_chain: vec![],
@@ -748,9 +751,9 @@ impl JsonWebKeyType {
                 Symmetric(SymmetricJsonWebKey::OctetSequence(key)),
                 Signing(JsonWebSigningAlgorithm::Hmac(hmac)),
             ) => match (hmac, key.len()) {
-                (Hmac::Hs256, Hs256::OUTPUT_SIZE..)
-                | (Hmac::Hs384, Hs384::OUTPUT_SIZE..)
-                | (Hmac::Hs512, Hs512::OUTPUT_SIZE..) => true,
+                (Hmac::Hs256, hmac::Hs256::OUTPUT_SIZE_BYTES..)
+                | (Hmac::Hs384, hmac::Hs384::OUTPUT_SIZE_BYTES..)
+                | (Hmac::Hs512, hmac::Hs512::OUTPUT_SIZE_BYTES..) => true,
                 _ => false,
             },
             (
@@ -938,7 +941,7 @@ mod hash_impl {
 }
 "#;
 
-        let public_key: JsonWebKey = serde_json::from_str(&serialized_public_key).unwrap();
+        let public_key: JsonWebKey = serde_json::from_str(serialized_public_key).unwrap();
         let mut hasher = std::hash::DefaultHasher::default();
         public_key.hash(&mut hasher);
         let hash_public = hasher.finish();

@@ -7,13 +7,11 @@ use super::{
         OkpPrivate,
     },
     rsa::RsaSigner,
-    symmetric::{
-        hmac::{self, HmacKey},
-        FromOctetSequenceError,
-    },
+    symmetric::FromOctetSequenceError,
     AsymmetricJsonWebKey, FromKey, JsonWebKeyType, Private, SymmetricJsonWebKey,
 };
 use crate::{
+    crypto::hmac,
     jwa::{EcDSA, Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jws::{IntoSigner, InvalidSigningAlgorithmError, Signer},
     policy::{Checked, CryptographicOperation, Policy},
@@ -129,12 +127,12 @@ impl JwkSigner {
 }
 
 impl Signer<Vec<u8>> for JwkSigner {
-    fn sign(&mut self, x: &[u8]) -> Result<Vec<u8>, signature::Error> {
+    fn sign(&mut self, x: &[u8]) -> Result<Vec<u8>, crate::crypto::Error> {
         match &mut self.inner {
             InnerSigner::Rsa(s) => s.sign(x),
-            InnerSigner::Hs256(s) => s.sign(x).map(|x| x.to_vec()),
-            InnerSigner::Hs384(s) => s.sign(x).map(|x| x.to_vec()),
-            InnerSigner::Hs512(s) => s.sign(x).map(|x| x.to_vec()),
+            InnerSigner::Hs256(s) => s.sign(x).map(|x| x.as_ref().to_vec()),
+            InnerSigner::Hs384(s) => s.sign(x).map(|x| x.as_ref().to_vec()),
+            InnerSigner::Hs512(s) => s.sign(x).map(|x| x.as_ref().to_vec()),
             InnerSigner::Es256(s) => s.sign(x).map(|x| x.to_vec()),
             InnerSigner::Es384(s) => s.sign(x).map(|x| x.to_vec()),
             InnerSigner::Secp256k1(s) => s.sign(x).map(|x| x.to_vec()),
@@ -216,7 +214,7 @@ where
 
 /// An error returned when creating a [`JwkSigner`] from a [`JsonWebKeyType`]
 /// (or indirectly via [`JsonWebKey`])
-#[derive(Debug, thiserror_no_std::Error)]
+#[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum FromJwkError {
     /// A [`JsonWebKey`] has either the `use` or `key_ops` parameter set and one
@@ -250,9 +248,9 @@ impl From<InvalidSigningAlgorithmError> for FromJwkError {
 #[derive(Debug)]
 enum InnerSigner {
     // symmetric algorithms
-    Hs256(HmacKey<hmac::Hs256>),
-    Hs384(HmacKey<hmac::Hs384>),
-    Hs512(HmacKey<hmac::Hs512>),
+    Hs256(hmac::Key<hmac::Hs256>),
+    Hs384(hmac::Key<hmac::Hs384>),
+    Hs512(hmac::Key<hmac::Hs512>),
     // asymmetric algorithms
     Rsa(RsaSigner),
     Es256(P256Signer),

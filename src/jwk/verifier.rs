@@ -9,13 +9,13 @@ use super::{
         OkpPrivate, OkpPublic,
     },
     rsa::RsaVerifier,
-    symmetric::{self, hmac::HmacKey},
     AsymmetricJsonWebKey, FromJwkError, FromKey, Private, Public, SymmetricJsonWebKey,
 };
 use crate::{
+    crypto::hmac,
     jwa::{Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::JsonWebKeyType,
-    jws::{IntoVerifier, InvalidSigningAlgorithmError, Verifier},
+    jws::{IntoVerifier, InvalidSigningAlgorithmError, Verifier, VerifyError},
     policy::{Checked, CryptographicOperation, Policy},
     JsonWebKey,
 };
@@ -90,7 +90,7 @@ impl JwkVerifier {
 }
 
 impl Verifier for JwkVerifier {
-    fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<(), signature::Error> {
+    fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<(), VerifyError> {
         match &mut self.inner {
             InnerVerifier::Hs256(verifier) => verifier.verify(msg, signature),
             InnerVerifier::Hs384(verifier) => verifier.verify(msg, signature),
@@ -158,9 +158,9 @@ where
 #[derive(Debug)]
 enum InnerVerifier {
     // symmetric algorithms
-    Hs256(HmacKey<symmetric::hmac::Hs256>),
-    Hs384(HmacKey<symmetric::hmac::Hs384>),
-    Hs512(HmacKey<symmetric::hmac::Hs512>),
+    Hs256(hmac::Key<hmac::Hs256>),
+    Hs384(hmac::Key<hmac::Hs384>),
+    Hs512(hmac::Key<hmac::Hs512>),
     // asymmetric algorithms
     Rsa(RsaVerifier),
     Es256(P256Verifier),

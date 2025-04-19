@@ -1,12 +1,32 @@
 use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
+use thiserror::Error;
+
 use super::JsonWebSignature;
 use crate::{
+    crypto,
     format::{DecodeFormat, DecodeFormatWithContext, Format, JsonGeneral},
     jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::FromKey,
 };
+
+/// The error indicating if either the signature is invalid, or if the
+/// cyptographic operation failed.
+#[derive(Debug, Error)]
+pub enum VerifyError {
+    /// The signature is invalid.
+    #[error("signature is invalid")]
+    InvalidSignature,
+
+    /// The crypto backend threw an error.
+    #[error("crypto backend error")]
+    CryptoBackend(
+        #[from]
+        #[source]
+        crypto::Error,
+    ),
+}
 
 /// This trait represents anything that can be used to verify a JWS, JWE, or
 /// whatever.
@@ -19,7 +39,7 @@ pub trait Verifier {
     ///
     /// Returns [`signature::Error`] if anything went wrong during signature
     /// verification or if the signature is just invalid.
-    fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<(), signature::Error>;
+    fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<(), VerifyError>;
 }
 
 /// This wrapper type represents a [JWS](crate::JsonWebSignature) that was
@@ -70,7 +90,7 @@ impl<T> Unverified<T> {
     ///
     /// Returns [`signature::Error`] if anything went wrong during signature
     /// verification or if the signature is just invalid.
-    pub fn verify(self, verifier: &mut dyn Verifier) -> Result<Verified<T>, signature::Error> {
+    pub fn verify(self, verifier: &mut dyn Verifier) -> Result<Verified<T>, VerifyError> {
         verifier.verify(&self.msg, &self.signature)?;
         Ok(Verified(self.value))
     }
@@ -189,10 +209,10 @@ impl<T> ManyUnverified<T> {
     pub fn verify_many<'a>(
         self,
         verifiers: impl IntoIterator<Item = &'a mut dyn Verifier>,
-    ) -> Result<Verified<T>, signature::Error> {
+    ) -> Result<Verified<T>, VerifyError> {
         let verifiers = verifiers.into_iter().collect::<Vec<_>>();
         if verifiers.len() != self.signatures.len() {
-            return Err(signature::Error::new());
+            return Err(VerifyError::InvalidSignature);
         }
 
         for (verifier, (msg, signature)) in verifiers.into_iter().zip(self.signatures) {

@@ -5,9 +5,10 @@ use rand_core::OsRng;
 use rsa::{Pkcs1v15Sign, Pss, RsaPublicKey};
 
 use crate::{
+    crypto,
     jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm, RsaSigning, RsassaPkcs1V1_5, RsassaPss},
     jwk::FromKey,
-    jws::{InvalidSigningAlgorithmError, Signer, Verifier},
+    jws::{InvalidSigningAlgorithmError, Signer, Verifier, VerifyError},
 };
 
 /// A [`Signer`] using an [`RsaPrivateKey`](super::RsaPrivateKey) and an RSA
@@ -32,7 +33,7 @@ impl FromKey<super::RsaPrivateKey> for RsaSigner {
 }
 
 impl Signer<Vec<u8>> for RsaSigner {
-    fn sign(&mut self, msg: &[u8]) -> Result<Vec<u8>, signature::Error> {
+    fn sign(&mut self, msg: &[u8]) -> Result<Vec<u8>, crypto::Error> {
         let key = &mut self.key;
 
         let hashed = match self.alg {
@@ -80,13 +81,7 @@ impl Signer<Vec<u8>> for RsaSigner {
             },
         };
 
-        res.map_err(|_e| {
-            #[cfg(not(feature = "std"))]
-            let e = signature::Error::new();
-            #[cfg(feature = "std")]
-            let e = signature::Error::from_source(_e);
-            e
-        })
+        res.map_err(|_e| todo!())
     }
 
     fn algorithm(&self) -> JsonWebSigningAlgorithm {
@@ -126,7 +121,7 @@ impl FromKey<super::RsaPrivateKey> for RsaVerifier {
 }
 
 impl Verifier for RsaVerifier {
-    fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<(), signature::Error> {
+    fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<(), VerifyError> {
         let key = &self.key;
 
         let res = match self.alg {
@@ -166,12 +161,6 @@ impl Verifier for RsaVerifier {
             },
         };
 
-        res.map_err(|_e| {
-            #[cfg(not(feature = "std"))]
-            let e = signature::Error::new();
-            #[cfg(feature = "std")]
-            let e = signature::Error::from_source(_e);
-            e
-        })
+        res.map_err(|_e| VerifyError::InvalidSignature)
     }
 }

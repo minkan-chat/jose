@@ -162,7 +162,7 @@ pub enum Specific {
 
 /// Errors that may occur while building a [`JoseHeader`] via
 /// [`JoseHeaderBuilder::build`].
-#[derive(Debug, thiserror_no_std::Error)]
+#[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum JoseHeaderBuilderError {
     /// There is no algorithm specified. Specify an algorithm via

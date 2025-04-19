@@ -1,13 +1,11 @@
 use jose::{
+    crypto::hmac,
     jwa::{EcDSA, Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::{
         ec::{EcPrivate, EcPublic},
         okp::{curve25519::Curve25519Private, OkpPrivate},
-        symmetric::{
-            hmac::{HmacKey, Hs256},
-            FromOctetSequenceError, OctetSequence,
-        },
-        AsymmetricJsonWebKey, FromKey, JsonWebKey, JsonWebKeyType, JwkSigner, Private, Public,
+        symmetric::{FromOctetSequenceError, OctetSequence},
+        AsymmetricJsonWebKey, FromKey as _, JsonWebKey, JsonWebKeyType, JwkSigner, Private, Public,
         Thumbprint,
     },
     jws::Signer,
@@ -274,15 +272,15 @@ fn deny_hmac_key_with_short_key() {
     let raw_key = r#"{"kty": "oct", "k": "QUFBQQ"}"#;
     let key = serde_json::from_str::<OctetSequence>(raw_key).unwrap();
 
-    let hmac = HmacKey::<Hs256>::from_key(
+    let hmac = hmac::Key::<hmac::Hs256>::from_key(
         &key,
         JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::Hmac(Hmac::Hs256)),
     );
 
-    assert_eq!(
+    assert!(matches!(
         hmac.unwrap_err(),
-        FromOctetSequenceError::InvalidLength(digest::InvalidLength)
-    );
+        FromOctetSequenceError::InvalidLength
+    ));
 }
 
 #[test]

@@ -2,7 +2,7 @@ use alloc::string::{String, ToString};
 use core::fmt::Display;
 
 use hashbrown::HashSet;
-use thiserror_no_std::Error;
+use thiserror::Error;
 
 use super::{CryptographicOperation, Policy, PolicyError};
 use crate::{

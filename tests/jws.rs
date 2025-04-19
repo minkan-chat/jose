@@ -6,6 +6,7 @@
 use std::{convert::Infallible, str::FromStr};
 
 use jose::{
+    crypto,
     format::{Compact, JsonFlattened, JsonGeneral},
     header::HeaderValue,
     jwa::{EcDSA, JsonWebSigningAlgorithm},
@@ -16,7 +17,7 @@ use jose::{
     },
     jws::{
         FromRawPayload, IntoPayload, IntoSigner, IntoVerifier, ManyUnverified, PayloadData,
-        PayloadKind, Signer, Unverified, Verifier,
+        PayloadKind, Signer, Unverified, Verifier, VerifyError,
     },
     policy::{Checkable, StandardPolicy},
     Base64UrlString, JsonWebKey, Jws,
@@ -78,7 +79,7 @@ impl IntoPayload for StringPayload {
 
 struct NoneKey;
 impl Signer<[u8; 0]> for NoneKey {
-    fn sign(&mut self, _msg: &[u8]) -> Result<[u8; 0], signature::Error> {
+    fn sign(&mut self, _msg: &[u8]) -> Result<[u8; 0], crypto::Error> {
         Ok([])
     }
 
@@ -93,7 +94,7 @@ impl Signer<[u8; 0]> for NoneKey {
 
 struct NoneVerifier;
 impl Verifier for NoneVerifier {
-    fn verify(&mut self, _: &[u8], _: &[u8]) -> Result<(), signature::Error> {
+    fn verify(&mut self, _: &[u8], _: &[u8]) -> Result<(), VerifyError> {
         Ok(())
     }
 }

@@ -1,7 +1,7 @@
 use alloc::string::String;
 
 /// Errors that may occur while working [`JoseHeader`](super::JoseHeader)
-#[derive(Debug, thiserror_no_std::Error)]
+#[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
     /// Found a header parameter that must be protected in the unprotected

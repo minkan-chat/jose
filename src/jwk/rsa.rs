@@ -49,9 +49,7 @@ impl IntoJsonWebKey for RsaPublicKey {
             super::Public::Rsa(self),
         )));
 
-        let mut jwk = crate::JsonWebKey::new(key);
-        jwk.algorithm = alg;
-        Ok(jwk)
+        Ok(crate::JsonWebKey::new_with_algorithm(key, alg))
     }
 }
 
@@ -160,9 +158,7 @@ impl IntoJsonWebKey for RsaPrivateKey {
             super::AsymmetricJsonWebKey::Private(super::Private::Rsa(Box::new(self))),
         ));
 
-        let mut jwk = crate::JsonWebKey::new(key);
-        jwk.algorithm = alg;
-        Ok(jwk)
+        Ok(crate::JsonWebKey::new_with_algorithm(key, alg))
     }
 }
 

@@ -12,12 +12,13 @@ const KTY: &str = "OKP";
 use super::{Curve25519Private, Curve25519Public};
 use crate::{
     base64_url::Base64UrlBytes,
+    crypto,
     jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::{
         okp::{OkpPrivate, OkpPublic},
         AsymmetricJsonWebKey, FromKey, IntoJsonWebKey, JsonWebKeyType, Private, Public, Thumbprint,
     },
-    jws::{InvalidSigningAlgorithmError, Signer, Verifier},
+    jws::{InvalidSigningAlgorithmError, Signer, Verifier, VerifyError},
     sealed::Sealed,
     JsonWebKey,
 };
@@ -76,8 +77,11 @@ impl Signer<[u8; Signature::BYTE_SIZE]> for Ed25519Signer {
         JsonWebSigningAlgorithm::EdDSA
     }
 
-    fn sign(&mut self, msg: &[u8]) -> Result<[u8; Signature::BYTE_SIZE], signature::Error> {
-        self.0.try_sign(msg).map(|v| v.to_bytes())
+    fn sign(&mut self, msg: &[u8]) -> Result<[u8; Signature::BYTE_SIZE], crypto::Error> {
+        self.0
+            .try_sign(msg)
+            .map(|v| v.to_bytes())
+            .map_err(|_| todo!())
     }
 }
 
@@ -92,12 +96,16 @@ impl Verifier for Ed25519Verifier {
     ///
     /// The verification is strict and rejects some public keys depending on
     /// their encoding. Internally, this uses [`verify_strict`](https://docs.rs/ed25519-dalek/latest/ed25519_dalek/struct.VerifyingKey.html#method.verify_strict).
-    fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<(), signature::Error> {
+    fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<(), VerifyError> {
         // FIXME: this needs interop testing in case this is handled differently by
         // other implementations
         // See <https://docs.rs/ed25519-dalek/latest/ed25519_dalek/struct.VerifyingKey.html#on-the-multiple-sources-of-malleability-in-ed25519-signatures>
         self.0
-            .verify_strict(msg, &Signature::from_slice(signature)?)
+            .verify_strict(
+                msg,
+                &Signature::from_slice(signature).map_err(|_| VerifyError::InvalidSignature)?,
+            )
+            .map_err(|_| VerifyError::InvalidSignature)
     }
 }
 
@@ -139,8 +147,11 @@ impl IntoJsonWebKey for Ed25519PrivateKey {
         let key = JsonWebKeyType::Asymmetric(Box::new(AsymmetricJsonWebKey::Private(
             Private::Okp(OkpPrivate::Curve25519(Curve25519Private::Ed(self))),
         )));
-        let mut jwk = JsonWebKey::new(key);
-        jwk.algorithm = alg.map(|_| JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::EdDSA));
+
+        let jwk = JsonWebKey::new_with_algorithm(
+            key,
+            alg.map(|_| JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::EdDSA)),
+        );
         Ok(jwk)
     }
 }
@@ -154,8 +165,11 @@ impl IntoJsonWebKey for Ed25519PublicKey {
         let key = JsonWebKeyType::Asymmetric(Box::new(AsymmetricJsonWebKey::Public(Public::Okp(
             OkpPublic::Curve25519(Curve25519Public::Ed(self)),
         ))));
-        let mut jwk = JsonWebKey::new(key);
-        jwk.algorithm = alg.map(|_| JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::EdDSA));
+
+        let jwk = JsonWebKey::new_with_algorithm(
+            key,
+            alg.map(|_| JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::EdDSA)),
+        );
         Ok(jwk)
     }
 }

@@ -52,8 +52,7 @@ macro_rules! impl_ec {
                     )),
                 ));
 
-                let mut jwk = crate::JsonWebKey::new(key);
-                jwk.algorithm = alg.map(|_| crate::jwa::JsonWebAlgorithm::Signing($alg.into()));
+                let jwk = crate::JsonWebKey::new_with_algorithm(key, alg.map(|_| crate::jwa::JsonWebAlgorithm::Signing($alg.into())));
                 Ok(jwk)
             }
         }
@@ -82,8 +81,7 @@ macro_rules! impl_ec {
                     )),
                 ));
 
-                let mut jwk = crate::JsonWebKey::new(key);
-                jwk.algorithm = alg.map(|_| crate::jwa::JsonWebAlgorithm::Signing($alg.into()));
+                let jwk = crate::JsonWebKey::new_with_algorithm(key, alg.map(|_| crate::jwa::JsonWebAlgorithm::Signing($alg.into())));
                 Ok(jwk)
             }
         }
@@ -102,8 +100,8 @@ macro_rules! impl_ec {
 
         #[allow(unused_qualifications)]
         impl crate::jws::Signer<ecdsa::SignatureBytes<$crv>> for $signer {
-            fn sign(&mut self, msg: &[u8]) -> Result<ecdsa::SignatureBytes<$crv>, signature::Error> {
-                self.0.sign_recoverable(msg).map(|(sig, _)| sig.to_bytes())
+            fn sign(&mut self, msg: &[u8]) -> Result<ecdsa::SignatureBytes<$crv>, crate::crypto::Error> {
+                self.0.sign_recoverable(msg).map(|(sig, _)| sig.to_bytes()).map_err(|_| todo!())
             }
 
             fn algorithm(&self) -> crate::jwa::JsonWebSigningAlgorithm {
@@ -132,9 +130,9 @@ macro_rules! impl_ec {
 
         #[allow(unused_qualifications)]
         impl crate::jws::Verifier for $verifier {
-            fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<(), signature::Error> {
-                let signature: ecdsa::Signature<$crv> = signature.try_into()?;
-                signature::Verifier::verify(&self.0, msg, &signature)
+            fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<(), crate::jws::VerifyError> {
+                let signature: ecdsa::Signature<$crv> = signature.try_into().map_err(|_| crate::jws::VerifyError::InvalidSignature)?;
+                signature::Verifier::verify(&self.0, msg, &signature).map_err(|_| crate::jws::VerifyError::InvalidSignature)
             }
         }
 

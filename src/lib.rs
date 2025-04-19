@@ -30,6 +30,7 @@ pub(crate) mod base64_url;
 pub(crate) mod tagged_visitor;
 pub(crate) mod sealed;
 
+pub mod crypto;
 pub mod format;
 pub mod header;
 pub mod jwa;

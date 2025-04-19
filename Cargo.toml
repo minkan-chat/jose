@@ -24,8 +24,8 @@ categories = [
 [features]
 default = []
 std = [
+  "thiserror/std",
   "signature/std",
-  "thiserror-no-std/std",
   "rsa/std",
   "rand_core/std",
   "fluent-uri/std",
@@ -33,7 +33,6 @@ std = [
 ]
 
 [dependencies]
-thiserror-no-std = "2.0.2"
 base64ct = { version = "1.5", default-features = false, features = ["alloc"] }
 serde = { version = "1", default-features = false, features = [
   "alloc",
@@ -42,6 +41,7 @@ serde = { version = "1", default-features = false, features = [
 serde_json = { version = "1", default-features = false, features = ["alloc"] }
 hashbrown = { version = "0.15", features = ["serde"] }
 rand_core = { version = "0.6", features = ["getrandom", "alloc"] }
+rand = "0.8.5"
 hmac = { version = "0.12", default-features = false }
 sha1 = { version = "0.10", default-features = false, features = ["oid"] }
 sha2 = { version = "0.10", default-features = false, features = ["oid"] }
@@ -99,6 +99,8 @@ mediatype = { version = "0.19.3", features = ["serde"] }
 fluent-uri = { version = "0.3.2", default-features = false }
 secrecy = { version = "0.10.3", default-features = false, features = ["serde"] }
 zeroize = { version = "1.8.1", default-features = false, features = ["derive", "serde"] }
+subtle = "2.6.1"
+thiserror = { version = "2.0.12", default-features = false }
 
 [dev-dependencies]
 rand = "0.8.5"
