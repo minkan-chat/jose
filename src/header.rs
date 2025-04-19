@@ -270,7 +270,7 @@ where
     /// TL;DR: check if you can use the [SHA-256
     /// thumbprint](Self::x509_certificate_sha256_thumbprint) instead.
     ///
-    /// The following text is taken from the [`sha1`] crate: \
+    /// The following text is taken from the `sha1` crate: \
     /// The SHA-1 hash function should be considered cryptographically broken
     /// and unsuitable for further use in any security critical capacity, as it
     /// is [practically vulnerable to chosen-prefix collisions](https://sha-mbles.github.io/).

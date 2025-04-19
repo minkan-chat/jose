@@ -41,9 +41,9 @@ impl Thumbprint for SymmetricJsonWebKey {
 /// [`SymmetricJsonWebKey`].
 ///
 /// However, because its length is not defined, it cannot be generated directly.
-/// Instead, you should use [`HmacKey<H>`](crate::jwk::symmetric::hmac::HmacKey)
+/// Instead, you should use [`HmacKey<H>`](crate::crypto::hmac::Key)
 /// with the appropriate key size, for example
-/// [`Hs512`](crate::jwk::symmetric::hmac::Hs512) and then, if needed, convert
+/// [`Hs512`](crate::crypto::hmac::Hs512) and then, if needed, convert
 /// it to a [`JsonWebKey`](crate::JsonWebKey) using
 /// [`IntoJsonWebKey`](crate::jwk::IntoJsonWebKey).
 ///
@@ -137,8 +137,8 @@ impl Serialize for OctetSequence {
     }
 }
 
-/// An error that can occur when creating an [`HmacKey`](hmac::HmacKey) from an
-/// [`OctetSequence`].
+/// An error that can occur when creating an
+/// [`HmacKey`](crate::crypto::hmac::Key) from an [`OctetSequence`].
 #[derive(Debug, thiserror::Error)]
 pub enum FromOctetSequenceError {
     /// An invalid signing algorithm was used

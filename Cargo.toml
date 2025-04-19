@@ -43,7 +43,6 @@ hashbrown = { version = "0.15", features = ["serde"] }
 rand_core = { version = "0.6", features = ["getrandom", "alloc"] }
 rand = "0.8.5"
 hmac = { version = "0.12", default-features = false }
-sha1 = { version = "0.10", default-features = false, features = ["oid"] }
 sha2 = { version = "0.10", default-features = false, features = ["oid"] }
 ed25519 = { version = "2.2.1", default-features = false, features = ["alloc"] }
 p256 = { version = "0.13", default-features = false, features = [
@@ -87,7 +86,6 @@ generic-array = { version = "0.14", default-features = false, features = [
   "serde",
 ] }
 
-typenum = { version = "1.15", default-features = false, features = ["no_std"] }
 num-traits = { version = "0.2.15", default-features = false }
 num-bigint-dig = { version = "0.8.1", default-features = false, features = [
   "u64_digit",
