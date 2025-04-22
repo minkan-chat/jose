@@ -106,7 +106,7 @@ pub struct InvalidSigningAlgorithmError;
 
 /// A trait to turn something into a [`Signer`].
 ///
-/// Some key types like the [`Rsa`](crate::jwk::rsa::RsaPrivateKey) key type
+/// Some key types like the [`Rsa`](crate::crypto::rsa::PrivateKey) key type
 /// need to know which [algorithm](JsonWebSigningAlgorithm) to use.
 pub trait IntoSigner<T, S>
 where

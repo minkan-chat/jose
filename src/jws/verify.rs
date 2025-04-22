@@ -320,7 +320,7 @@ impl<T> DerefMut for Verified<T> {
 
 /// A trait to turn something into a [`Verifier`]
 ///
-/// Some key types like the [`Rsa`](crate::jwk::rsa::RsaPublicKey) key type need
+/// Some key types like the [`Rsa`](crate::crypto::rsa::PublicKey) key type need
 /// to know which [algorithm](JsonWebSigningAlgorithm) to use.
 pub trait IntoVerifier<V>
 where
