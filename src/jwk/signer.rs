@@ -6,12 +6,11 @@ use super::{
         curve25519::{Curve25519Private, Ed25519Signer},
         OkpPrivate,
     },
-    rsa::RsaSigner,
     symmetric::FromOctetSequenceError,
     AsymmetricJsonWebKey, FromKey, JsonWebKeyType, Private, SymmetricJsonWebKey,
 };
 use crate::{
-    crypto::hmac,
+    crypto::{hmac, rsa},
     jwa::{EcDSA, Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jws::{IntoSigner, InvalidSigningAlgorithmError, Signer},
     policy::{Checked, CryptographicOperation, Policy},
@@ -252,7 +251,7 @@ enum InnerSigner {
     Hs384(hmac::Key<hmac::Hs384>),
     Hs512(hmac::Key<hmac::Hs512>),
     // asymmetric algorithms
-    Rsa(RsaSigner),
+    Rsa(rsa::Signer),
     Es256(P256Signer),
     Es384(P384Signer),
     Secp256k1(Secp256k1Signer),

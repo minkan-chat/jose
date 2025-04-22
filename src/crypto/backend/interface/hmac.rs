@@ -3,7 +3,7 @@
 use crate::{crypto::Result, jwa};
 
 /// The common operations for an HMAC key.
-pub trait Key: Sized {
+pub(crate) trait Key: Sized {
     /// The signature type that is produced by this key.
     type Signature: AsRef<[u8]>;
 

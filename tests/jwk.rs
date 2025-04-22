@@ -61,11 +61,11 @@ macro_rules! key_roundtrip_test {
 }
 
 pub mod rsa {
-    use jose::jwk::rsa::RsaPrivateKey;
+    use jose::crypto::rsa;
 
     key_roundtrip_test! {
-        jose::jwk::rsa::RsaPrivateKey,
-        jose::jwk::rsa::RsaPublicKey,
+        rsa::PrivateKey,
+        rsa::PublicKey,
         "rsa",
         ["n", "e", "d", "p", "q", "dp", "dq", "di"],
         ["n", "e"],
@@ -89,7 +89,7 @@ pub mod rsa {
             "oth": []
         }"#;
 
-        let err = serde_json::from_str::<RsaPrivateKey>(json).unwrap_err();
+        let err = serde_json::from_str::<rsa::PrivateKey>(json).unwrap_err();
         assert_eq!(
             err.to_string(),
             "RSA private keys with `oth` field set are not supported"
@@ -112,7 +112,7 @@ pub mod rsa {
             "qi":"srk3oe6CxebsQo1QTTygg-dWBlXongHf2m4Asj7GBeswoa49NcqzUvv5wlWuTgKJeihjjp-L5lkC5JWiFfUpRkBqr7tUE9faUmDa6fPLlvqWcB9A04rrZ3aJYqHgJJZ9e6OrEKwhgliIYSsTxlD-bLGZVLj-dp0R7xSVOFqiRX0"
         }"#;
 
-        let err = serde_json::from_str::<RsaPrivateKey>(json).unwrap_err();
+        let err = serde_json::from_str::<rsa::PrivateKey>(json).unwrap_err();
         assert_eq!(
             err.to_string(),
             "expected `dp` to be present because all prime fields must be set if one of them is \

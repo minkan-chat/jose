@@ -8,11 +8,10 @@ use super::{
         curve25519::{Curve25519Private, Curve25519Public, Ed25519Verifier},
         OkpPrivate, OkpPublic,
     },
-    rsa::RsaVerifier,
     AsymmetricJsonWebKey, FromJwkError, FromKey, Private, Public, SymmetricJsonWebKey,
 };
 use crate::{
-    crypto::hmac,
+    crypto::{hmac, rsa},
     jwa::{Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::JsonWebKeyType,
     jws::{IntoVerifier, InvalidSigningAlgorithmError, Verifier, VerifyError},
@@ -162,7 +161,7 @@ enum InnerVerifier {
     Hs384(hmac::Key<hmac::Hs384>),
     Hs512(hmac::Key<hmac::Hs512>),
     // asymmetric algorithms
-    Rsa(RsaVerifier),
+    Rsa(rsa::Verifier),
     Es256(P256Verifier),
     Es384(P384Verifier),
     Secp256k1(Secp256k1Verifier),

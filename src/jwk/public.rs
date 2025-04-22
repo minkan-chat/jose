@@ -2,7 +2,8 @@ use alloc::string::String;
 
 use serde::{Deserialize, Serialize};
 
-use super::{ec::EcPublic, okp::OkpPublic, rsa::RsaPublicKey, Thumbprint};
+use super::{ec::EcPublic, okp::OkpPublic, Thumbprint};
+use crate::crypto::rsa;
 
 /// The `public` part of some asymmetric cryptographic key
 #[non_exhaustive]
@@ -10,7 +11,7 @@ use super::{ec::EcPublic, okp::OkpPublic, rsa::RsaPublicKey, Thumbprint};
 #[serde(untagged)]
 pub enum Public {
     /// The public part of a Rsa key
-    Rsa(RsaPublicKey),
+    Rsa(rsa::PublicKey),
     /// The public part of an elliptic curve
     Ec(EcPublic),
     /// The public part of an `OKP` key type, probably the public part of a

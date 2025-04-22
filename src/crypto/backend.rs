@@ -3,4 +3,4 @@
 pub(super) mod interface;
 
 mod rust;
-pub use rust::*;
+pub(crate) use rust::*;

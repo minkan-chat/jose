@@ -2,7 +2,8 @@ use alloc::{boxed::Box, string::String};
 
 use serde::{Deserialize, Serialize};
 
-use super::{ec::EcPrivate, okp::OkpPrivate, rsa::RsaPrivateKey, Thumbprint};
+use super::{ec::EcPrivate, okp::OkpPrivate, Thumbprint};
+use crate::crypto::rsa;
 
 /// The `private` part of some asymmetric cryptographic key
 #[non_exhaustive]
@@ -10,7 +11,7 @@ use super::{ec::EcPrivate, okp::OkpPrivate, rsa::RsaPrivateKey, Thumbprint};
 #[serde(untagged)]
 pub enum Private {
     /// The private part of a Rsa key
-    Rsa(Box<RsaPrivateKey>),
+    Rsa(Box<rsa::PrivateKey>),
     /// The private part of an elliptic curve
     Ec(EcPrivate),
     /// The private part of an `OKP` key type, probably the private part of a

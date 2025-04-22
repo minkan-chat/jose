@@ -33,7 +33,6 @@ impl AsRef<[u8]> for ErasedSignature {
 
 /// A low level HMAC key.
 #[repr(transparent)]
-#[expect(missing_debug_implementations)]
 pub struct Key {
     inner: ErasedKey,
 }

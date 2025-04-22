@@ -30,7 +30,6 @@ use crate::{
 
 pub mod ec;
 pub mod okp;
-pub mod rsa;
 pub mod symmetric;
 
 mod asymmetric;
@@ -877,17 +876,17 @@ mod hash_impl {
         okp::curve25519::{
             Curve25519Private, Curve25519Public, Ed25519PrivateKey, Ed25519PublicKey,
         },
-        rsa::{RsaPrivateKey, RsaPublicKey},
         symmetric::OctetSequence,
         JsonWebKey,
     };
+    use crate::crypto::rsa;
 
     impl_thumbprint_hash_trait!(Curve25519Public, Curve25519Private);
     impl_thumbprint_hash_trait!(P256PublicKey, P256PrivateKey);
     impl_thumbprint_hash_trait!(P384PublicKey, P384PrivateKey);
     impl_thumbprint_hash_trait!(Secp256k1PublicKey, Secp256k1PrivateKey);
     impl_thumbprint_hash_trait!(Ed25519PublicKey, Ed25519PrivateKey);
-    impl_thumbprint_hash_trait!(RsaPublicKey, RsaPrivateKey);
+    impl_thumbprint_hash_trait!(rsa::PublicKey, rsa::PrivateKey);
     impl_thumbprint_hash_trait!(OctetSequence);
 
     /// The [`Hash`] implementation of [`JsonWebKey`] uses the [`Hash`]
