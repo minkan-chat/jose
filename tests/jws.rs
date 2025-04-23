@@ -9,14 +9,12 @@ use jose::{
     crypto::{
         self,
         ec::{P256PrivateKey, P256Signer, P256Verifier},
+        okp::{Ed25519PrivateKey, Ed25519PublicKey, Ed25519Signer, Ed25519Verifier},
     },
     format::{Compact, JsonFlattened, JsonGeneral},
     header::HeaderValue,
     jwa::{EcDSA, JsonWebSigningAlgorithm},
-    jwk::{
-        okp::curve25519::{Ed25519PrivateKey, Ed25519PublicKey, Ed25519Signer, Ed25519Verifier},
-        JwkSigner, JwkVerifier,
-    },
+    jwk::{JwkSigner, JwkVerifier},
     jws::{
         FromRawPayload, IntoPayload, IntoSigner, IntoVerifier, ManyUnverified, PayloadData,
         PayloadKind, Signer, Unverified, Verifier, VerifyError,

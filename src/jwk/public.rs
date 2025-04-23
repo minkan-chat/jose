@@ -2,8 +2,8 @@ use alloc::string::String;
 
 use serde::{Deserialize, Serialize};
 
-use super::{okp::OkpPublic, Thumbprint};
-use crate::crypto::{ec, rsa};
+use super::Thumbprint;
+use crate::crypto::{ec, okp, rsa};
 
 /// The `public` part of some asymmetric cryptographic key
 #[non_exhaustive]
@@ -76,4 +76,39 @@ impl_internally_tagged_deserialize!(EcPublic, "crv", "EcCurve", [
     "P-384" => P384,
     "P-521" => P521,
     "secp256k1" => Secp256k1,
+]);
+
+/// The public part of ED keys, whose type is `OKP`.
+#[non_exhaustive]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash)]
+#[serde(untagged)]
+pub enum OkpPublic {
+    /// Public part of the Ed25519 curve
+    Ed25519(okp::Ed25519PublicKey),
+
+    /// Public part of the Ed448 curve
+    Ed448(okp::Ed448PublicKey),
+}
+
+impl crate::sealed::Sealed for OkpPublic {}
+impl Thumbprint for OkpPublic {
+    fn thumbprint_prehashed(&self) -> String {
+        match self {
+            OkpPublic::Ed25519(key) => key.thumbprint_prehashed(),
+            OkpPublic::Ed448(key) => key.thumbprint_prehashed(),
+        }
+    }
+}
+
+impl From<OkpPublic> for super::JsonWebKeyType {
+    fn from(x: OkpPublic) -> Self {
+        super::JsonWebKeyType::Asymmetric(alloc::boxed::Box::new(
+            super::AsymmetricJsonWebKey::Public(super::Public::Okp(x)),
+        ))
+    }
+}
+
+impl_internally_tagged_deserialize!(OkpPublic, "crv", "OkpCurve", [
+    "Ed25519" => Ed25519,
+    "Ed448" => Ed448,
 ]);

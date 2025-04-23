@@ -9,6 +9,7 @@ use super::interface;
 
 pub(crate) mod ec;
 pub(crate) mod hmac;
+pub(crate) mod okp;
 pub(crate) mod rsa;
 
 // TODO: remove the `cfg_attr` once the RustCrypto crates implement
@@ -35,6 +36,11 @@ pub(crate) enum BackendError {
     #[cfg_attr(feature = "std", error("an ECDSA operation failed"))]
     #[cfg_attr(not(feature = "std"), error("an ECDSA operation failed: {0}"))]
     Ecdsa(#[cfg_attr(feature = "std", source)] ::ecdsa::Error),
+
+    /// Error of the `ed25519-dalek` crate.
+    #[cfg_attr(feature = "std", error("an ED25519 operation failed"))]
+    #[cfg_attr(not(feature = "std"), error("an ED25519 operation failed: {0}"))]
+    Ed25519(#[cfg_attr(feature = "std", source)] ed25519_dalek::SignatureError),
 
     /// The amount of bytes for an EC point is invalid.
     #[error("invalid EC point length, expected {expected}, got {actual}")]
@@ -70,6 +76,8 @@ pub(crate) enum Backend {}
 impl interface::Backend for Backend {
     type EcPrivateKey = ec::PrivateKey;
     type EcPublicKey = ec::PublicKey;
+    type EdPrivateKey = okp::PrivateKey;
+    type EdPublicKey = okp::PublicKey;
     type Error = BackendError;
     type HmacKey = hmac::Key;
     type RsaPrivateKey = rsa::PrivateKey;

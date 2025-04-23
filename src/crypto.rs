@@ -8,6 +8,7 @@
 pub(crate) mod backend;
 pub mod ec;
 pub mod hmac;
+pub mod okp;
 pub mod rsa;
 
 use core::{error, fmt};

@@ -2,10 +2,9 @@ use jose::{
     crypto::hmac,
     jwa::{EcDSA, Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::{
-        okp::{curve25519::Curve25519Private, OkpPrivate},
         symmetric::{FromOctetSequenceError, OctetSequence},
         AsymmetricJsonWebKey, EcPrivate, EcPublic, FromKey as _, JsonWebKey, JsonWebKeyType,
-        JwkSigner, Private, Public, Thumbprint,
+        JwkSigner, OkpPrivate, Private, Public, Thumbprint,
     },
     jws::Signer,
     policy::{Checkable, Checked, StandardPolicy},
@@ -162,8 +161,8 @@ pub mod ec {
 
 pub mod okp_ed25519 {
     key_roundtrip_test! {
-        jose::jwk::okp::curve25519::Curve25519Private,
-        jose::jwk::okp::curve25519::Curve25519Public,
+        jose::jwk::OkpPrivate,
+        jose::jwk::OkpPublic,
         "ed25519",
         ["crv", "x", "d"],
         ["crv", "x"],
@@ -287,9 +286,7 @@ fn ed25519_json_web_key() {
     let jwk: JsonWebKey = serde_json::from_str(&read_key_file("ed25519")).unwrap();
     match jwk.key_type() {
         JsonWebKeyType::Asymmetric(key) => match **key {
-            AsymmetricJsonWebKey::Private(Private::Okp(OkpPrivate::Curve25519(
-                Curve25519Private::Ed(_),
-            ))) => (),
+            AsymmetricJsonWebKey::Private(Private::Okp(OkpPrivate::Ed25519(..))) => (),
             _ => panic!(),
         },
         _ => panic!(),

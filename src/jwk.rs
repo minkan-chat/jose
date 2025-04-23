@@ -15,17 +15,12 @@ use crate::{
         AesGcm, AesKw, EcDSA, Hmac, JsonWebAlgorithm, JsonWebEncryptionAlgorithm,
         JsonWebSigningAlgorithm, Pbes2,
     },
-    jwk::okp::{
-        curve25519::{Curve25519Private, Curve25519Public},
-        OkpPrivate, OkpPublic,
-    },
     policy::{Checkable, Checked, CryptographicOperation, Policy},
     sealed::Sealed,
     uri::BorrowedUri,
     UntypedAdditionalProperties, Uri,
 };
 
-pub mod okp;
 pub mod symmetric;
 
 mod asymmetric;
@@ -46,8 +41,8 @@ pub use self::{
     builder::{JsonWebKeyBuildError, JsonWebKeyBuilder},
     key_ops::KeyOperation,
     key_use::KeyUsage,
-    private::{EcPrivate, Private},
-    public::{EcPublic, Public},
+    private::{EcPrivate, OkpPrivate, Private},
+    public::{EcPublic, OkpPublic, Public},
     signer::{FromJwkError, JwkSigner},
     symmetric::SymmetricJsonWebKey,
     thumbprint::Thumbprint,
@@ -460,9 +455,8 @@ impl<T> JsonWebKey<T> {
             AsymmetricJsonWebKey::Public(_) => Some(self),
             AsymmetricJsonWebKey::Private(Private::Okp(okp)) => {
                 let key = match okp {
-                    OkpPrivate::Curve25519(Curve25519Private::Ed(key)) => {
-                        OkpPublic::Curve25519(Curve25519Public::Ed(key.to_public_key()))
-                    }
+                    OkpPrivate::Ed25519(key) => OkpPublic::Ed25519(key.to_public_key()),
+                    OkpPrivate::Ed448(key) => OkpPublic::Ed448(key.to_public_key()),
                 };
 
                 self.key_type = JsonWebKeyType::Asymmetric(Box::new(AsymmetricJsonWebKey::Public(
@@ -514,9 +508,8 @@ impl<T> JsonWebKey<T> {
                 AsymmetricJsonWebKey::Public(_) => self,
                 AsymmetricJsonWebKey::Private(Private::Okp(okp)) => {
                     let key = match okp {
-                        OkpPrivate::Curve25519(Curve25519Private::Ed(key)) => {
-                            OkpPublic::Curve25519(Curve25519Public::Ed(key.to_public_key()))
-                        }
+                        OkpPrivate::Ed25519(key) => OkpPublic::Ed25519(key.to_public_key()),
+                        OkpPrivate::Ed448(key) => OkpPublic::Ed448(key.to_public_key()),
                     };
 
                     self.key_type = JsonWebKeyType::Asymmetric(Box::new(
@@ -800,8 +793,12 @@ impl JsonWebKeyType {
                     Signing(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256K)),
                 )
                 | (
-                    AsymmetricJsonWebKey::Public(Public::Okp(OkpPublic::Curve25519(..)))
-                    | AsymmetricJsonWebKey::Private(Private::Okp(OkpPrivate::Curve25519(..))),
+                    AsymmetricJsonWebKey::Public(Public::Okp(
+                        OkpPublic::Ed25519(..) | OkpPublic::Ed448(..),
+                    ))
+                    | AsymmetricJsonWebKey::Private(Private::Okp(
+                        OkpPrivate::Ed25519(..) | OkpPrivate::Ed448(..),
+                    )),
                     Signing(JsonWebSigningAlgorithm::EdDSA),
                     // FIXME: look how encryption is handled and which algorithm is used
                     //| Encryption(JsonWebEncryptionAlgorithm::EcDhES(..)),
@@ -865,21 +862,15 @@ pub trait IntoJsonWebKey: Sealed {
 mod hash_impl {
     use core::hash::{Hash, Hasher};
 
-    use super::{
-        okp::curve25519::{
-            Curve25519Private, Curve25519Public, Ed25519PrivateKey, Ed25519PublicKey,
-        },
-        symmetric::OctetSequence,
-        JsonWebKey,
-    };
-    use crate::crypto::{ec, rsa};
+    use super::{symmetric::OctetSequence, JsonWebKey};
+    use crate::crypto::{ec, okp, rsa};
 
-    impl_thumbprint_hash_trait!(Curve25519Public, Curve25519Private);
     impl_thumbprint_hash_trait!(ec::P256PublicKey, ec::P256PrivateKey);
     impl_thumbprint_hash_trait!(ec::P384PublicKey, ec::P384PrivateKey);
     impl_thumbprint_hash_trait!(ec::P521PublicKey, ec::P521PrivateKey);
     impl_thumbprint_hash_trait!(ec::Secp256k1PublicKey, ec::Secp256k1PrivateKey);
-    impl_thumbprint_hash_trait!(Ed25519PublicKey, Ed25519PrivateKey);
+    impl_thumbprint_hash_trait!(okp::Ed25519PublicKey, okp::Ed25519PrivateKey);
+    impl_thumbprint_hash_trait!(okp::Ed448PublicKey, okp::Ed448PrivateKey);
     impl_thumbprint_hash_trait!(rsa::PublicKey, rsa::PrivateKey);
     impl_thumbprint_hash_trait!(OctetSequence);
 

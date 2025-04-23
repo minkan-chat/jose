@@ -2,8 +2,8 @@ use alloc::{boxed::Box, string::String};
 
 use serde::{Deserialize, Serialize};
 
-use super::{okp::OkpPrivate, Thumbprint};
-use crate::crypto::{ec, rsa};
+use super::Thumbprint;
+use crate::crypto::{ec, okp, rsa};
 
 /// The `private` part of some asymmetric cryptographic key
 #[non_exhaustive]
@@ -80,4 +80,39 @@ impl_internally_tagged_deserialize!(EcPrivate, "crv", "EcCurve", [
     "P-384" => P384,
     "P-521" => P521,
     "secp256k1" => Secp256k1,
+]);
+
+/// The private part of ED keys, whose type is `OKP`.
+#[non_exhaustive]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash)]
+#[serde(untagged)]
+pub enum OkpPrivate {
+    /// Private part of the Ed25519 curve
+    Ed25519(okp::Ed25519PrivateKey),
+
+    /// Private part of the Ed448 curve
+    Ed448(okp::Ed448PrivateKey),
+}
+
+impl crate::sealed::Sealed for OkpPrivate {}
+impl Thumbprint for OkpPrivate {
+    fn thumbprint_prehashed(&self) -> String {
+        match self {
+            OkpPrivate::Ed25519(key) => key.thumbprint_prehashed(),
+            OkpPrivate::Ed448(key) => key.thumbprint_prehashed(),
+        }
+    }
+}
+
+impl From<OkpPrivate> for super::JsonWebKeyType {
+    fn from(x: OkpPrivate) -> Self {
+        super::JsonWebKeyType::Asymmetric(alloc::boxed::Box::new(
+            super::AsymmetricJsonWebKey::Private(super::Private::Okp(x)),
+        ))
+    }
+}
+
+impl_internally_tagged_deserialize!(OkpPrivate, "crv", "OkpCurve", [
+    "Ed25519" => Ed25519,
+    "Ed448" => Ed448,
 ]);
