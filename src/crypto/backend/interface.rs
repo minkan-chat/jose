@@ -2,6 +2,7 @@
 
 use core::{error, fmt};
 
+pub(crate) mod ec;
 pub(crate) mod hmac;
 pub(crate) mod rsa;
 
@@ -21,6 +22,12 @@ pub(crate) trait Backend {
 
     /// The RSA public key type.
     type RsaPublicKey: rsa::PublicKey;
+
+    /// The EC public key type.
+    type EcPublicKey: ec::PublicKey;
+
+    /// The EC private key type.
+    type EcPrivateKey: ec::PrivateKey;
 
     /// Fills the given buffer with random data.
     fn fill_random(buf: &mut [u8]) -> Result<(), Self::Error>;

@@ -2,11 +2,10 @@ use jose::{
     crypto::hmac,
     jwa::{EcDSA, Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::{
-        ec::{EcPrivate, EcPublic},
         okp::{curve25519::Curve25519Private, OkpPrivate},
         symmetric::{FromOctetSequenceError, OctetSequence},
-        AsymmetricJsonWebKey, FromKey as _, JsonWebKey, JsonWebKeyType, JwkSigner, Private, Public,
-        Thumbprint,
+        AsymmetricJsonWebKey, EcPrivate, EcPublic, FromKey as _, JsonWebKey, JsonWebKeyType,
+        JwkSigner, Private, Public, Thumbprint,
     },
     jws::Signer,
     policy::{Checkable, Checked, StandardPolicy},
@@ -123,8 +122,8 @@ pub mod rsa {
 
 pub mod ec_p256 {
     key_roundtrip_test! {
-        jose::jwk::ec::p256::P256PrivateKey,
-        jose::jwk::ec::p256::P256PublicKey,
+        jose::crypto::ec::P256PrivateKey,
+        jose::crypto::ec::P256PublicKey,
         "p256",
         ["crv", "e", "x", "y", "d"],
         ["crv", "x", "y"],
@@ -133,8 +132,8 @@ pub mod ec_p256 {
 
 pub mod ec_p384 {
     key_roundtrip_test! {
-        jose::jwk::ec::p384::P384PrivateKey,
-        jose::jwk::ec::p384::P384PublicKey,
+        jose::crypto::ec::P384PrivateKey,
+        jose::crypto::ec::P384PublicKey,
         "p384",
         ["crv", "e", "x", "y", "d"],
         ["crv", "x", "y"],
@@ -142,22 +141,22 @@ pub mod ec_p384 {
 }
 
 pub mod ec {
-    use jose::jwk::ec::{EcPrivate, EcPublic};
+    use jose::jwk;
 
     use super::*;
 
     #[test]
     fn parse_generic_public_key() {
         let json = read_key_file("p256.pub");
-        let key: EcPublic = serde_json::from_str(&json).unwrap();
-        assert!(matches!(key, EcPublic::P256(..)));
+        let key: jwk::EcPublic = serde_json::from_str(&json).unwrap();
+        assert!(matches!(key, jwk::EcPublic::P256(..)));
     }
 
     #[test]
     fn parse_generic_private_key() {
         let json = read_key_file("p256");
-        let key: EcPrivate = serde_json::from_str(&json).unwrap();
-        assert!(matches!(key, EcPrivate::P256(..)));
+        let key: jwk::EcPrivate = serde_json::from_str(&json).unwrap();
+        assert!(matches!(key, jwk::EcPrivate::P256(..)));
     }
 }
 

@@ -15,12 +15,9 @@ use crate::{
         AesGcm, AesKw, EcDSA, Hmac, JsonWebAlgorithm, JsonWebEncryptionAlgorithm,
         JsonWebSigningAlgorithm, Pbes2,
     },
-    jwk::{
-        ec::{EcPrivate, EcPublic},
-        okp::{
-            curve25519::{Curve25519Private, Curve25519Public},
-            OkpPrivate, OkpPublic,
-        },
+    jwk::okp::{
+        curve25519::{Curve25519Private, Curve25519Public},
+        OkpPrivate, OkpPublic,
     },
     policy::{Checkable, Checked, CryptographicOperation, Policy},
     sealed::Sealed,
@@ -28,7 +25,6 @@ use crate::{
     UntypedAdditionalProperties, Uri,
 };
 
-pub mod ec;
 pub mod okp;
 pub mod symmetric;
 
@@ -50,8 +46,8 @@ pub use self::{
     builder::{JsonWebKeyBuildError, JsonWebKeyBuilder},
     key_ops::KeyOperation,
     key_use::KeyUsage,
-    private::Private,
-    public::Public,
+    private::{EcPrivate, Private},
+    public::{EcPublic, Public},
     signer::{FromJwkError, JwkSigner},
     symmetric::SymmetricJsonWebKey,
     thumbprint::Thumbprint,
@@ -479,6 +475,7 @@ impl<T> JsonWebKey<T> {
                 let pub_key = match ec {
                     EcPrivate::P256(key) => EcPublic::P256(key.to_public_key()),
                     EcPrivate::P384(key) => EcPublic::P384(key.to_public_key()),
+                    EcPrivate::P521(key) => EcPublic::P521(key.to_public_key()),
                     EcPrivate::Secp256k1(key) => EcPublic::Secp256k1(key.to_public_key()),
                 };
 
@@ -532,6 +529,7 @@ impl<T> JsonWebKey<T> {
                     let pub_key = match ec {
                         EcPrivate::P256(key) => EcPublic::P256(key.to_public_key()),
                         EcPrivate::P384(key) => EcPublic::P384(key.to_public_key()),
+                        EcPrivate::P521(key) => EcPublic::P521(key.to_public_key()),
                         EcPrivate::Secp256k1(key) => EcPublic::Secp256k1(key.to_public_key()),
                     };
 
@@ -868,23 +866,19 @@ mod hash_impl {
     use core::hash::{Hash, Hasher};
 
     use super::{
-        ec::{
-            p256::{P256PrivateKey, P256PublicKey},
-            p384::{P384PrivateKey, P384PublicKey},
-            secp256k1::{Secp256k1PrivateKey, Secp256k1PublicKey},
-        },
         okp::curve25519::{
             Curve25519Private, Curve25519Public, Ed25519PrivateKey, Ed25519PublicKey,
         },
         symmetric::OctetSequence,
         JsonWebKey,
     };
-    use crate::crypto::rsa;
+    use crate::crypto::{ec, rsa};
 
     impl_thumbprint_hash_trait!(Curve25519Public, Curve25519Private);
-    impl_thumbprint_hash_trait!(P256PublicKey, P256PrivateKey);
-    impl_thumbprint_hash_trait!(P384PublicKey, P384PrivateKey);
-    impl_thumbprint_hash_trait!(Secp256k1PublicKey, Secp256k1PrivateKey);
+    impl_thumbprint_hash_trait!(ec::P256PublicKey, ec::P256PrivateKey);
+    impl_thumbprint_hash_trait!(ec::P384PublicKey, ec::P384PrivateKey);
+    impl_thumbprint_hash_trait!(ec::P521PublicKey, ec::P521PrivateKey);
+    impl_thumbprint_hash_trait!(ec::Secp256k1PublicKey, ec::Secp256k1PrivateKey);
     impl_thumbprint_hash_trait!(Ed25519PublicKey, Ed25519PrivateKey);
     impl_thumbprint_hash_trait!(rsa::PublicKey, rsa::PrivateKey);
     impl_thumbprint_hash_trait!(OctetSequence);

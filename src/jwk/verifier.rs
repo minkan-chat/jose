@@ -1,17 +1,16 @@
 use alloc::borrow::ToOwned;
 
 use super::{
-    ec::{
-        p256::P256Verifier, p384::P384Verifier, secp256k1::Secp256k1Verifier, EcPrivate, EcPublic,
-    },
     okp::{
         curve25519::{Curve25519Private, Curve25519Public, Ed25519Verifier},
         OkpPrivate, OkpPublic,
     },
+    private::EcPrivate,
+    public::EcPublic,
     AsymmetricJsonWebKey, FromJwkError, FromKey, Private, Public, SymmetricJsonWebKey,
 };
 use crate::{
-    crypto::{hmac, rsa},
+    crypto::{ec, hmac, rsa},
     jwa::{Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::JsonWebKeyType,
     jws::{IntoVerifier, InvalidSigningAlgorithmError, Verifier, VerifyError},
@@ -42,6 +41,7 @@ impl JwkVerifier {
                         Public::Ec(key) => match key {
                             EcPublic::P256(key) => InnerVerifier::Es256(key.into_verifier(alg)?),
                             EcPublic::P384(key) => InnerVerifier::Es384(key.into_verifier(alg)?),
+                            EcPublic::P521(key) => InnerVerifier::Es512(key.into_verifier(alg)?),
                             EcPublic::Secp256k1(key) => {
                                 InnerVerifier::Secp256k1(key.into_verifier(alg)?)
                             }
@@ -59,6 +59,7 @@ impl JwkVerifier {
                         Private::Ec(key) => match key {
                             EcPrivate::P256(key) => InnerVerifier::Es256(key.into_verifier(alg)?),
                             EcPrivate::P384(key) => InnerVerifier::Es384(key.into_verifier(alg)?),
+                            EcPrivate::P521(key) => InnerVerifier::Es512(key.into_verifier(alg)?),
                             EcPrivate::Secp256k1(key) => {
                                 InnerVerifier::Secp256k1(key.into_verifier(alg)?)
                             }
@@ -97,6 +98,7 @@ impl Verifier for JwkVerifier {
             InnerVerifier::Rsa(verifier) => verifier.verify(msg, signature),
             InnerVerifier::Es256(verifier) => verifier.verify(msg, signature),
             InnerVerifier::Es384(verifier) => verifier.verify(msg, signature),
+            InnerVerifier::Es512(verifier) => verifier.verify(msg, signature),
             InnerVerifier::Secp256k1(verifier) => verifier.verify(msg, signature),
             InnerVerifier::Ed25519(verifier) => verifier.verify(msg, signature),
         }
@@ -162,9 +164,12 @@ enum InnerVerifier {
     Hs512(hmac::Key<hmac::Hs512>),
     // asymmetric algorithms
     Rsa(rsa::Verifier),
-    Es256(P256Verifier),
-    Es384(P384Verifier),
-    Secp256k1(Secp256k1Verifier),
+
+    Es256(ec::P256Verifier),
+    Es384(ec::P384Verifier),
+    Es512(ec::P521Verifier),
+    Secp256k1(ec::Secp256k1Verifier),
+
     // P-512 not supported yet
     Ed25519(Ed25519Verifier),
     // Curve-448 not supported yet

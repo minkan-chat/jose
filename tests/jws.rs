@@ -6,12 +6,14 @@
 use std::{convert::Infallible, str::FromStr};
 
 use jose::{
-    crypto,
+    crypto::{
+        self,
+        ec::{P256PrivateKey, P256Signer, P256Verifier},
+    },
     format::{Compact, JsonFlattened, JsonGeneral},
     header::HeaderValue,
     jwa::{EcDSA, JsonWebSigningAlgorithm},
     jwk::{
-        ec::p256::{P256PrivateKey, P256Signer, P256Verifier},
         okp::curve25519::{Ed25519PrivateKey, Ed25519PublicKey, Ed25519Signer, Ed25519Verifier},
         JwkSigner, JwkVerifier,
     },

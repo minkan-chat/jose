@@ -15,7 +15,7 @@ enum ErasedKey {
     Hs512(Hmac<sha2::Sha512>),
 }
 
-pub enum ErasedSignature {
+pub(crate) enum ErasedSignature {
     Hs256(Output<Hmac<sha2::Sha256>>),
     Hs384(Output<Hmac<sha2::Sha384>>),
     Hs512(Output<Hmac<sha2::Sha512>>),
@@ -33,7 +33,7 @@ impl AsRef<[u8]> for ErasedSignature {
 
 /// A low level HMAC key.
 #[repr(transparent)]
-pub struct Key {
+pub(crate) struct Key {
     inner: ErasedKey,
 }
 

@@ -14,7 +14,7 @@ use crate::{
 /// A low level private RSA key.
 #[derive(Clone)]
 #[repr(transparent)]
-pub struct PrivateKey {
+pub(crate) struct PrivateKey {
     // WARN: It is important that the `inner` key always contains it's precomupted values.
     // It must be ensured that on each construction of this type, `precomputed` method is called
     inner: RsaPrivateKey,
@@ -117,7 +117,8 @@ impl rsa::PrivateKey for PrivateKey {
         let p = BigUint::from_bytes_be(&c.prime.p);
         let q = BigUint::from_bytes_be(&c.prime.q);
 
-        let key = RsaPrivateKey::from_components(n, e, d, alloc::vec![p, q])?;
+        let mut key = RsaPrivateKey::from_components(n, e, d, alloc::vec![p, q])?;
+        key.precompute()?;
         Ok(Self { inner: key })
     }
 }
@@ -125,7 +126,7 @@ impl rsa::PrivateKey for PrivateKey {
 /// A low level public RSA key.
 #[derive(Clone)]
 #[repr(transparent)]
-pub struct PublicKey {
+pub(crate) struct PublicKey {
     inner: RsaPublicKey,
 }
 

@@ -7,15 +7,16 @@ use thiserror::Error;
 
 use super::interface;
 
-pub mod hmac;
-pub mod rsa;
+pub(crate) mod ec;
+pub(crate) mod hmac;
+pub(crate) mod rsa;
 
 // TODO: remove the `cfg_attr` once the RustCrypto crates implement
 // the core::error::Error trait.
 
 /// The errors that can be produced by the rust crypto backend.
 #[derive(Debug, Error)]
-pub enum BackendError {
+pub(crate) enum BackendError {
     /// The error returned if the key is invalid.
     #[error("invalid key length")]
     InvalidLength,
@@ -24,6 +25,28 @@ pub enum BackendError {
     #[cfg_attr(feature = "std", error("an RSA operation failed"))]
     #[cfg_attr(not(feature = "std"), error("an RSA operation failed: {0}"))]
     Rsa(#[cfg_attr(feature = "std", source)] ::rsa::errors::Error),
+
+    /// Error of the `elliptic_curve` crate.
+    #[cfg_attr(feature = "std", error("an elliptic curve operation failed"))]
+    #[cfg_attr(not(feature = "std"), error("an elliptic curve operation failed: {0}"))]
+    EllipticCurve(#[cfg_attr(feature = "std", source)] ::elliptic_curve::Error),
+
+    /// Error of the `ecdsa` crate.
+    #[cfg_attr(feature = "std", error("an ECDSA operation failed"))]
+    #[cfg_attr(not(feature = "std"), error("an ECDSA operation failed: {0}"))]
+    Ecdsa(#[cfg_attr(feature = "std", source)] ::ecdsa::Error),
+
+    /// The amount of bytes for an EC point is invalid.
+    #[error("invalid EC point length, expected {expected}, got {actual}")]
+    InvalidEcPoint { expected: usize, actual: usize },
+
+    /// The coordinates did not form a valid key.
+    #[error("invalid EC key")]
+    InvalidEcKey,
+
+    /// The curve type is not supported by this backend.
+    #[error("curve '{0}' not supported by this backend")]
+    CurveNotSupported(&'static str),
 }
 
 impl From<digest::InvalidLength> for BackendError {
@@ -42,9 +65,11 @@ impl From<::rsa::errors::Error> for BackendError {
 ///
 /// [RustCrypto]: https://github.com/RustCrypto
 #[derive(Debug)]
-pub enum Backend {}
+pub(crate) enum Backend {}
 
 impl interface::Backend for Backend {
+    type EcPrivateKey = ec::PrivateKey;
+    type EcPublicKey = ec::PublicKey;
     type Error = BackendError;
     type HmacKey = hmac::Key;
     type RsaPrivateKey = rsa::PrivateKey;

@@ -6,6 +6,7 @@
 //! and implementations without changing the code that uses them.
 
 pub(crate) mod backend;
+pub mod ec;
 pub mod hmac;
 pub mod rsa;
 
