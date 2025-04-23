@@ -26,6 +26,30 @@ type BackendPublicKey = <Backend as interface::Backend>::RsaPublicKey;
 type BackendPrivateKey = <Backend as interface::Backend>::RsaPrivateKey;
 type BigInt = <BackendPrivateKey as rsa::PrivateKey>::BigInt;
 
+/// The returned signature from a sign operation.
+#[repr(transparent)]
+pub struct Signature {
+    inner: <BackendPrivateKey as rsa::PrivateKey>::Signature,
+}
+
+impl From<Signature> for Vec<u8> {
+    fn from(value: Signature) -> Self {
+        value.as_ref().to_vec()
+    }
+}
+
+impl AsRef<[u8]> for Signature {
+    fn as_ref(&self) -> &[u8] {
+        self.inner.as_ref()
+    }
+}
+
+impl fmt::Debug for Signature {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self.as_ref(), f)
+    }
+}
+
 /// The RSA public key type.
 #[derive(Clone)]
 pub struct PublicKey {
@@ -385,9 +409,10 @@ impl FromKey<PrivateKey> for Signer {
     }
 }
 
-impl jws::Signer<Vec<u8>> for Signer {
-    fn sign(&mut self, msg: &[u8]) -> Result<Vec<u8>> {
-        self.key.inner.sign(self.alg, msg)
+impl jws::Signer<Signature> for Signer {
+    fn sign(&mut self, msg: &[u8]) -> Result<Signature> {
+        let sig = self.key.inner.sign(self.alg, msg)?;
+        Ok(Signature { inner: sig })
     }
 
     fn algorithm(&self) -> jwa::JsonWebSigningAlgorithm {

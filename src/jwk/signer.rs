@@ -129,7 +129,7 @@ impl JwkSigner {
 impl Signer<Vec<u8>> for JwkSigner {
     fn sign(&mut self, x: &[u8]) -> Result<Vec<u8>, crate::crypto::Error> {
         match &mut self.inner {
-            InnerSigner::Rsa(s) => s.sign(x),
+            InnerSigner::Rsa(s) => s.sign(x).map(|x| x.into()),
             InnerSigner::Hs256(s) => s.sign(x).map(|x| x.as_ref().to_vec()),
             InnerSigner::Hs384(s) => s.sign(x).map(|x| x.as_ref().to_vec()),
             InnerSigner::Hs512(s) => s.sign(x).map(|x| x.as_ref().to_vec()),
