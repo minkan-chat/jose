@@ -30,6 +30,7 @@ std = [
   "rand_core/std",
   "fluent-uri/std",
   "serde_json/std",
+  "elliptic-curve/std",
 ]
 
 [dependencies]

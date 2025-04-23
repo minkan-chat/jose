@@ -901,7 +901,10 @@ mod hash_impl {
     #[test]
     fn smoke() {
         use crate::{jwk::Thumbprint, JsonWebKey};
+
+        #[allow(unused_extern_crates)]
         extern crate std;
+
         // This is a serialized asymmetric key. The private key part is stored in
         // the `d` parameter
         let serialized_private_key = r#"

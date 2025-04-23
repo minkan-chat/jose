@@ -4,17 +4,16 @@ use clap::Parser;
 use clio::Input;
 use eyre::eyre;
 use jose::{
-    format::{Compact, DecodeFormat},
-    jwk::{
-        ec::p256::P256PrivateKey,
-        symmetric::hmac::{HmacKey, Hs256},
-        IntoJsonWebKey, JwkSigner, JwkVerifier, KeyOperation,
+    crypto::{
+        ec::P256PrivateKey,
+        hmac::{Hs256, Key as HmacKey},
     },
+    format::{Compact, DecodeFormat},
+    jwk::{IntoJsonWebKey, JwkSigner, JwkVerifier, KeyOperation},
     jwt::Claims,
     policy::{Checkable, StandardPolicy},
     JsonWebKey, Jwt, UntypedAdditionalProperties,
 };
-use rand::rngs::ThreadRng;
 
 #[derive(Parser)]
 enum Commands {
@@ -41,12 +40,8 @@ fn main() -> eyre::Result<()> {
     match cmds {
         Commands::Generate { symmetric } => {
             let key = match symmetric {
-                true => HmacKey::<Hs256>::generate(ThreadRng::default())
-                    .into_jwk(Some(()))
-                    .expect("Infallible"),
-                false => P256PrivateKey::generate(&mut ThreadRng::default())
-                    .into_jwk(Some(()))
-                    .expect("Infallible"),
+                true => HmacKey::<Hs256>::generate()?.into_jwk(Some(()))?,
+                false => P256PrivateKey::generate()?.into_jwk(Some(()))?,
             };
             // Key containing private/secret key
             let private_key = key

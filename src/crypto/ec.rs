@@ -1,8 +1,9 @@
 //! The primitives for working with [EC (elliptic curve)](https://en.wikipedia.org/wiki/Elliptic-curve_cryptography)
 //! algorithms (`crv` parameter = `EC`).
 //!
-//! If you are looking for the other curve types, see the [`okp`](super::okp)
-//! module, which contains all curves that require a octet key pair.
+//! If you are looking for the other curve types, see the
+//! [`okp`](crate::jwk::okp) module, which contains all curves that require a
+//! octet key pair.
 
 use alloc::{boxed::Box, format, string::String, vec::Vec};
 use core::{fmt, marker::PhantomData};
