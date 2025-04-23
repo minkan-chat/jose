@@ -59,7 +59,6 @@ pub struct PublicKey {
 impl Eq for PublicKey {}
 impl PartialEq for PublicKey {
     fn eq(&self, o: &Self) -> bool {
-        // TODO: do we need constant time validation here?
         self.inner.n() == o.inner.n() && self.inner.e() == o.inner.e()
     }
 }
@@ -186,11 +185,7 @@ impl PrivateKey {
 impl Eq for PrivateKey {}
 impl PartialEq for PrivateKey {
     fn eq(&self, o: &Self) -> bool {
-        // TODO: should we include the dp, dq, etc parameters here?
-        self.inner.n() == o.inner.n()
-            && self.inner.e() == o.inner.e()
-            && self.inner.d() == o.inner.d()
-            && self.inner.primes() == o.inner.primes()
+        self.to_public_key() == o.to_public_key()
     }
 }
 

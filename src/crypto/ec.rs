@@ -112,9 +112,8 @@ pub struct PublicKey<C> {
     _curve: PhantomData<C>,
 }
 
-impl<C> Eq for PublicKey<C> {}
-impl<C> PartialEq for PublicKey<C> {
-    // TODO: should we do eq comparison ourselves, or make it up to the backend?
+impl<C: Curve> Eq for PublicKey<C> {}
+impl<C: Curve> PartialEq for PublicKey<C> {
     fn eq(&self, other: &Self) -> bool {
         let (x, y) = self.inner.to_point();
         let (o_x, o_y) = other.inner.to_point();
@@ -261,16 +260,10 @@ impl<C: Curve> PrivateKey<C> {
     }
 }
 
-impl<C> Eq for PrivateKey<C> {}
-impl<C> PartialEq for PrivateKey<C> {
+impl<C: Curve> Eq for PrivateKey<C> {}
+impl<C: Curve> PartialEq for PrivateKey<C> {
     fn eq(&self, other: &Self) -> bool {
-        let (x, y) = self.inner.public_point();
-        let d = self.inner.private_material();
-
-        let (o_x, o_y) = other.inner.public_point();
-        let o_d = other.inner.private_material();
-
-        x == o_x && y == o_y && d == o_d
+        self.to_public_key() == other.to_public_key()
     }
 }
 

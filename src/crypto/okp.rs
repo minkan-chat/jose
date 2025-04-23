@@ -94,9 +94,8 @@ pub struct PublicKey<C> {
     _curve: PhantomData<C>,
 }
 
-impl<C> Eq for PublicKey<C> {}
-impl<C> PartialEq for PublicKey<C> {
-    // TODO: should we do eq comparison ourselves, or make it up to the backend?
+impl<C: Curve> Eq for PublicKey<C> {}
+impl<C: Curve> PartialEq for PublicKey<C> {
     fn eq(&self, other: &Self) -> bool {
         self.inner.to_bytes() == other.inner.to_bytes()
     }
@@ -226,12 +225,10 @@ impl<C: Curve> PrivateKey<C> {
     }
 }
 
-impl<C> Eq for PrivateKey<C> {}
-impl<C> PartialEq for PrivateKey<C> {
-    // TODO: should we do eq comparison ourselves, or make it up to the backend?
-    // also, do we need constant time equality here?
+impl<C: Curve> Eq for PrivateKey<C> {}
+impl<C: Curve> PartialEq for PrivateKey<C> {
     fn eq(&self, other: &Self) -> bool {
-        self.inner.to_bytes() == other.inner.to_bytes()
+        self.to_public_key() == other.to_public_key()
     }
 }
 
