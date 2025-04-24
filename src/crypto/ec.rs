@@ -12,7 +12,7 @@ use serde::{de::Error as _, Deserialize, Serialize};
 
 use super::backend::{interface, Backend};
 use crate::{
-    base64_url::Base64UrlBytes,
+    base64_url::{Base64UrlBytes, SecretBase64UrlBytes},
     crypto::{
         backend::interface::ec::{PrivateKey as _, PublicKey as _},
         Result,
@@ -317,7 +317,7 @@ impl<'de, C: Curve> Deserialize<'de> for PrivateKey<C> {
         struct Repr {
             #[serde(flatten)]
             public: PublicKeyRepr,
-            d: Base64UrlBytes,
+            d: SecretBase64UrlBytes,
         }
         let key = Repr::deserialize(deserializer)?;
 
@@ -345,7 +345,7 @@ impl<C: Curve> Serialize for PrivateKey<C> {
             kty: &'a str,
             x: Base64UrlBytes,
             y: Base64UrlBytes,
-            d: Base64UrlBytes,
+            d: SecretBase64UrlBytes,
         }
 
         let (x, y) = self.inner.public_point();
@@ -357,7 +357,7 @@ impl<C: Curve> Serialize for PrivateKey<C> {
             kty: "EC",
             x: Base64UrlBytes(Vec::<u8>::from(x)),
             y: Base64UrlBytes(Vec::<u8>::from(y)),
-            d: Base64UrlBytes(Vec::<u8>::from(d)),
+            d: SecretBase64UrlBytes(d),
         };
 
         repr.serialize(serializer)

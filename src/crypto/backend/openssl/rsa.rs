@@ -1,12 +1,13 @@
 use alloc::vec::Vec;
 
 use openssl::{
-    bn::BigNum,
+    bn::{BigNum, BigNumRef},
     hash::MessageDigest,
     pkey::{PKey, Private, Public},
     rsa::{Padding, Rsa},
     sign::{Signer, Verifier},
 };
+use secrecy::{ExposeSecret, SecretSlice};
 
 use crate::{
     crypto::{backend::interface::rsa, Result},
@@ -63,12 +64,13 @@ impl rsa::PrivateKey for PrivateKey {
     ) -> Result<Self> {
         let n = BigNum::from_slice(&pu.n)?;
         let e = BigNum::from_slice(&pu.e)?;
-        let d = BigNum::from_slice(&pri.d)?;
-        let p = BigNum::from_slice(&pri.prime.p)?;
-        let q = BigNum::from_slice(&pri.prime.q)?;
-        let dp = BigNum::from_slice(&pri.prime.dp)?;
-        let dq = BigNum::from_slice(&pri.prime.dq)?;
-        let qi = BigNum::from_slice(&pri.prime.qi)?;
+
+        let d = BigNum::from_slice(pri.d.expose_secret())?;
+        let p = BigNum::from_slice(pri.prime.p.expose_secret())?;
+        let q = BigNum::from_slice(pri.prime.q.expose_secret())?;
+        let dp = BigNum::from_slice(pri.prime.dp.expose_secret())?;
+        let dq = BigNum::from_slice(pri.prime.dq.expose_secret())?;
+        let qi = BigNum::from_slice(pri.prime.qi.expose_secret())?;
 
         let private_data = Rsa::from_private_components(n, e, d, p, q, dp, dq, qi)?;
         private_data.check_key()?;
@@ -114,13 +116,15 @@ impl rsa::PrivateKey for PrivateKey {
 
     fn private_components(&self) -> Result<rsa::PrivateKeyComponents> {
         let err = || super::BackendError::NoPrimeData;
+        let map = |x: Option<&BigNumRef>| x.map(|x| SecretSlice::from(x.to_vec())).ok_or_else(err);
 
-        let d = self.private_data.d().to_vec();
-        let p = self.private_data.p().ok_or_else(err)?.to_vec();
-        let q = self.private_data.q().ok_or_else(err)?.to_vec();
-        let dp = self.private_data.dmp1().ok_or_else(err)?.to_vec();
-        let dq = self.private_data.dmq1().ok_or_else(err)?.to_vec();
-        let qi = self.private_data.iqmp().ok_or_else(err)?.to_vec();
+        let d = SecretSlice::from(self.private_data.d().to_vec());
+
+        let p = map(self.private_data.p())?;
+        let q = map(self.private_data.q())?;
+        let dp = map(self.private_data.dmp1())?;
+        let dq = map(self.private_data.dmq1())?;
+        let qi = map(self.private_data.iqmp())?;
 
         Ok(rsa::PrivateKeyComponents {
             d,

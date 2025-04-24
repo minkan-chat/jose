@@ -17,7 +17,11 @@ use super::backend::{
     },
     Backend,
 };
-use crate::{base64_url::Base64UrlBytes, crypto::Result, jwa, jwk, jws, Base64UrlString};
+use crate::{
+    base64_url::{Base64UrlBytes, SecretBase64UrlBytes},
+    crypto::Result,
+    jwa, jwk, jws, Base64UrlString,
+};
 
 const KTY: &str = "OKP";
 
@@ -236,7 +240,9 @@ impl<C: Curve> PartialEq for PrivateKey<C> {
 
 impl<C: Curve> fmt::Debug for PrivateKey<C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let bytes = Base64UrlString::encode(interface::okp::PrivateKey::to_bytes(&self.inner));
+        let pub_key = interface::okp::PrivateKey::to_public_key(&self.inner);
+        let bytes = Base64UrlString::encode(interface::okp::PublicKey::to_bytes(&pub_key));
+
         f.debug_struct("PrivateKey")
             .field("curve", &C::NAME)
             .field("x", &bytes)
@@ -279,7 +285,7 @@ impl<C: Curve> jwk::Thumbprint for PrivateKey<C> {
 struct PrivateRepr<'a> {
     #[serde(flatten)]
     public: PublicRepr<'a>,
-    d: Base64UrlBytes,
+    d: SecretBase64UrlBytes,
 }
 
 impl<'de, C: Curve> Deserialize<'de> for PrivateKey<C> {
@@ -311,7 +317,7 @@ impl<C: Curve> Serialize for PrivateKey<C> {
                 kty: KTY.into(),
                 x: Base64UrlBytes(interface::okp::PublicKey::to_bytes(&pub_key)),
             },
-            d: Base64UrlBytes(interface::okp::PrivateKey::to_bytes(&self.inner)),
+            d: SecretBase64UrlBytes(interface::okp::PrivateKey::to_bytes(&self.inner)),
         };
 
         repr.serialize(serializer)

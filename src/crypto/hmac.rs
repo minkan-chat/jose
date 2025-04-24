@@ -4,7 +4,7 @@
 
 use core::fmt;
 
-use secrecy::{ExposeSecret, SecretBox};
+use secrecy::{ExposeSecret, SecretSlice};
 use subtle::ConstantTimeEq as _;
 
 use super::{
@@ -58,7 +58,7 @@ impl fmt::Debug for Signature {
 pub struct Key<H: Variant> {
     inner: BackendHmacKey,
     // We also need to store the raw key, to be able to convert it to a JWK.
-    raw_key: SecretBox<[u8]>,
+    raw_key: SecretSlice<u8>,
     _variant: core::marker::PhantomData<H>,
 }
 
@@ -71,12 +71,12 @@ impl<H: Variant> Key<H> {
     pub fn generate() -> Result<Self> {
         let mut key = alloc::vec![0u8; H::OUTPUT_SIZE_BYTES].into_boxed_slice();
         Backend::fill_random(&mut key)?;
-        let key = SecretBox::new(key);
+        let key = SecretSlice::from(key);
 
         Self::new_from_key(key)
     }
 
-    fn new_from_key(key: SecretBox<[u8]>) -> Result<Self> {
+    fn new_from_key(key: SecretSlice<u8>) -> Result<Self> {
         let inner = BackendHmacKey::new(H::ALGORITHM, key.expose_secret())?;
         Ok(Self {
             inner,
@@ -144,6 +144,37 @@ impl<H: Variant> Signer<Signature> for Key<H> {
     }
 }
 
+impl<H: Variant> jwk::FromKey<OctetSequence> for Key<H> {
+    type Error = FromOctetSequenceError;
+
+    fn from_key(
+        key: OctetSequence,
+        alg: jwa::JsonWebAlgorithm,
+    ) -> core::result::Result<Self, Self::Error> {
+        match alg {
+            jwa::JsonWebAlgorithm::Signing(jwa::JsonWebSigningAlgorithm::Hmac(alg)) => {
+                if alg != H::ALGORITHM {
+                    return Err(FromOctetSequenceError::InvalidSigningAlgorithm(
+                        jws::InvalidSigningAlgorithmError,
+                    ));
+                }
+
+                // This check is not required for normal Hmac implementations based on RFC 2104
+                // but RFC 7518 section 3.2 requires this check and
+                // forbids keys with a length < output
+                if key.len() < H::OUTPUT_SIZE_BYTES {
+                    return Err(FromOctetSequenceError::InvalidLength);
+                }
+
+                Ok(Self::new_from_key(key.into_bytes())?)
+            }
+            _ => Err(FromOctetSequenceError::InvalidSigningAlgorithm(
+                jws::InvalidSigningAlgorithmError,
+            )),
+        }
+    }
+}
+
 impl<H: Variant> jwk::FromKey<&OctetSequence> for Key<H> {
     type Error = FromOctetSequenceError;
 
@@ -157,7 +188,7 @@ impl<H: Variant> jwk::FromKey<&OctetSequence> for Key<H> {
                 }
 
                 // This check is not required for normal Hmac implementations based on RFC 2104
-                // // but RFC 7518 section 3.2 requires this check and
+                // but RFC 7518 section 3.2 requires this check and
                 // forbids keys with a length < output
                 if key.len() < H::OUTPUT_SIZE_BYTES {
                     return Err(FromOctetSequenceError::InvalidLength);

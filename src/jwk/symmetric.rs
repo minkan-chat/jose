@@ -5,7 +5,7 @@ use alloc::string::String;
 use secrecy::{ExposeSecret, SecretBox};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use subtle::ConstantTimeEq;
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::Zeroize;
 
 use super::thumbprint::{self, Thumbprint};
 use crate::{base64_url::Base64UrlBytes, jws::InvalidSigningAlgorithmError};
@@ -48,7 +48,7 @@ impl Thumbprint for SymmetricJsonWebKey {
 /// [`IntoJsonWebKey`](crate::jwk::IntoJsonWebKey).
 ///
 /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4.1>
-#[derive(Debug, Clone, ZeroizeOnDrop, Zeroize)]
+#[derive(Debug, Clone, Zeroize)]
 pub struct OctetSequence(SecretBox<[u8]>);
 
 impl OctetSequence {
@@ -59,6 +59,11 @@ impl OctetSequence {
     /// Returns the bytes of this octet sequence.
     pub(crate) fn bytes(&self) -> &SecretBox<[u8]> {
         &self.0
+    }
+
+    /// Returns the bytes of this octet sequence.
+    pub(crate) fn into_bytes(self) -> SecretBox<[u8]> {
+        self.0
     }
 
     /// Returns the number of bytes that are in this octet sequence.

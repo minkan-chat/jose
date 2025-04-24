@@ -2,19 +2,18 @@
 
 use alloc::vec::Vec;
 
-use crate::{crypto::Result, jwa};
+use secrecy::SecretSlice;
 
-// TODO: implement `Zeroize` for the `PrivateKeyComponents` and make sure all
-// values are zeroized correctly
+use crate::{crypto::Result, jwa};
 
 /// Part of the [`PrivateKeyComponents`], which includes additional information
 /// about the prime numbers.
 pub(crate) struct PrivateKeyPrimeComponents {
-    pub p: Vec<u8>,
-    pub q: Vec<u8>,
-    pub dp: Vec<u8>,
-    pub dq: Vec<u8>,
-    pub qi: Vec<u8>,
+    pub p: SecretSlice<u8>,
+    pub q: SecretSlice<u8>,
+    pub dp: SecretSlice<u8>,
+    pub dq: SecretSlice<u8>,
+    pub qi: SecretSlice<u8>,
 }
 
 /// The components of a private key.
@@ -22,7 +21,7 @@ pub(crate) struct PrivateKeyPrimeComponents {
 /// All fields in this struct are of type `Vec<u8>` and are
 /// big integers represented in big endian bytes.
 pub(crate) struct PrivateKeyComponents {
-    pub d: Vec<u8>,
+    pub d: SecretSlice<u8>,
     pub prime: PrivateKeyPrimeComponents,
 }
 

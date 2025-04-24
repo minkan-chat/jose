@@ -2,6 +2,8 @@
 
 use alloc::vec::Vec;
 
+use secrecy::SecretSlice;
+
 use crate::crypto::Result;
 
 /// The common operations for a ED public key.
@@ -30,13 +32,13 @@ pub(crate) trait PrivateKey: Sized + Clone {
     fn generate(alg: CurveAlgorithm) -> Result<Self>;
 
     /// Creates a new private key from the given data.
-    fn new(alg: CurveAlgorithm, x: Vec<u8>, d: Vec<u8>) -> Result<Self>;
+    fn new(alg: CurveAlgorithm, x: Vec<u8>, d: SecretSlice<u8>) -> Result<Self>;
 
     /// Returns the public key that belongs to this private key.
     fn to_public_key(&self) -> Self::PublicKey;
 
     /// Returns the encoded bytes for this private key.
-    fn to_bytes(&self) -> Vec<u8>;
+    fn to_bytes(&self) -> SecretSlice<u8>;
 
     /// Signs the given data using this key.
     ///

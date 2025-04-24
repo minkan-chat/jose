@@ -2,7 +2,9 @@ use alloc::vec::Vec;
 
 use ed25519_dalek::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH};
 use rand_core::OsRng;
+use secrecy::{ExposeSecret, SecretSlice};
 use signature::Signer as _;
+use zeroize::Zeroizing;
 
 use crate::crypto::{backend::interface::okp, Result};
 
@@ -116,9 +118,11 @@ impl okp::PrivateKey for PrivateKey {
         Ok(Self { inner: key })
     }
 
-    fn new(alg: okp::CurveAlgorithm, _x: Vec<u8>, d: Vec<u8>) -> Result<Self> {
+    fn new(alg: okp::CurveAlgorithm, _x: Vec<u8>, d: SecretSlice<u8>) -> Result<Self> {
         let key = match alg {
             okp::CurveAlgorithm::Ed25519 => {
+                let d = d.expose_secret();
+
                 let len = d.len();
                 let d: [u8; SECRET_KEY_LENGTH] =
                     d.try_into()
@@ -126,6 +130,7 @@ impl okp::PrivateKey for PrivateKey {
                             expected: SECRET_KEY_LENGTH,
                             actual: len,
                         })?;
+
                 ErasedPrivateKey::Ed25519(ed25519_dalek::SigningKey::from_bytes(&d))
             }
             okp::CurveAlgorithm::Ed448 => {
@@ -136,9 +141,12 @@ impl okp::PrivateKey for PrivateKey {
         Ok(Self { inner: key })
     }
 
-    fn to_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> SecretSlice<u8> {
         match self.inner {
-            ErasedPrivateKey::Ed25519(ref key) => key.to_bytes().to_vec(),
+            ErasedPrivateKey::Ed25519(ref key) => {
+                let material = Zeroizing::new(key.to_bytes());
+                SecretSlice::from(material.to_vec())
+            }
         }
     }
 

@@ -2,7 +2,7 @@ use openssl::{
     pkey::{Id, PKey, Private, Public},
     sign::{Signer, Verifier},
 };
-use zeroize::Zeroizing;
+use secrecy::{ExposeSecret, SecretSlice};
 
 use crate::crypto::{backend::interface::okp, Result};
 
@@ -19,7 +19,7 @@ pub(crate) struct PrivateKey {
     key: PKey<Private>,
     public_key: PKey<Public>,
 
-    raw: Zeroizing<Vec<u8>>,
+    raw: SecretSlice<u8>,
     raw_public_key: Vec<u8>,
 }
 
@@ -37,21 +37,21 @@ impl okp::PrivateKey for PrivateKey {
         let public_key = PKey::public_key_from_raw_bytes(&raw_public_key, id_from_alg(alg))?;
 
         Ok(Self {
-            raw: Zeroizing::new(key.raw_private_key()?),
+            raw: SecretSlice::from(key.raw_private_key()?),
             public_key,
             key,
             raw_public_key,
         })
     }
 
-    fn new(alg: okp::CurveAlgorithm, x: Vec<u8>, d: Vec<u8>) -> Result<Self> {
+    fn new(alg: okp::CurveAlgorithm, x: Vec<u8>, d: SecretSlice<u8>) -> Result<Self> {
         let key_type = id_from_alg(alg);
 
-        let key = PKey::private_key_from_raw_bytes(&d, key_type)?;
+        let key = PKey::private_key_from_raw_bytes(d.expose_secret(), key_type)?;
         let public_key = PKey::public_key_from_raw_bytes(&x, key_type)?;
 
         Ok(Self {
-            raw: Zeroizing::new(key.raw_private_key()?),
+            raw: SecretSlice::from(key.raw_private_key()?),
             raw_public_key: public_key.raw_public_key()?,
             public_key,
             key,
@@ -59,8 +59,8 @@ impl okp::PrivateKey for PrivateKey {
     }
 
     #[inline]
-    fn to_bytes(&self) -> Vec<u8> {
-        (*self.raw).clone()
+    fn to_bytes(&self) -> SecretSlice<u8> {
+        self.raw.clone()
     }
 
     fn to_public_key(&self) -> Self::PublicKey {

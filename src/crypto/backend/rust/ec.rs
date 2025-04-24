@@ -3,14 +3,16 @@ use alloc::vec::Vec;
 use ecdsa::EncodedPoint;
 use elliptic_curve::{
     sec1::{FromEncodedPoint, ToEncodedPoint, ValidatePublicKey as _},
-    FieldBytes, FieldBytesSize, SecretKey,
+    FieldBytes, SecretKey,
 };
 use generic_array::typenum::Unsigned as _;
 use k256::Secp256k1;
 use p256::NistP256;
 use p384::NistP384;
 use rand_core::OsRng;
+use secrecy::{ExposeSecret as _, SecretSlice};
 use signature::{RandomizedSigner as _, Verifier as _};
+use zeroize::Zeroizing;
 
 use crate::{
     crypto::{backend::interface::ec, Result},
@@ -59,14 +61,16 @@ impl AsRef<[u8]> for ErasedSignature {
 }
 
 fn to_field_bytes<C: elliptic_curve::Curve>(
-    bytes: Vec<u8>,
-) -> Result<FieldBytes<C>, super::BackendError> {
-    let len = bytes.len();
+    bytes: &[u8],
+) -> Result<&FieldBytes<C>, super::BackendError> {
+    if bytes.len() != C::FieldBytesSize::USIZE {
+        return Err(super::BackendError::InvalidEcPoint {
+            expected: C::FieldBytesSize::USIZE,
+            actual: bytes.len(),
+        });
+    }
 
-    FieldBytes::<C>::from_exact_iter(bytes).ok_or(super::BackendError::InvalidEcPoint {
-        expected: FieldBytesSize::<C>::USIZE,
-        actual: len,
-    })
+    Ok(FieldBytes::<C>::from_slice(bytes))
 }
 
 /// A low level private EC key.
@@ -77,7 +81,6 @@ pub(crate) struct PrivateKey {
 }
 
 impl ec::PrivateKey for PrivateKey {
-    type PrivateKeyMaterial = Vec<u8>;
     type PublicKey = PublicKey;
     type Signature = ErasedSignature;
 
@@ -93,23 +96,25 @@ impl ec::PrivateKey for PrivateKey {
         Ok(Self { inner: key })
     }
 
-    fn new(alg: EcDSA, x: Vec<u8>, y: Vec<u8>, d: Vec<u8>) -> Result<Self> {
+    fn new(alg: EcDSA, x: Vec<u8>, y: Vec<u8>, d: SecretSlice<u8>) -> Result<Self> {
         fn new_typed<C: elliptic_curve::Curve + elliptic_curve::CurveArithmetic>(
             x: Vec<u8>,
             y: Vec<u8>,
-            d: Vec<u8>,
+            d: SecretSlice<u8>,
         ) -> Result<elliptic_curve::SecretKey<C>>
         where
             <C as elliptic_curve::Curve>::FieldBytesSize: elliptic_curve::sec1::ModulusSize,
             <C as elliptic_curve::CurveArithmetic>::AffinePoint: FromEncodedPoint<C>,
             <C as elliptic_curve::CurveArithmetic>::AffinePoint: ToEncodedPoint<C>,
         {
-            let x = to_field_bytes::<C>(x)?;
-            let y = to_field_bytes::<C>(y)?;
+            let x = to_field_bytes::<C>(&x)?;
+            let y = to_field_bytes::<C>(&y)?;
+
+            let d = d.expose_secret();
             let d = to_field_bytes::<C>(d)?;
 
-            let point = EncodedPoint::<C>::from_affine_coordinates(&x, &y, false);
-            let secret = elliptic_curve::SecretKey::<C>::from_bytes(&d)
+            let point = EncodedPoint::<C>::from_affine_coordinates(x, y, false);
+            let secret = elliptic_curve::SecretKey::<C>::from_bytes(d)
                 .map_err(super::BackendError::EllipticCurve)?;
 
             C::validate_public_key(&secret, &point).map_err(super::BackendError::EllipticCurve)?;
@@ -131,21 +136,28 @@ impl ec::PrivateKey for PrivateKey {
         }
     }
 
-    fn private_material(&self) -> Self::PrivateKeyMaterial {
+    fn private_material(&self) -> SecretSlice<u8> {
         match self.inner {
-            ErasedPrivateKey::P256(ref key) => key.to_bytes().to_vec(),
-            ErasedPrivateKey::P384(ref key) => key.to_bytes().to_vec(),
-            ErasedPrivateKey::Secp256k1(ref key) => key.to_bytes().to_vec(),
+            ErasedPrivateKey::P256(ref key) => {
+                let material = Zeroizing::new(key.to_bytes());
+                let material = material.to_vec();
+                SecretSlice::from(material)
+            }
+            ErasedPrivateKey::P384(ref key) => {
+                let material = Zeroizing::new(key.to_bytes());
+                let material = material.to_vec();
+                SecretSlice::from(material)
+            }
+            ErasedPrivateKey::Secp256k1(ref key) => {
+                let material = Zeroizing::new(key.to_bytes());
+                let material = material.to_vec();
+                SecretSlice::from(material)
+            }
         }
     }
 
     #[inline]
-    fn public_point(
-        &self,
-    ) -> (
-        <Self::PublicKey as ec::PublicKey>::Coordinate,
-        <Self::PublicKey as ec::PublicKey>::Coordinate,
-    ) {
+    fn public_point(&self) -> (Vec<u8>, Vec<u8>) {
         ec::PublicKey::to_point(&self.to_public_key())
     }
 
@@ -221,8 +233,6 @@ pub(crate) struct PublicKey {
 }
 
 impl ec::PublicKey for PublicKey {
-    type Coordinate = Vec<u8>;
-
     fn new(alg: EcDSA, x: Vec<u8>, y: Vec<u8>) -> Result<Self> {
         fn new_typed<C: elliptic_curve::Curve + elliptic_curve::CurveArithmetic>(
             x: Vec<u8>,
@@ -233,10 +243,10 @@ impl ec::PublicKey for PublicKey {
             <C as elliptic_curve::CurveArithmetic>::AffinePoint: FromEncodedPoint<C>,
             <C as elliptic_curve::CurveArithmetic>::AffinePoint: ToEncodedPoint<C>,
         {
-            let x = to_field_bytes::<C>(x)?;
-            let y = to_field_bytes::<C>(y)?;
+            let x = to_field_bytes::<C>(&x)?;
+            let y = to_field_bytes::<C>(&y)?;
 
-            let point = EncodedPoint::<C>::from_affine_coordinates(&x, &y, false);
+            let point = EncodedPoint::<C>::from_affine_coordinates(x, y, false);
             let key: Option<_> = elliptic_curve::PublicKey::<C>::from_encoded_point(&point).into();
             let key = key.ok_or(super::BackendError::InvalidEcKey)?;
             Ok(key)
@@ -256,7 +266,7 @@ impl ec::PublicKey for PublicKey {
         }
     }
 
-    fn to_point(&self) -> (Self::Coordinate, Self::Coordinate) {
+    fn to_point(&self) -> (Vec<u8>, Vec<u8>) {
         let identity_point = || alloc::vec![0u8];
         match self.inner {
             ErasedPublicKey::P256(ref key) => {

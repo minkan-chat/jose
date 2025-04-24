@@ -4,7 +4,9 @@ use ::rsa::{
     traits::{PrivateKeyParts, PublicKeyParts as _},
     BigUint, Pkcs1v15Sign, Pss, RsaPrivateKey, RsaPublicKey,
 };
+use secrecy::{ExposeSecret, SecretSlice};
 use sha2::Digest as _;
+use zeroize::Zeroizing;
 
 use crate::{
     crypto::{backend::interface::rsa, Result},
@@ -91,9 +93,12 @@ impl rsa::PrivateKey for PrivateKey {
     ) -> Result<Self> {
         let n = BigUint::from_bytes_be(&pu.n);
         let e = BigUint::from_bytes_be(&pu.e);
-        let d = BigUint::from_bytes_be(&pri.d);
-        let p = BigUint::from_bytes_be(&pri.prime.p);
-        let q = BigUint::from_bytes_be(&pri.prime.q);
+
+        let d = pri.d.expose_secret();
+        let d = BigUint::from_bytes_be(d);
+
+        let p = BigUint::from_bytes_be(pri.prime.p.expose_secret());
+        let q = BigUint::from_bytes_be(pri.prime.q.expose_secret());
 
         let mut key = RsaPrivateKey::from_components(n, e, d, alloc::vec![p, q])?;
         key.precompute()?;
@@ -101,36 +106,37 @@ impl rsa::PrivateKey for PrivateKey {
     }
 
     fn private_components(&self) -> Result<rsa::PrivateKeyComponents> {
-        let primes = self
-            .inner
-            .primes()
-            .iter()
-            .map(|b| b.to_bytes_be())
-            .collect::<Vec<_>>();
-        let [p, q]: [Vec<u8>; 2] = primes
-            .try_into()
-            .map_err(|_| super::BackendError::RsaTwoPrimes)?;
+        let mut primes = self.inner.primes().iter().map(|b| b.to_bytes_be());
+
+        let p = primes
+            .next()
+            .map(SecretSlice::from)
+            .ok_or(super::BackendError::RsaTwoPrimes)?;
+        let q = primes
+            .next()
+            .map(SecretSlice::from)
+            .ok_or(super::BackendError::RsaTwoPrimes)?;
+
+        if primes.next().is_some() {
+            return Err(super::BackendError::RsaTwoPrimes.into());
+        }
+
+        let opt_uint = |x: Option<&BigUint>| {
+            x.map(|x| SecretSlice::from(x.to_bytes_be()))
+                .expect("key must be precomputed")
+        };
 
         Ok(rsa::PrivateKeyComponents {
-            d: self.inner.d().to_bytes_be(),
+            d: SecretSlice::from(self.inner.d().to_bytes_be()),
             prime: rsa::PrivateKeyPrimeComponents {
                 p,
                 q,
-                dp: self
-                    .inner
-                    .dp()
-                    .expect("key must be precomputed")
-                    .to_bytes_be(),
-                dq: self
-                    .inner
-                    .dq()
-                    .expect("key must be precomputed")
-                    .to_bytes_be(),
-                qi: self
-                    .inner
-                    .crt_coefficient()
-                    .expect("key must be precomputed")
-                    .to_bytes_be(),
+                dp: opt_uint(self.inner.dp()),
+                dq: opt_uint(self.inner.dq()),
+                qi: {
+                    let qi = Zeroizing::new(self.inner.crt_coefficient());
+                    opt_uint(qi.as_ref())
+                },
             },
         })
     }

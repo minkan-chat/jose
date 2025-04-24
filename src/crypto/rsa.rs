@@ -15,7 +15,7 @@ use super::backend::{
     Backend,
 };
 use crate::{
-    base64_url::Base64UrlBytes,
+    base64_url::{Base64UrlBytes, SecretBase64UrlBytes},
     crypto::Result,
     jwa::{self, RsaSigning},
     jwk::{self, FromKey, IntoJsonWebKey},
@@ -259,12 +259,12 @@ impl Serialize for PrivateKey {
             n: Base64UrlBytes,
             e: Base64UrlBytes,
 
-            d: Base64UrlBytes,
-            p: Base64UrlBytes,
-            q: Base64UrlBytes,
-            dp: Base64UrlBytes,
-            dq: Base64UrlBytes,
-            qi: Base64UrlBytes,
+            d: SecretBase64UrlBytes,
+            p: SecretBase64UrlBytes,
+            q: SecretBase64UrlBytes,
+            dp: SecretBase64UrlBytes,
+            dq: SecretBase64UrlBytes,
+            qi: SecretBase64UrlBytes,
         }
 
         let pub_key = rsa::PrivateKey::public_components(&self.inner);
@@ -274,12 +274,12 @@ impl Serialize for PrivateKey {
             kty: "RSA",
             n: Base64UrlBytes(pub_key.n),
             e: Base64UrlBytes(pub_key.e),
-            d: Base64UrlBytes(key.d),
-            p: Base64UrlBytes(key.prime.p),
-            q: Base64UrlBytes(key.prime.q),
-            dp: Base64UrlBytes(key.prime.dp),
-            dq: Base64UrlBytes(key.prime.dq),
-            qi: Base64UrlBytes(key.prime.qi),
+            d: SecretBase64UrlBytes(key.d),
+            p: SecretBase64UrlBytes(key.prime.p),
+            q: SecretBase64UrlBytes(key.prime.q),
+            dp: SecretBase64UrlBytes(key.prime.dp),
+            dq: SecretBase64UrlBytes(key.prime.dq),
+            qi: SecretBase64UrlBytes(key.prime.qi),
         };
 
         repr.serialize(serializer)
@@ -297,13 +297,13 @@ impl<'de> Deserialize<'de> for PrivateKey {
 
             n: Base64UrlBytes,
             e: Base64UrlBytes,
-            d: Base64UrlBytes,
+            d: SecretBase64UrlBytes,
 
-            p: Option<Base64UrlBytes>,
-            q: Option<Base64UrlBytes>,
-            dp: Option<Base64UrlBytes>,
-            dq: Option<Base64UrlBytes>,
-            qi: Option<Base64UrlBytes>,
+            p: Option<SecretBase64UrlBytes>,
+            q: Option<SecretBase64UrlBytes>,
+            dp: Option<SecretBase64UrlBytes>,
+            dq: Option<SecretBase64UrlBytes>,
+            qi: Option<SecretBase64UrlBytes>,
 
             oth: Option<serde_json::Value>,
         }

@@ -5,6 +5,8 @@
 
 use alloc::vec::Vec;
 
+use secrecy::SecretSlice;
+
 use super::interface;
 use crate::crypto::Result;
 
@@ -49,11 +51,10 @@ pub(crate) struct DummyKey {
 }
 
 impl interface::ec::PrivateKey for DummyKey {
-    type PrivateKeyMaterial = Vec<u8>;
     type PublicKey = DummyKey;
     type Signature = Vec<u8>;
 
-    fn new(_alg: crate::jwa::EcDSA, _x: Vec<u8>, _y: Vec<u8>, _d: Vec<u8>) -> Result<Self> {
+    fn new(_alg: crate::jwa::EcDSA, _x: Vec<u8>, _y: Vec<u8>, _d: SecretSlice<u8>) -> Result<Self> {
         Err(Error.into())
     }
 
@@ -61,16 +62,11 @@ impl interface::ec::PrivateKey for DummyKey {
         Err(Error.into())
     }
 
-    fn private_material(&self) -> Self::PrivateKeyMaterial {
+    fn private_material(&self) -> SecretSlice<u8> {
         unreachable!()
     }
 
-    fn public_point(
-        &self,
-    ) -> (
-        <Self::PublicKey as interface::ec::PublicKey>::Coordinate,
-        <Self::PublicKey as interface::ec::PublicKey>::Coordinate,
-    ) {
+    fn public_point(&self) -> (Vec<u8>, Vec<u8>) {
         unreachable!()
     }
 
@@ -84,13 +80,11 @@ impl interface::ec::PrivateKey for DummyKey {
 }
 
 impl interface::ec::PublicKey for DummyKey {
-    type Coordinate = Vec<u8>;
-
     fn new(_: crate::jwa::EcDSA, _: Vec<u8>, _: Vec<u8>) -> Result<Self> {
         Err(Error.into())
     }
 
-    fn to_point(&self) -> (Self::Coordinate, Self::Coordinate) {
+    fn to_point(&self) -> (Vec<u8>, Vec<u8>) {
         unreachable!()
     }
 
@@ -107,7 +101,7 @@ impl interface::okp::PrivateKey for DummyKey {
         Err(Error.into())
     }
 
-    fn new(_: interface::okp::CurveAlgorithm, _: Vec<u8>, _: Vec<u8>) -> Result<Self> {
+    fn new(_: interface::okp::CurveAlgorithm, _: Vec<u8>, _: SecretSlice<u8>) -> Result<Self> {
         Err(Error.into())
     }
 
@@ -115,7 +109,7 @@ impl interface::okp::PrivateKey for DummyKey {
         unreachable!()
     }
 
-    fn to_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> SecretSlice<u8> {
         unreachable!()
     }
 

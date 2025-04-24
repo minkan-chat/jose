@@ -22,7 +22,7 @@ categories = [
 ]
 
 [features]
-default = ["crypto-rustcrypto"]
+default = []
 std = [
   "thiserror/std",
   "fluent-uri/std",
@@ -36,7 +36,6 @@ crypto-rustcrypto = [
     "dep:rand_core",
     "dep:hmac",
     "dep:sha2",
-    "dep:ed25519",
     "dep:p256",
     "dep:p384",
     "dep:k256",
@@ -74,7 +73,6 @@ cfg-if = "1.0.0"
 rand_core = { optional = true, version = "0.6", features = ["getrandom", "alloc"] }
 hmac = { optional = true, version = "0.12", default-features = false }
 sha2 = { optional = true, version = "0.10", default-features = false, features = ["oid"] }
-ed25519 = { optional = true, version = "2.2.1", default-features = false, features = ["alloc"] }
 p256 = { optional = true, version = "0.13", default-features = false, features = [
   "arithmetic",
   "ecdsa",

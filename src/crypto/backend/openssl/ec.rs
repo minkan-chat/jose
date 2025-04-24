@@ -11,6 +11,7 @@ use openssl::{
     pkey_ctx::NonceType,
     sign::Verifier,
 };
+use secrecy::{ExposeSecret, SecretSlice};
 
 use crate::{
     crypto::{backend::interface::ec, Result},
@@ -51,7 +52,6 @@ pub(crate) struct PrivateKey {
 }
 
 impl ec::PrivateKey for PrivateKey {
-    type PrivateKeyMaterial = Vec<u8>;
     type PublicKey = PublicKey;
     type Signature = Vec<u8>;
 
@@ -79,10 +79,10 @@ impl ec::PrivateKey for PrivateKey {
         })
     }
 
-    fn new(alg: EcDSA, x: Vec<u8>, y: Vec<u8>, d: Vec<u8>) -> Result<Self> {
+    fn new(alg: EcDSA, x: Vec<u8>, y: Vec<u8>, d: SecretSlice<u8>) -> Result<Self> {
         let group = ec_group(alg)?;
 
-        let d = BigNum::from_slice(&d)?;
+        let d = BigNum::from_slice(d.expose_secret())?;
         let x = BigNum::from_slice(&x)?;
         let y = BigNum::from_slice(&y)?;
 
@@ -102,17 +102,12 @@ impl ec::PrivateKey for PrivateKey {
         })
     }
 
-    fn private_material(&self) -> Self::PrivateKeyMaterial {
-        self.data.private_key().to_vec()
+    fn private_material(&self) -> SecretSlice<u8> {
+        SecretSlice::from(self.data.private_key().to_vec())
     }
 
     #[inline]
-    fn public_point(
-        &self,
-    ) -> (
-        <Self::PublicKey as ec::PublicKey>::Coordinate,
-        <Self::PublicKey as ec::PublicKey>::Coordinate,
-    ) {
+    fn public_point(&self) -> (Vec<u8>, Vec<u8>) {
         (self.x.clone(), self.y.clone())
     }
 
@@ -171,8 +166,6 @@ pub(crate) struct PublicKey {
 }
 
 impl ec::PublicKey for PublicKey {
-    type Coordinate = Vec<u8>;
-
     fn new(alg: EcDSA, x: Vec<u8>, y: Vec<u8>) -> Result<Self> {
         let group = ec_group(alg)?;
 
@@ -191,7 +184,7 @@ impl ec::PublicKey for PublicKey {
         })
     }
 
-    fn to_point(&self) -> (Self::Coordinate, Self::Coordinate) {
+    fn to_point(&self) -> (Vec<u8>, Vec<u8>) {
         (self.x.clone(), self.y.clone())
     }
 
