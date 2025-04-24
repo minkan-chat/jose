@@ -8,6 +8,8 @@
 
     openssl
     pkg-config
+    cmake
+    rustPlatform.bindgenHook
   ];
 
   enterTest = ''

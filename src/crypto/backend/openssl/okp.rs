@@ -6,11 +6,16 @@ use secrecy::{ExposeSecret, SecretSlice};
 
 use crate::crypto::{backend::interface::okp, Result};
 
-fn id_from_alg(alg: okp::CurveAlgorithm) -> Id {
-    match alg {
+fn id_from_alg(alg: okp::CurveAlgorithm) -> Result<Id> {
+    Ok(match alg {
         okp::CurveAlgorithm::Ed25519 => Id::ED25519,
+        #[cfg(not(feature = "crypto-aws-lc"))]
         okp::CurveAlgorithm::Ed448 => Id::ED448,
-    }
+        #[cfg(feature = "crypto-aws-lc")]
+        okp::CurveAlgorithm::Ed448 => {
+            return Err(super::BackendError::Unsupported("Ed448".to_string()).into())
+        }
+    })
 }
 
 /// A low level private ED key.
@@ -30,11 +35,16 @@ impl okp::PrivateKey for PrivateKey {
     fn generate(alg: okp::CurveAlgorithm) -> Result<Self> {
         let key = match alg {
             okp::CurveAlgorithm::Ed25519 => PKey::generate_ed25519()?,
+            #[cfg(not(feature = "crypto-aws-lc"))]
             okp::CurveAlgorithm::Ed448 => PKey::generate_ed448()?,
+            #[cfg(feature = "crypto-aws-lc")]
+            okp::CurveAlgorithm::Ed448 => {
+                return Err(super::BackendError::Unsupported("Ed448".to_string()).into())
+            }
         };
 
         let raw_public_key = key.raw_public_key()?;
-        let public_key = PKey::public_key_from_raw_bytes(&raw_public_key, id_from_alg(alg))?;
+        let public_key = PKey::public_key_from_raw_bytes(&raw_public_key, id_from_alg(alg)?)?;
 
         Ok(Self {
             raw: SecretSlice::from(key.raw_private_key()?),
@@ -45,7 +55,7 @@ impl okp::PrivateKey for PrivateKey {
     }
 
     fn new(alg: okp::CurveAlgorithm, x: Vec<u8>, d: SecretSlice<u8>) -> Result<Self> {
-        let key_type = id_from_alg(alg);
+        let key_type = id_from_alg(alg)?;
 
         let key = PKey::private_key_from_raw_bytes(d.expose_secret(), key_type)?;
         let public_key = PKey::public_key_from_raw_bytes(&x, key_type)?;
@@ -87,7 +97,7 @@ pub(crate) struct PublicKey {
 
 impl okp::PublicKey for PublicKey {
     fn new(alg: okp::CurveAlgorithm, x: Vec<u8>) -> Result<Self> {
-        let key_type = id_from_alg(alg);
+        let key_type = id_from_alg(alg)?;
         let key = PKey::public_key_from_raw_bytes(&x, key_type)?;
 
         Ok(Self {

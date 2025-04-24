@@ -8,7 +8,6 @@ use openssl::{
     md::Md,
     md_ctx::MdCtx,
     pkey::{PKey, Private, Public},
-    pkey_ctx::NonceType,
     sign::Verifier,
 };
 use secrecy::{ExposeSecret, SecretSlice};
@@ -130,11 +129,21 @@ impl ec::PrivateKey for PrivateKey {
             EcDSA::Es256K => Md::sha256(),
         };
 
+        #[allow(unused_variables)]
         let pkey_ctx = md_ctx.digest_sign_init(Some(md), &self.key)?;
+
         if deterministic {
-            pkey_ctx.set_nonce_type(NonceType::DETERMINISTIC_K)?;
+            #[cfg(not(feature = "crypto-aws-lc"))]
+            pkey_ctx.set_nonce_type(openssl::pkey_ctx::NonceType::DETERMINISTIC_K)?;
+
+            #[cfg(feature = "crypto-aws-lc")]
+            return Err(super::BackendError::Unsupported(
+                "deterministic signing for EcDSA".to_string(),
+            )
+            .into());
         } else {
-            pkey_ctx.set_nonce_type(NonceType::RANDOM_K)?;
+            #[cfg(not(feature = "crypto-aws-lc"))]
+            pkey_ctx.set_nonce_type(openssl::pkey_ctx::NonceType::RANDOM_K)?;
         }
 
         md_ctx.digest_update(data)?;

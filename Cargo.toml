@@ -49,6 +49,7 @@ crypto-rustcrypto = [
 ]
 crypto-openssl = ["std", "dep:openssl", "dep:openssl-sys"]
 crypto-openssl-vendored = ["crypto-openssl", "openssl/vendored"]
+crypto-aws-lc = ["crypto-openssl", "openssl/aws-lc"]
 
 [dependencies]
 base64ct = { version = "1.5", default-features = false, features = ["alloc"] }

@@ -11,6 +11,7 @@ pub(crate) mod hmac;
 pub(crate) mod okp;
 pub(crate) mod rsa;
 
+#[allow(dead_code)] // may occurr when selecting different OpenSSL variant
 #[derive(Debug, Error)]
 pub(crate) enum BackendError {
     /// An error from the OpenSSL library.
@@ -20,6 +21,10 @@ pub(crate) enum BackendError {
     /// No prime data was found in private key
     #[error("No prime data was found in private key")]
     NoPrimeData,
+
+    /// A specific feature is not supported
+    #[error("openssl variant does not support feature: {0}")]
+    Unsupported(String),
 }
 
 /// The [RustCrypto] based backend.

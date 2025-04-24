@@ -8,12 +8,11 @@ use std::{convert::Infallible, str::FromStr};
 use jose::{
     crypto::{
         self,
-        ec::{P256PrivateKey, P256Signer, P256Verifier},
         okp::{Ed25519PrivateKey, Ed25519PublicKey, Ed25519Signer, Ed25519Verifier},
     },
     format::{Compact, JsonFlattened, JsonGeneral},
     header::HeaderValue,
-    jwa::{EcDSA, JsonWebSigningAlgorithm},
+    jwa::JsonWebSigningAlgorithm,
     jwk::{JwkSigner, JwkVerifier},
     jws::{
         FromRawPayload, IntoPayload, IntoSigner, IntoVerifier, ManyUnverified, PayloadData,
@@ -130,8 +129,14 @@ fn none_verifier_roundtrip() {
     assert_eq!(parsed_jws.payload(), &StringPayload::from("abc"));
 }
 
+#[cfg(not(feature = "crypto-aws-lc"))] // TODO: remove deterministic flag from this test
 #[test]
 fn detached_payload_with_context() {
+    use jose::{
+        crypto::ec::{P256PrivateKey, P256Signer, P256Verifier},
+        jwa::EcDSA,
+    };
+
     #[derive(Debug)]
     struct MyPayload(String);
 
@@ -219,8 +224,14 @@ fn detached_payload_with_context() {
         .unwrap_err();
 }
 
+#[cfg(not(feature = "crypto-aws-lc"))] // TODO: remove deterministic flag from this test
 #[test]
 fn sign_jws_using_p256() {
+    use jose::{
+        crypto::ec::{P256PrivateKey, P256Signer},
+        jwa::EcDSA,
+    };
+
     let key = std::fs::read_to_string(format!(
         "{}/tests/keys/p256.json",
         env!("CARGO_MANIFEST_DIR"),
