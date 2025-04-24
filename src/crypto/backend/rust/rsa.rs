@@ -38,7 +38,7 @@ impl rsa::PrivateKey for PrivateKey {
             }
         };
 
-        let mut rng = rand::rngs::OsRng;
+        let mut rng = rand_core::OsRng;
 
         let res = match alg {
             RsaSigning::Pss(pss) => match pss {

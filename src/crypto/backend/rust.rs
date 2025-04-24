@@ -2,7 +2,10 @@
 //!
 //! [RustCrypto]: https://github.com/RustCrypto
 
-use rand::RngCore as _;
+use alloc::vec::Vec;
+
+use digest::Digest as _;
+use rand_core::RngCore as _;
 use thiserror::Error;
 
 use super::interface;
@@ -88,5 +91,17 @@ impl interface::Backend for Backend {
 
         OsRng.fill_bytes(buf);
         Ok(())
+    }
+
+    fn sha256(data: &[u8]) -> Vec<u8> {
+        sha2::Sha256::digest(data).to_vec()
+    }
+
+    fn sha384(data: &[u8]) -> Vec<u8> {
+        sha2::Sha384::digest(data).to_vec()
+    }
+
+    fn sha512(data: &[u8]) -> Vec<u8> {
+        sha2::Sha512::digest(data).to_vec()
     }
 }

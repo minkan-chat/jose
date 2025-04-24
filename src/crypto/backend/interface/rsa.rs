@@ -5,6 +5,9 @@ use core::fmt;
 
 use crate::{crypto::Result, jwa};
 
+// note: the `unused` lints can happen if one of the backends doesn't use all
+// variables
+
 /// Part of the [`PrivateKeyComponents`], which includes additional information
 /// about the prime numbers.
 #[expect(unused)]
@@ -20,6 +23,7 @@ pub(crate) struct PrivateKeyPrimeComponents {
 ///
 /// All fields in this struct are of type `Vec<u8>` and are
 /// big integers represented in big endian bytes.
+#[allow(unused)]
 pub(crate) struct PrivateKeyComponents {
     pub public: PublicKeyComponents,
     pub d: Vec<u8>,
@@ -30,6 +34,7 @@ pub(crate) struct PrivateKeyComponents {
 ///
 /// All fields in this struct are of type `Vec<u8>` and are
 /// big integers represented in big endian bytes.
+#[allow(unused)]
 pub(crate) struct PublicKeyComponents {
     pub n: Vec<u8>,
     pub e: Vec<u8>,

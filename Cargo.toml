@@ -32,6 +32,22 @@ std = [
   "serde_json/std",
   "elliptic-curve/std",
 ]
+crypto-rustcrypto = [
+    "dep:rand_core",
+    "dep:hmac",
+    "dep:sha2",
+    "dep:ed25519",
+    "dep:p256",
+    "dep:p384",
+    "dep:k256",
+    "dep:elliptic-curve",
+    "dep:rsa",
+    "dep:digest",
+    "dep:ecdsa",
+    "dep:ed25519-dalek",
+    "dep:generic-array",
+    "dep:signature",
+]
 
 [dependencies]
 base64ct = { version = "1.5", default-features = false, features = ["alloc"] }
@@ -41,58 +57,8 @@ serde = { version = "1", default-features = false, features = [
 ] }
 serde_json = { version = "1", default-features = false, features = ["alloc"] }
 hashbrown = { version = "0.15", features = ["serde"] }
-rand_core = { version = "0.6", features = ["getrandom", "alloc"] }
-rand = "0.8.5"
-hmac = { version = "0.12", default-features = false }
-sha2 = { version = "0.10", default-features = false, features = ["oid"] }
-ed25519 = { version = "2.2.1", default-features = false, features = ["alloc"] }
-p256 = { version = "0.13", default-features = false, features = [
-  "arithmetic",
-  "ecdsa",
-] }
-p384 = { version = "0.13", default-features = false, features = [
-  "arithmetic",
-  "ecdsa",
-] }
-k256 = { version = "0.13", default-features = false, features = [
-  "arithmetic",
-  "ecdsa",
-] }
-elliptic-curve = { version = "0.13", default-features = false, features = [
-  "arithmetic",
-  "jwk",
-  "serde",
-  "sec1",
-  "pkcs8",
-  "pem",
-] }
 
-rsa = { version = "0.9", default-features = false }
-digest = { version = "0.10.7", default-features = false, features = ["mac"] }
-ecdsa = { version = "0.16", default-features = false, features = [
-  "digest",
-  "signing",
-  "verifying",
-  "alloc",
-] }
-
-ed25519-dalek = { version = "2", default-features = false, features = [
-  "zeroize",
-  "rand_core",
-] }
-
-signature = { version = "2.1.0", default-features = false }
-# FIXME: remove this when we can use const generics
-generic-array = { version = "0.14", default-features = false, features = [
-  "serde",
-] }
-
-num-traits = { version = "0.2.15", default-features = false }
-num-bigint-dig = { version = "0.8.1", default-features = false, features = [
-  "u64_digit",
-] }
 serde-value = { version = "0.7.0", default-features = false }
-
 # a replacement for the `mime` crate from hyper which seems to be no longer maintained
 mediatype = { version = "0.19.3", features = ["serde"] }
 fluent-uri = { version = "0.3.2", default-features = false }
@@ -100,10 +66,52 @@ secrecy = { version = "0.10.3", default-features = false, features = ["serde"] }
 zeroize = { version = "1.8.1", default-features = false, features = ["derive", "serde"] }
 subtle = "2.6.1"
 thiserror = { version = "2.0.12", default-features = false }
+cfg-if = "1.0.0"
+
+# RustCrypto backend
+rand_core = { optional = true, version = "0.6", features = ["getrandom", "alloc"] }
+hmac = { optional = true, version = "0.12", default-features = false }
+sha2 = { optional = true, version = "0.10", default-features = false, features = ["oid"] }
+ed25519 = { optional = true, version = "2.2.1", default-features = false, features = ["alloc"] }
+p256 = { optional = true, version = "0.13", default-features = false, features = [
+  "arithmetic",
+  "ecdsa",
+] }
+p384 = { optional = true, version = "0.13", default-features = false, features = [
+  "arithmetic",
+  "ecdsa",
+] }
+k256 = { optional = true, version = "0.13", default-features = false, features = [
+  "arithmetic",
+  "ecdsa",
+] }
+elliptic-curve = { optional = true, version = "0.13", default-features = false, features = [
+  "arithmetic",
+  "jwk",
+  "serde",
+  "sec1",
+  "pkcs8",
+  "pem",
+] }
+rsa = { optional = true, version = "0.9", default-features = false }
+digest = { optional = true, version = "0.10.7", default-features = false, features = ["mac"] }
+ecdsa = { optional = true, version = "0.16", default-features = false, features = [
+  "digest",
+  "signing",
+  "verifying",
+  "alloc",
+] }
+ed25519-dalek = { optional = true, version = "2", default-features = false, features = [
+  "zeroize",
+  "rand_core",
+] }
+# FIXME: remove this when we can use const generics
+generic-array = { optional = true, version = "0.14", default-features = false, features = [
+  "serde",
+] }
+signature = { optional = true, version = "2.1.0", default-features = false }
 
 [dev-dependencies]
-rand = "0.8.5"
-
 # For examples
 eyre = "0.6.12"
 clap = { version = "4.5.27", features = ["derive"] }

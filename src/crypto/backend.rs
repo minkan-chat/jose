@@ -2,5 +2,12 @@
 
 pub(super) mod interface;
 
-mod rust;
-pub(crate) use rust::*;
+cfg_if::cfg_if! {
+    if #[cfg(feature = "crypto-rustcrypto")] {
+        mod rust;
+        pub(crate) use rust::*;
+    } else {
+        mod dummy;
+        pub(crate) use dummy::*;
+    }
+}

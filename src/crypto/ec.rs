@@ -101,7 +101,7 @@ impl AsRef<[u8]> for Signature {
 
 impl fmt::Debug for Signature {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(self.inner.as_ref(), f)
+        fmt::Debug::fmt(AsRef::<[u8]>::as_ref(&self.inner), f)
     }
 }
 

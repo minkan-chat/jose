@@ -11,6 +11,7 @@ pub mod hmac;
 pub mod okp;
 pub mod rsa;
 
+use alloc::vec::Vec;
 use core::{error, fmt};
 
 use backend::interface;
@@ -59,4 +60,29 @@ where
             inner: <Backend as interface::Backend>::Error::from(err),
         }
     }
+}
+
+/// Fills the given buffer with random data.
+#[inline]
+#[expect(unused)] // may be used in the future
+pub(crate) fn fill_random(buf: &mut [u8]) -> Result<()> {
+    <Backend as interface::Backend>::fill_random(buf).map_err(|e| Error { inner: e })
+}
+
+/// Performs a quick Sha256 of the given data.
+#[inline]
+pub(crate) fn sha256(data: &[u8]) -> Vec<u8> {
+    <Backend as interface::Backend>::sha256(data)
+}
+
+/// Performs a quick Sha384 of the given data.
+#[inline]
+pub(crate) fn sha384(data: &[u8]) -> Vec<u8> {
+    <Backend as interface::Backend>::sha384(data)
+}
+
+/// Performs a quick Sha512 of the given data.
+#[inline]
+pub(crate) fn sha512(data: &[u8]) -> Vec<u8> {
+    <Backend as interface::Backend>::sha512(data)
 }

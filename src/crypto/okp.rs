@@ -80,7 +80,7 @@ impl AsRef<[u8]> for Signature {
 
 impl fmt::Debug for Signature {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(self.inner.as_ref(), f)
+        fmt::Debug::fmt(AsRef::<[u8]>::as_ref(&self.inner), f)
     }
 }
 
@@ -97,13 +97,14 @@ pub struct PublicKey<C> {
 impl<C: Curve> Eq for PublicKey<C> {}
 impl<C: Curve> PartialEq for PublicKey<C> {
     fn eq(&self, other: &Self) -> bool {
-        self.inner.to_bytes() == other.inner.to_bytes()
+        interface::okp::PublicKey::to_bytes(&self.inner)
+            == interface::okp::PublicKey::to_bytes(&other.inner)
     }
 }
 
 impl<C: Curve> fmt::Debug for PublicKey<C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let bytes = Base64UrlString::encode(self.inner.to_bytes());
+        let bytes = Base64UrlString::encode(interface::okp::PublicKey::to_bytes(&self.inner));
         f.debug_struct("PublicKey")
             .field("curve", &C::NAME)
             .field("x", &bytes)
@@ -170,7 +171,8 @@ impl<'de, C: Curve> Deserialize<'de> for PublicKey<C> {
             )));
         }
 
-        let key = BackendPublicKey::new(C::ALGORITHM, repr.x.0).map_err(D::Error::custom)?;
+        let key =
+            interface::okp::PublicKey::new(C::ALGORITHM, repr.x.0).map_err(D::Error::custom)?;
         Ok(Self {
             inner: key,
             _curve: PhantomData,
@@ -186,7 +188,7 @@ impl<C: Curve> Serialize for PublicKey<C> {
         let repr = PublicRepr {
             crv: C::NAME.into(),
             kty: KTY.into(),
-            x: Base64UrlBytes(self.inner.to_bytes()),
+            x: Base64UrlBytes(interface::okp::PublicKey::to_bytes(&self.inner)),
         };
 
         repr.serialize(serializer)
@@ -234,7 +236,7 @@ impl<C: Curve> PartialEq for PrivateKey<C> {
 
 impl<C: Curve> fmt::Debug for PrivateKey<C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let bytes = Base64UrlString::encode(self.inner.to_bytes());
+        let bytes = Base64UrlString::encode(interface::okp::PrivateKey::to_bytes(&self.inner));
         f.debug_struct("PrivateKey")
             .field("curve", &C::NAME)
             .field("x", &bytes)
@@ -287,7 +289,7 @@ impl<'de, C: Curve> Deserialize<'de> for PrivateKey<C> {
     {
         let repr = PrivateRepr::deserialize(deserializer)?;
 
-        let key = BackendPrivateKey::new(C::ALGORITHM, repr.public.x.0, repr.d.0)
+        let key = interface::okp::PrivateKey::new(C::ALGORITHM, repr.public.x.0, repr.d.0)
             .map_err(D::Error::custom)?;
 
         Ok(Self {
@@ -307,9 +309,9 @@ impl<C: Curve> Serialize for PrivateKey<C> {
             public: PublicRepr {
                 crv: C::NAME.into(),
                 kty: KTY.into(),
-                x: Base64UrlBytes(pub_key.to_bytes()),
+                x: Base64UrlBytes(interface::okp::PublicKey::to_bytes(&pub_key)),
             },
-            d: Base64UrlBytes(self.inner.to_bytes()),
+            d: Base64UrlBytes(interface::okp::PrivateKey::to_bytes(&self.inner)),
         };
 
         repr.serialize(serializer)

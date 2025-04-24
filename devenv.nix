@@ -4,6 +4,7 @@
     step-cli
     cargo-deny
     cargo-shear
+    cargo-udeps
   ];
 
   enterTest = ''

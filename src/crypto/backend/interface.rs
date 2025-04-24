@@ -5,6 +5,7 @@
 // is the rsa interface, which returns the primes and private components
 // without any protection
 
+use alloc::vec::Vec;
 use core::{error, fmt};
 
 pub(crate) mod ec;
@@ -43,4 +44,13 @@ pub(crate) trait Backend {
 
     /// Fills the given buffer with random data.
     fn fill_random(buf: &mut [u8]) -> Result<(), Self::Error>;
+
+    /// Performs a quick Sha256 of the given data.
+    fn sha256(data: &[u8]) -> Vec<u8>;
+
+    /// Performs a quick Sha384 of the given data.
+    fn sha384(data: &[u8]) -> Vec<u8>;
+
+    /// Performs a quick Sha512 of the given data.
+    fn sha512(data: &[u8]) -> Vec<u8>;
 }
