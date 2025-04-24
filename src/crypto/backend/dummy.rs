@@ -78,7 +78,7 @@ impl interface::ec::PrivateKey for DummyKey {
         unreachable!()
     }
 
-    fn sign(&mut self, _: &[u8]) -> Result<Self::Signature> {
+    fn sign(&mut self, _: &[u8], _: bool) -> Result<Self::Signature> {
         unreachable!()
     }
 }
