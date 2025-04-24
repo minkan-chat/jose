@@ -56,6 +56,9 @@ pub(crate) enum BackendError {
     /// The curve type is not supported by this backend.
     #[error("curve '{0}' not supported by this backend")]
     CurveNotSupported(&'static str),
+
+    #[error("RSA key expected to have exactly 2 prime numbers")]
+    RsaTwoPrimes,
 }
 
 impl From<digest::InvalidLength> for BackendError {

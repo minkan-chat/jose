@@ -5,6 +5,9 @@
     cargo-deny
     cargo-shear
     cargo-udeps
+
+    openssl
+    pkg-config
   ];
 
   enterTest = ''

@@ -37,7 +37,7 @@ pub trait Verifier {
     ///
     /// # Errors
     ///
-    /// Returns [`signature::Error`] if anything went wrong during signature
+    /// Returns [`VerifyError`] if anything went wrong during signature
     /// verification or if the signature is just invalid.
     fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<(), VerifyError>;
 }
@@ -88,7 +88,7 @@ impl<T> Unverified<T> {
     ///
     /// # Errors
     ///
-    /// Returns [`signature::Error`] if anything went wrong during signature
+    /// Returns [`VerifyError`] if anything went wrong during signature
     /// verification or if the signature is just invalid.
     pub fn verify(self, verifier: &mut dyn Verifier) -> Result<Verified<T>, VerifyError> {
         verifier.verify(&self.msg, &self.signature)?;

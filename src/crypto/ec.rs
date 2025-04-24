@@ -367,6 +367,17 @@ impl<C: Curve> Serialize for PrivateKey<C> {
 /// The [`Signer`](jws::Signer) for EC keys.
 pub struct Signer<C> {
     inner: PrivateKey<C>,
+    deterministic: bool,
+}
+
+impl<C: Curve> Signer<C> {
+    /// Makes the sign operation of this EcDSA signer deterministic.
+    ///
+    /// This enables deterministic signature values, according to [RFC 6979](https://www.rfc-editor.org/rfc/rfc6979).
+    pub fn deterministic(mut self, deterministic: bool) -> Self {
+        self.deterministic = deterministic;
+        self
+    }
 }
 
 impl<C: Curve> fmt::Debug for Signer<C> {
@@ -377,7 +388,7 @@ impl<C: Curve> fmt::Debug for Signer<C> {
 
 impl<C: Curve> jws::Signer<Signature> for Signer<C> {
     fn sign(&mut self, msg: &[u8]) -> Result<Signature> {
-        let sig = self.inner.inner.sign(msg)?;
+        let sig = self.inner.inner.sign(msg, self.deterministic)?;
         Ok(Signature { inner: sig })
     }
 
@@ -394,7 +405,10 @@ impl<C: Curve> jwk::FromKey<PrivateKey<C>> for Signer<C> {
             jwa::JsonWebAlgorithm::Signing(jwa::JsonWebSigningAlgorithm::EcDSA(alg))
                 if alg == C::ALGORITHM =>
             {
-                Ok(Self { inner: value })
+                Ok(Self {
+                    inner: value,
+                    deterministic: false,
+                })
             }
             _ => Err(jws::InvalidSigningAlgorithmError),
         }

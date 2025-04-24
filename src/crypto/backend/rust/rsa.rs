@@ -21,7 +21,6 @@ pub(crate) struct PrivateKey {
 }
 
 impl rsa::PrivateKey for PrivateKey {
-    type BigInt = ::rsa::BigUint;
     type PublicKey = PublicKey;
     type Signature = Vec<u8>;
 
@@ -80,46 +79,61 @@ impl rsa::PrivateKey for PrivateKey {
         }
     }
 
-    fn primes(&self) -> Vec<Self::BigInt> {
-        self.inner.primes().to_vec()
-    }
-
-    fn d(&self) -> &<Self::BigInt as rsa::BigInt>::Ref {
-        self.inner.d()
-    }
-
-    fn dp(&self) -> &<Self::BigInt as rsa::BigInt>::Ref {
-        self.inner.dp().expect("key must be precomputed")
-    }
-
-    fn dq(&self) -> &<Self::BigInt as rsa::BigInt>::Ref {
-        self.inner.dq().expect("key must be precomputed")
-    }
-
-    fn qi(&self) -> Self::BigInt {
-        self.inner
-            .crt_coefficient()
-            .expect("invalid prime factor pair")
-    }
-
-    fn n(&self) -> &<Self::BigInt as rsa::BigInt>::Ref {
-        self.inner.n()
-    }
-
-    fn e(&self) -> &<Self::BigInt as rsa::BigInt>::Ref {
-        self.inner.e()
-    }
-
-    fn from_components(c: rsa::PrivateKeyComponents) -> Result<Self> {
-        let n = BigUint::from_bytes_be(&c.public.n);
-        let e = BigUint::from_bytes_be(&c.public.e);
-        let d = BigUint::from_bytes_be(&c.d);
-        let p = BigUint::from_bytes_be(&c.prime.p);
-        let q = BigUint::from_bytes_be(&c.prime.q);
+    fn from_components(
+        pri: rsa::PrivateKeyComponents,
+        pu: rsa::PublicKeyComponents,
+    ) -> Result<Self> {
+        let n = BigUint::from_bytes_be(&pu.n);
+        let e = BigUint::from_bytes_be(&pu.e);
+        let d = BigUint::from_bytes_be(&pri.d);
+        let p = BigUint::from_bytes_be(&pri.prime.p);
+        let q = BigUint::from_bytes_be(&pri.prime.q);
 
         let mut key = RsaPrivateKey::from_components(n, e, d, alloc::vec![p, q])?;
         key.precompute()?;
         Ok(Self { inner: key })
+    }
+
+    fn private_components(&self) -> Result<rsa::PrivateKeyComponents> {
+        let primes = self
+            .inner
+            .primes()
+            .iter()
+            .map(|b| b.to_bytes_be())
+            .collect::<Vec<_>>();
+        let [p, q]: [Vec<u8>; 2] = primes
+            .try_into()
+            .map_err(|_| super::BackendError::RsaTwoPrimes)?;
+
+        Ok(rsa::PrivateKeyComponents {
+            d: self.inner.d().to_bytes_be(),
+            prime: rsa::PrivateKeyPrimeComponents {
+                p,
+                q,
+                dp: self
+                    .inner
+                    .dp()
+                    .expect("key must be precomputed")
+                    .to_bytes_be(),
+                dq: self
+                    .inner
+                    .dq()
+                    .expect("key must be precomputed")
+                    .to_bytes_be(),
+                qi: self
+                    .inner
+                    .crt_coefficient()
+                    .expect("key must be precomputed")
+                    .to_bytes_be(),
+            },
+        })
+    }
+
+    fn public_components(&self) -> rsa::PublicKeyComponents {
+        rsa::PublicKeyComponents {
+            n: self.inner.n().to_bytes_be(),
+            e: self.inner.e().to_bytes_be(),
+        }
     }
 }
 
@@ -131,8 +145,6 @@ pub(crate) struct PublicKey {
 }
 
 impl rsa::PublicKey for PublicKey {
-    type BigInt = ::rsa::BigUint;
-
     fn from_components(c: rsa::PublicKeyComponents) -> Result<Self> {
         let n = ::rsa::BigUint::from_bytes_be(&c.n);
         let e = ::rsa::BigUint::from_bytes_be(&c.e);
@@ -182,22 +194,10 @@ impl rsa::PublicKey for PublicKey {
         Ok(res.is_ok())
     }
 
-    fn n(&self) -> &::rsa::BigUint {
-        self.inner.n()
-    }
-
-    fn e(&self) -> &::rsa::BigUint {
-        self.inner.e()
-    }
-}
-
-impl rsa::BigInt for ::rsa::BigUint {
-    type Ref = ::rsa::BigUint;
-}
-
-impl rsa::BigIntRef for ::rsa::BigUint {
-    #[inline]
-    fn to_bytes_be(&self) -> Vec<u8> {
-        self.to_bytes_be()
+    fn components(&self) -> rsa::PublicKeyComponents {
+        rsa::PublicKeyComponents {
+            n: self.inner.n().to_bytes_be(),
+            e: self.inner.e().to_bytes_be(),
+        }
     }
 }

@@ -22,15 +22,15 @@ categories = [
 ]
 
 [features]
-default = []
+default = ["crypto-rustcrypto"]
 std = [
   "thiserror/std",
-  "signature/std",
-  "rsa/std",
-  "rand_core/std",
   "fluent-uri/std",
   "serde_json/std",
-  "elliptic-curve/std",
+  "elliptic-curve?/std",
+  "signature?/std",
+  "rsa?/std",
+  "rand_core?/std",
 ]
 crypto-rustcrypto = [
     "dep:rand_core",
@@ -48,6 +48,8 @@ crypto-rustcrypto = [
     "dep:generic-array",
     "dep:signature",
 ]
+crypto-openssl = ["std", "dep:openssl", "dep:openssl-sys"]
+crypto-openssl-vendored = ["crypto-openssl", "openssl/vendored"]
 
 [dependencies]
 base64ct = { version = "1.5", default-features = false, features = ["alloc"] }
@@ -110,6 +112,10 @@ generic-array = { optional = true, version = "0.14", default-features = false, f
   "serde",
 ] }
 signature = { optional = true, version = "2.1.0", default-features = false }
+
+# OpenSSL backend (is also used for aws-lc and libressl)
+openssl = { version = "0.10.72", optional = true }
+openssl-sys = { version = "0.9.107", optional = true }
 
 [dev-dependencies]
 # For examples

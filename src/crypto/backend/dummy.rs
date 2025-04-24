@@ -151,11 +151,13 @@ impl interface::hmac::Key for DummyKey {
 }
 
 impl interface::rsa::PrivateKey for DummyKey {
-    type BigInt = DummyKey;
     type PublicKey = DummyKey;
     type Signature = Vec<u8>;
 
-    fn from_components(_: interface::rsa::PrivateKeyComponents) -> Result<Self> {
+    fn from_components(
+        _: interface::rsa::PrivateKeyComponents,
+        _: interface::rsa::PublicKeyComponents,
+    ) -> Result<Self> {
         Err(Error.into())
     }
 
@@ -163,52 +165,22 @@ impl interface::rsa::PrivateKey for DummyKey {
         unreachable!()
     }
 
-    fn primes(&self) -> Vec<Self::BigInt> {
-        unreachable!()
-    }
-
-    fn n(&self) -> &<Self::BigInt as interface::rsa::BigInt>::Ref {
-        unreachable!()
-    }
-
-    fn e(&self) -> &<Self::BigInt as interface::rsa::BigInt>::Ref {
-        unreachable!()
-    }
-
-    fn d(&self) -> &<Self::BigInt as interface::rsa::BigInt>::Ref {
-        unreachable!()
-    }
-
-    fn dp(&self) -> &<Self::BigInt as interface::rsa::BigInt>::Ref {
-        unreachable!()
-    }
-
-    fn dq(&self) -> &<Self::BigInt as interface::rsa::BigInt>::Ref {
-        unreachable!()
-    }
-
-    fn qi(&self) -> Self::BigInt {
-        unreachable!()
-    }
-
     fn sign(&mut self, _: crate::jwa::RsaSigning, _: &[u8]) -> Result<Self::Signature> {
+        unreachable!()
+    }
+
+    fn private_components(&self) -> Result<interface::rsa::PrivateKeyComponents> {
+        unreachable!()
+    }
+
+    fn public_components(&self) -> interface::rsa::PublicKeyComponents {
         unreachable!()
     }
 }
 
 impl interface::rsa::PublicKey for DummyKey {
-    type BigInt = DummyKey;
-
     fn from_components(_: interface::rsa::PublicKeyComponents) -> Result<Self> {
         Err(Error.into())
-    }
-
-    fn n(&self) -> &<Self::BigInt as interface::rsa::BigInt>::Ref {
-        unreachable!()
-    }
-
-    fn e(&self) -> &<Self::BigInt as interface::rsa::BigInt>::Ref {
-        unreachable!()
     }
 
     fn verify(
@@ -219,14 +191,8 @@ impl interface::rsa::PublicKey for DummyKey {
     ) -> Result<bool> {
         unreachable!()
     }
-}
 
-impl interface::rsa::BigInt for DummyKey {
-    type Ref = DummyKey;
-}
-
-impl interface::rsa::BigIntRef for DummyKey {
-    fn to_bytes_be(&self) -> Vec<u8> {
+    fn components(&self) -> interface::rsa::PublicKeyComponents {
         unreachable!()
     }
 }

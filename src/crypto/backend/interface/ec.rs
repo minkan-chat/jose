@@ -56,5 +56,8 @@ pub(crate) trait PrivateKey: Sized + Clone {
     ///
     /// This operation **must** be re-usable, meaning this method can be
     /// called multiple times with different data to sign.
-    fn sign(&mut self, data: &[u8]) -> Result<Self::Signature>;
+    ///
+    /// The `deterministic` flag indicates if the signature should be
+    /// deterministic, as according to [RFC 6979](https://www.rfc-editor.org/rfc/rfc6979).
+    fn sign(&mut self, data: &[u8], deterministic: bool) -> Result<Self::Signature>;
 }

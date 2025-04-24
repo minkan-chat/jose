@@ -10,7 +10,7 @@ use serde::{de::Error as _, ser::Error as _, Deserialize, Serialize};
 use super::backend::{
     interface::{
         self,
-        rsa::{self, BigIntRef, PrivateKey as _, PublicKey as _},
+        rsa::{self, PrivateKey as _, PublicKey as _},
     },
     Backend,
 };
@@ -20,11 +20,11 @@ use crate::{
     jwa::{self, RsaSigning},
     jwk::{self, FromKey, IntoJsonWebKey},
     jws::{self, InvalidSigningAlgorithmError},
+    Base64UrlString,
 };
 
 type BackendPublicKey = <Backend as interface::Backend>::RsaPublicKey;
 type BackendPrivateKey = <Backend as interface::Backend>::RsaPrivateKey;
-type BigInt = <BackendPrivateKey as rsa::PrivateKey>::BigInt;
 
 /// The returned signature from a sign operation.
 #[repr(transparent)]
@@ -59,16 +59,22 @@ pub struct PublicKey {
 impl Eq for PublicKey {}
 impl PartialEq for PublicKey {
     fn eq(&self, o: &Self) -> bool {
-        rsa::PublicKey::n(&self.inner) == rsa::PublicKey::n(&o.inner)
-            && rsa::PublicKey::e(&self.inner) == rsa::PublicKey::e(&o.inner)
+        let this_pub = rsa::PublicKey::components(&self.inner);
+        let o_pub = rsa::PublicKey::components(&o.inner);
+
+        this_pub == o_pub
     }
 }
 
 impl fmt::Debug for PublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let key = rsa::PublicKey::components(&self.inner);
+        let n = Base64UrlString::encode(key.n);
+        let e = Base64UrlString::encode(key.e);
+
         f.debug_struct("PublicKey")
-            .field("n", &rsa::PublicKey::n(&self.inner))
-            .field("e", &rsa::PublicKey::e(&self.inner))
+            .field("n", &n)
+            .field("e", &e)
             .finish()
     }
 }
@@ -121,10 +127,11 @@ impl Serialize for PublicKey {
             e: Base64UrlBytes,
         }
 
+        let key = rsa::PublicKey::components(&self.inner);
         Repr {
             kty: "RSA",
-            n: Base64UrlBytes(BigIntRef::to_bytes_be(rsa::PublicKey::n(&self.inner))),
-            e: Base64UrlBytes(BigIntRef::to_bytes_be(rsa::PublicKey::e(&self.inner))),
+            n: Base64UrlBytes(key.n),
+            e: Base64UrlBytes(key.e),
         }
         .serialize(serializer)
     }
@@ -200,9 +207,13 @@ impl From<PrivateKey> for jwk::JsonWebKeyType {
 
 impl fmt::Debug for PrivateKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let key = rsa::PrivateKey::public_components(&self.inner);
+        let n = Base64UrlString::encode(key.n);
+        let e = Base64UrlString::encode(key.e);
+
         f.debug_struct("PrivateKey")
-            .field("n", &rsa::PrivateKey::n(&self.inner))
-            .field("e", &rsa::PrivateKey::e(&self.inner))
+            .field("n", &n)
+            .field("e", &e)
             .field("primes", &"[REDACTED]")
             .finish()
     }
@@ -255,34 +266,19 @@ impl Serialize for PrivateKey {
             qi: Base64UrlBytes,
         }
 
-        let dp = Base64UrlBytes(rsa::PrivateKey::dp(&self.inner).to_bytes_be());
-        let dq = Base64UrlBytes(rsa::PrivateKey::dq(&self.inner).to_bytes_be());
-        let qi = Base64UrlBytes(rsa::PrivateKey::qi(&self.inner).to_bytes_be());
-
-        let d = Base64UrlBytes(rsa::PrivateKey::d(&self.inner).to_bytes_be());
-
-        let n = Base64UrlBytes(rsa::PrivateKey::n(&self.inner).to_bytes_be());
-        let e = Base64UrlBytes(rsa::PrivateKey::e(&self.inner).to_bytes_be());
-
-        let [p, q]: [BigInt; 2] = self
-            .inner
-            .primes()
-            .try_into()
-            .map_err(|_| S::Error::custom("expected exactly two primes for RSA private key"))?;
-
-        let p = Base64UrlBytes(p.to_bytes_be());
-        let q = Base64UrlBytes(q.to_bytes_be());
+        let pub_key = rsa::PrivateKey::public_components(&self.inner);
+        let key = rsa::PrivateKey::private_components(&self.inner).map_err(S::Error::custom)?;
 
         let repr = Repr {
             kty: "RSA",
-            n,
-            e,
-            d,
-            p,
-            q,
-            dp,
-            dq,
-            qi,
+            n: Base64UrlBytes(pub_key.n),
+            e: Base64UrlBytes(pub_key.e),
+            d: Base64UrlBytes(key.d),
+            p: Base64UrlBytes(key.prime.p),
+            q: Base64UrlBytes(key.prime.q),
+            dp: Base64UrlBytes(key.prime.dp),
+            dq: Base64UrlBytes(key.prime.dq),
+            qi: Base64UrlBytes(key.prime.qi),
         };
 
         repr.serialize(serializer)
@@ -332,14 +328,6 @@ impl<'de> Deserialize<'de> for PrivateKey {
             | repr.dq.is_some()
             | repr.qi.is_some();
 
-        // let all_primes_present = [
-        //     ("p", repr.p.is_some()),
-        //     ("q", repr.q.is_some()),
-        //     ("dp", repr.dp.is_some()),
-        //     ("dq", repr.dq.is_some()),
-        //     ("qi", repr.qi.is_some()),
-        // ];
-
         let prime_info = if any_prime_present {
             let err = |field: &str| {
                 D::Error::custom(format!(
@@ -370,16 +358,17 @@ impl<'de> Deserialize<'de> for PrivateKey {
             ));
         }
 
-        let components = rsa::PrivateKeyComponents {
-            public: rsa::PublicKeyComponents {
-                n: repr.n.0,
-                e: repr.e.0,
-            },
+        let pub_components = rsa::PublicKeyComponents {
+            n: repr.n.0,
+            e: repr.e.0,
+        };
+
+        let priv_components = rsa::PrivateKeyComponents {
             d: repr.d.0,
             prime: prime_info,
         };
 
-        let key = rsa::PrivateKey::from_components(components)
+        let key = rsa::PrivateKey::from_components(priv_components, pub_components)
             .map_err(|e| D::Error::custom(format!("failed to construct RSA private key: {e}")))?;
         Ok(Self { inner: key })
     }

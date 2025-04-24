@@ -1,32 +1,31 @@
 # **JOSE**: JSON Object Signing and Encryption
 
-JOSE is mostly known for so called [`Jwt`]. Jwt stands for [`JsonWebToken`]
-and is actually only a subset of the whole JOSE specifications.
+JOSE is mostly known for so called [`Jwt`]. Jwt stands for [`JsonWebToken`] and
+is actually only a subset of the whole JOSE specifications.
 
-In the majority of cases, [`JsonWebToken`] are a signed token that act as
-small certificates for authentication. However, JOSE is way more complex
-than just a simple signed certificate.
+In the majority of cases, [`JsonWebToken`] are a signed token that act as small
+certificates for authentication. However, JOSE is way more complex than just a
+simple signed certificate.
 
-Because of this complexity, most implementation are incomplete. Even worse,
-bad library design often lead to critical security vulnerabilities, such as
-the famous [`none` Algorithm bug][1].
+Because of this complexity, most implementation are incomplete. Even worse, bad
+library design often lead to critical security vulnerabilities, such as the
+famous [`none` Algorithm bug][1].
 
-In order to prevent such vulnerabilities, this crate uses the Rust type
-system to make illegal states impossible and marks insecure or unverified
-/! states directly on the types themselves.
+In order to prevent such vulnerabilities, this crate uses the Rust type system
+to make illegal states impossible and marks insecure or unverified /! states
+directly on the types themselves.
 
 # Example
 
 ## Create a basic [`Jwt`]
 
-In this crate, cryptographic keys are always represented as a type, never as
-a [`String`] or some other format that would lose essential information
-about a key, such as its [algorithm](crate::jwa::JsonWebAlgorithm).
+In this crate, cryptographic keys are always represented as a type, never as a
+[`String`] or some other format that would lose essential information about a
+key, such as its [algorithm](crate::jwa::JsonWebAlgorithm).
 
-One should usually use the [`JsonWebKey`] type, because it abstracts away
-the complexity of different key types. Your application should not care
-what kind of key it gets.
-
+One should usually use the [`JsonWebKey`] type, because it abstracts away the
+complexity of different key types. Your application should not care what kind of
+key it gets.
 
 ```rust
 extern crate alloc;
@@ -80,13 +79,13 @@ let jwt = Jwt::builder_jwt().build(claims).expect("header valid");
 // this creates a signed JWT that can be serialized.
 let signed_jwt = jwt.sign(&mut signer).unwrap();
 let serialized = signed_jwt.to_string();
+
 // Note: not all signatures are deterministic, meaning their signature is
-// not always the same. In this case, the signature is deterministic
-assert_eq!(
-    serialized,
-    "eyJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJBdXRoZW50aWNhdGlvblByb3ZpZGVyIiwic3ViIjoiRXJpayJ9.\
-     UzoUnXXs9QF1FrQyAbs2PwO9GSAEc3r4gx7BKjeie0UzcmD0YsZ7DRjhiYXYNhq3XPRQ0E0_bIGA4OH9xjPNlw"
+// not always the same. That's why we only check the first part here
+assert!(
+    serialized.starts_with("eyJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJBdXRoZW50aWNhdGlvblByb3ZpZGVyIiwic3ViIjoiRXJpayJ9.")
 );
+
 // The serialized public key. Note the missing `d` parameter
 let serialized_public_key = r#"
 {
@@ -127,8 +126,8 @@ This crate implements various RFCs related to JOSE:
 - [RFC 7519]: JSON Web Token (JWT)
 - [RFC 7518]: JSON Web Algorithms (JWA)
 - [RFC 7517]: JSON Web Key (JWK)
-- ~[RFC 7516]: JSON Web Encryption (JWE)~ (Encryption is not supported in
-  this first release)
+- ~~[RFC 7516]: JSON Web Encryption (JWE)~~ (Encryption is not supported in this
+  first release)
 - [RFC 7515]: JSON Web Signature (JWS)
 
 [1]: <https://auth0.com/blog/critical-vulnerabilities-in-json-web-token-libraries/>
@@ -137,22 +136,19 @@ This crate implements various RFCs related to JOSE:
 [RFC 7517]: <https://datatracker.ietf.org/doc/html/rfc7517>
 [RFC 7516]: <https://datatracker.ietf.org/doc/html/rfc7516>
 [RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515>
-
 [`Jwt`]: <https://docs.rs/jose/latest/jose/type.Jwt.html>
 [`JsonWebToken`]: <https://docs.rs/jose/latest/jose/type.JsonWebToken.html>
 [`JsonWebKey`]: <https://docs.rs/jose/latest/jose/struct.JsonWebKey.html>
 [`String`]: <https://doc.rust-lang.org/nightly/std/string/struct.String.html>
 
-
-
 ## License
 
 Licensed under either of
 
- * Apache License, Version 2.0
-   ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0)>
- * MIT license
-   ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or
+  <http://www.apache.org/licenses/LICENSE-2.0)>
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or
+  <http://opensource.org/licenses/MIT>)
 
 at your option.
 
@@ -161,5 +157,3 @@ at your option.
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
 dual licensed as above, without any additional terms or conditions.
-
-

@@ -10,7 +10,7 @@ use k256::Secp256k1;
 use p256::NistP256;
 use p384::NistP384;
 use rand_core::OsRng;
-use signature::Verifier as _;
+use signature::{RandomizedSigner as _, Verifier as _};
 
 use crate::{
     crypto::{backend::interface::ec, Result},
@@ -163,27 +163,48 @@ impl ec::PrivateKey for PrivateKey {
         }
     }
 
-    fn sign(&mut self, data: &[u8]) -> Result<Self::Signature> {
+    fn sign(&mut self, data: &[u8], deterministic: bool) -> Result<Self::Signature> {
         let sig = match self.inner {
             ErasedPrivateKey::P256(ref key) => {
                 let key = ecdsa::SigningKey::<NistP256>::from(key);
-                let (sig, _) = key
-                    .sign_recoverable(data)
-                    .map_err(super::BackendError::Ecdsa)?;
+
+                let sig = if deterministic {
+                    key.sign_recoverable(data)
+                        .map_err(super::BackendError::Ecdsa)?
+                        .0
+                } else {
+                    key.try_sign_with_rng(&mut OsRng, data)
+                        .map_err(super::BackendError::Ecdsa)?
+                };
+
                 ErasedSignature::P256(sig.to_bytes())
             }
             ErasedPrivateKey::P384(ref key) => {
                 let key = ecdsa::SigningKey::<NistP384>::from(key);
-                let (sig, _) = key
-                    .sign_recoverable(data)
-                    .map_err(super::BackendError::Ecdsa)?;
+
+                let sig = if deterministic {
+                    key.sign_recoverable(data)
+                        .map_err(super::BackendError::Ecdsa)?
+                        .0
+                } else {
+                    key.try_sign_with_rng(&mut OsRng, data)
+                        .map_err(super::BackendError::Ecdsa)?
+                };
+
                 ErasedSignature::P384(sig.to_bytes())
             }
             ErasedPrivateKey::Secp256k1(ref key) => {
                 let key = ecdsa::SigningKey::<Secp256k1>::from(key);
-                let (sig, _) = key
-                    .sign_recoverable(data)
-                    .map_err(super::BackendError::Ecdsa)?;
+
+                let sig = if deterministic {
+                    key.sign_recoverable(data)
+                        .map_err(super::BackendError::Ecdsa)?
+                        .0
+                } else {
+                    key.try_sign_with_rng(&mut OsRng, data)
+                        .map_err(super::BackendError::Ecdsa)?
+                };
+
                 ErasedSignature::Secp256k1(sig.to_bytes())
             }
         };

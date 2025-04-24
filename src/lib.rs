@@ -16,7 +16,7 @@
     non_ascii_idents,
     elided_lifetimes_in_paths
 )]
-#![forbid(unsafe_code)]
+// #![forbid(unsafe_code)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "std", allow(unused_qualifications))]
 

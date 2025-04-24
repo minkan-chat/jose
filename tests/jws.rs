@@ -177,10 +177,13 @@ fn detached_payload_with_context() {
     ))
     .unwrap();
     let key: P256PrivateKey = serde_json::from_str(&key).unwrap();
-    let mut signer: P256Signer = key
+
+    let signer: P256Signer = key
         .clone()
         .into_signer(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
         .unwrap();
+    let mut signer = signer.deterministic(true); // required for tests to pass
+
     let mut verifier: P256Verifier = key
         .into_verifier(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
         .unwrap();
@@ -225,9 +228,11 @@ fn sign_jws_using_p256() {
     .unwrap();
 
     let key: P256PrivateKey = serde_json::from_str(&key).unwrap();
-    let mut signer: P256Signer = key
+
+    let signer: P256Signer = key
         .into_signer(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
         .unwrap();
+    let mut signer = signer.deterministic(true); // required for tests to pass
 
     let jws = Jws::<Compact, _>::builder()
         .build(StringPayload::from("hello world!"))
