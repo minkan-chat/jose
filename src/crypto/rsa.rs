@@ -178,8 +178,9 @@ impl PrivateKey {
     /// # Errors
     ///
     /// Returns an [`Err`] if the key generation fails.
-    pub fn generate() -> Result<Self> {
-        todo!()
+    pub fn generate(bits: usize) -> Result<Self> {
+        let key = BackendPrivateKey::generate(bits)?;
+        Ok(Self { inner: key })
     }
 
     /// Get the public key corresponding to this private key.

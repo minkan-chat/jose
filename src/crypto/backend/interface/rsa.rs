@@ -44,6 +44,9 @@ pub(crate) trait PrivateKey: Sized {
     /// The public key type.
     type PublicKey: PublicKey;
 
+    /// Generates a new rsa private key with the given number of bits.
+    fn generate(bits: usize) -> Result<Self>;
+
     /// Creates a new RSA private key from the given private & public key
     /// components.
     fn from_components(private: PrivateKeyComponents, public: PublicKeyComponents) -> Result<Self>;

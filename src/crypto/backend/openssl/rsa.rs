@@ -42,6 +42,21 @@ impl rsa::PrivateKey for PrivateKey {
     type PublicKey = PublicKey;
     type Signature = Vec<u8>;
 
+    fn generate(bits: usize) -> Result<Self> {
+        let private_data = Rsa::generate(bits as u32)?;
+        let public_data = Rsa::from_public_components(
+            private_data.n().to_owned()?,
+            private_data.e().to_owned()?,
+        )?;
+
+        Ok(Self {
+            private_key: PKey::from_rsa(private_data.clone())?,
+            public_key: PKey::from_rsa(public_data.clone())?,
+            private_data,
+            public_data,
+        })
+    }
+
     fn from_components(
         pri: rsa::PrivateKeyComponents,
         pu: rsa::PublicKeyComponents,

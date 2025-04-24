@@ -154,6 +154,10 @@ impl interface::rsa::PrivateKey for DummyKey {
     type PublicKey = DummyKey;
     type Signature = Vec<u8>;
 
+    fn generate(_: usize) -> Result<Self> {
+        Err(Error.into())
+    }
+
     fn from_components(
         _: interface::rsa::PrivateKeyComponents,
         _: interface::rsa::PublicKeyComponents,

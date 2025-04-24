@@ -24,6 +24,12 @@ impl rsa::PrivateKey for PrivateKey {
     type PublicKey = PublicKey;
     type Signature = Vec<u8>;
 
+    fn generate(bits: usize) -> Result<Self> {
+        Ok(Self {
+            inner: RsaPrivateKey::new(&mut rand_core::OsRng, bits)?,
+        })
+    }
+
     fn sign(&mut self, alg: jwa::RsaSigning, data: &[u8]) -> Result<Self::Signature> {
         let hashed = match alg {
             RsaSigning::Pss(RsassaPss::Ps256) | RsaSigning::RsPkcs1V1_5(RsassaPkcs1V1_5::Rs256) => {
