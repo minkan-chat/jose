@@ -23,6 +23,8 @@ jobs:
           submodules: true
       - name: Install nightly
         uses: dtolnay/rust-toolchain@nightly
+      - name: cargo install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
       - name: cargo generate-lockfile
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
