@@ -661,6 +661,7 @@ dependencies = [
  "k256",
  "mediatype",
  "openssl",
+ "openssl-sys",
  "p256",
  "p384",
  "rand_core",

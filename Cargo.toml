@@ -47,7 +47,7 @@ crypto-rustcrypto = [
     "dep:generic-array",
     "dep:signature",
 ]
-crypto-openssl = ["std", "dep:openssl"]
+crypto-openssl = ["std", "dep:openssl", "dep:openssl-sys"]
 crypto-openssl-vendored = ["crypto-openssl", "openssl/vendored"]
 crypto-aws-lc = ["std", "dep:openssl", "openssl/aws-lc"]
 
@@ -118,6 +118,7 @@ signature = { optional = true, version = "2.1.0", default-features = false }
 
 # OpenSSL backend (is also used for aws-lc and libressl)
 openssl = { version = "0.10.72", optional = true }
+openssl-sys = { version = "0.9.107", optional = true }
 
 [dev-dependencies]
 # For examples

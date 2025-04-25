@@ -133,17 +133,14 @@ impl ec::PrivateKey for PrivateKey {
         let pkey_ctx = md_ctx.digest_sign_init(Some(md), &self.key)?;
 
         if deterministic {
-            #[cfg(not(feature = "crypto-aws-lc"))]
+            #[cfg(all(not(feature = "crypto-aws-lc"), openssl320))]
             pkey_ctx.set_nonce_type(openssl::pkey_ctx::NonceType::DETERMINISTIC_K)?;
 
-            #[cfg(feature = "crypto-aws-lc")]
+            #[cfg(any(feature = "crypto-aws-lc", not(openssl320)))]
             return Err(super::BackendError::Unsupported(
                 "deterministic signing for EcDSA".to_string(),
             )
             .into());
-        } else {
-            #[cfg(not(feature = "crypto-aws-lc"))]
-            pkey_ctx.set_nonce_type(openssl::pkey_ctx::NonceType::RANDOM_K)?;
         }
 
         md_ctx.digest_update(data)?;

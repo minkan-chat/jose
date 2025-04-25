@@ -1,4 +1,4 @@
-use std::process::exit;
+use std::{env, process::exit};
 
 struct CryptoBackend {
     name: &'static str,
@@ -21,7 +21,20 @@ const ALL_BACKENDS: &[CryptoBackend] = &[
 ];
 
 fn main() {
-    crypto_backends_check()
+    crypto_backends_check();
+
+    println!("cargo::rustc-check-cfg=cfg(openssl320)");
+
+    // the nonce api for deterministic EcDSA signing is only possible on specific
+    // version
+    #[expect(clippy::unusual_byte_groupings)]
+    if let Ok(v) = env::var("DEP_OPENSSL_VERSION_NUMBER") {
+        let version = u64::from_str_radix(&v, 16).unwrap();
+
+        if version >= 0x3_02_00_00_0 {
+            println!("cargo:rustc-cfg=openssl320");
+        }
+    }
 }
 
 fn crypto_backends_check() {
