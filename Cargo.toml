@@ -131,3 +131,7 @@ clio = { version = "0.3.5", features = ["clap-parse"] }
 [[example]]
 name = "basic-jwt"
 required-features = ["std"]
+
+[package.metadata.docs.rs]
+features = ["crypto-rustcrypto", "std", "deterministic-ecdsa"]
+rustdoc-args = ["--cfg", "docsrs"]
