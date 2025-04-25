@@ -8,7 +8,9 @@ use core::marker::PhantomData;
 use mediatype::MediaTypeBuf;
 use serde_json::Value;
 
-use super::{HeaderValue, Jwe, Jws, Type};
+use super::{
+    parameters::MediaTypeWithMaybeStrippedApplicationTopLevel, HeaderValue, Jwe, Jws, Type,
+};
 use crate::{
     format::Format,
     header::parameters::Parameters,
@@ -100,8 +102,12 @@ where
             x509_certificate_chain,
             x509_certificate_sha1_thumbprint: self.x509_certificate_sha1_thumbprint,
             x509_certificate_sha256_thumbprint: self.x509_certificate_sha256_thumbprint,
-            typ: self.typ,
-            content_type: self.content_type,
+            typ: self
+                .typ
+                .map(|v| v.map(MediaTypeWithMaybeStrippedApplicationTopLevel)),
+            content_type: self
+                .content_type
+                .map(|v| v.map(MediaTypeWithMaybeStrippedApplicationTopLevel)),
             specific: (),
             additional: self.additional,
         };
@@ -126,8 +132,8 @@ where
             x509_certificate_chain,
             x509_certificate_sha1_thumbprint: parameters.x509_certificate_sha1_thumbprint,
             x509_certificate_sha256_thumbprint: parameters.x509_certificate_sha256_thumbprint,
-            typ: parameters.typ,
-            content_type: parameters.content_type,
+            typ: parameters.typ.map(|v| v.map(|v| v.0)),
+            content_type: parameters.content_type.map(|v| v.map(|v| v.0)),
             additional: parameters.additional,
             specific,
             _phantom: PhantomData,
