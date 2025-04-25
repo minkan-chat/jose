@@ -5,6 +5,7 @@
     cargo-deny
     cargo-shear
     cargo-udeps
+    cargo-hack
 
     openssl
     pkg-config

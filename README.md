@@ -141,6 +141,28 @@ This crate implements various RFCs related to JOSE:
 [`JsonWebKey`]: <https://docs.rs/jose/latest/jose/struct.JsonWebKey.html>
 [`String`]: <https://doc.rust-lang.org/nightly/std/string/struct.String.html>
 
+# Crypto backends
+
+One of the core features of the `jose` crate is the ability to choose between
+different libraries for performing cryptographic operations. This gives the user
+maximum flexibility to include `jose`in it's codebase, and make it work under
+his cryptographic requirements.
+
+A backend is selected at compile time via feature flags. If no feature is
+enabled, this crate won't compile. Additionally, if multiple backends are
+selected, it wont compile either.
+
+The following backends are supported:
+
+- [x] `crypto-rustcrytpo`: Uses the [RustCrypto] ecosystem of crates. The main
+      benefit of this backend is the possibility to compile this crate without
+      `std`.
+- [x] `crypto-openssl`: Uses the [OpenSSL] library.
+  - `crypto-openssl-vendored`: Same as the other OpenSSL feature, but
+    additionally enabled the `openssl/vendored` feature
+- [x] `crypto-aws-lc`: Uses the [AWS-LC] library,by making use of the OpenSSL
+      compatible API aws-lc provides.
+
 ## License
 
 Licensed under either of
@@ -157,3 +179,7 @@ at your option.
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
 dual licensed as above, without any additional terms or conditions.
+
+[RustCrypto]: https://github.com/RustCrypto
+[OpenSSL]: https://openssl-library.org/
+[AWS-LC]: https://github.com/aws/aws-lc

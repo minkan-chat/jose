@@ -1,4 +1,5 @@
 #![doc = include_str!("../README.md")]
+#![allow(clippy::doc_overindented_list_items)]
 #![warn(
     missing_docs,
     missing_debug_implementations,

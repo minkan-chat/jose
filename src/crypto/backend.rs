@@ -9,8 +9,11 @@ cfg_if::cfg_if! {
     } else if #[cfg(feature = "crypto-openssl")] {
         mod openssl;
         pub(crate) use openssl::*;
+    } else if #[cfg(feature = "crypto-aws-lc")] {
+        mod openssl;
+        pub(crate) use openssl::*;
     } else {
-        mod dummy;
-        pub(crate) use dummy::*;
+        compile_error!("No crypto backend selected. \
+            Please enable either `crypto-rustcrypto` or `crypto-openssl` feature.");
     }
 }
