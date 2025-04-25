@@ -8,6 +8,7 @@ use crate::{crypto::Result, jwa};
 
 /// Part of the [`PrivateKeyComponents`], which includes additional information
 /// about the prime numbers.
+#[derive(Clone)]
 pub(crate) struct PrivateKeyPrimeComponents {
     pub p: SecretSlice<u8>,
     pub q: SecretSlice<u8>,
@@ -20,6 +21,7 @@ pub(crate) struct PrivateKeyPrimeComponents {
 ///
 /// All fields in this struct are of type `Vec<u8>` and are
 /// big integers represented in big endian bytes.
+#[derive(Clone)]
 pub(crate) struct PrivateKeyComponents {
     pub d: SecretSlice<u8>,
     pub prime: PrivateKeyPrimeComponents,
@@ -29,7 +31,7 @@ pub(crate) struct PrivateKeyComponents {
 ///
 /// All fields in this struct are of type `Vec<u8>` and are
 /// big integers represented in big endian bytes.
-#[derive(PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) struct PublicKeyComponents {
     pub n: Vec<u8>,
     pub e: Vec<u8>,

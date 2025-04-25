@@ -18,6 +18,10 @@ const ALL_BACKENDS: &[CryptoBackend] = &[
         name: "AWS-LC",
         feature: "crypto-aws-lc",
     },
+    CryptoBackend {
+        name: "ring",
+        feature: "crypto-ring",
+    },
 ];
 
 fn main() {

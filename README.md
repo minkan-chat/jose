@@ -162,6 +162,11 @@ The following backends are supported:
     additionally enabled the `openssl/vendored` feature
 - [x] `crypto-aws-lc`: Uses the [AWS-LC] library,by making use of the OpenSSL
       compatible API aws-lc provides.
+- [x] `crypto-ring`: Uses the [`ring`] pure-Rust library. Note, that the
+      [`ring`] library is
+      [no longer actively maintained](https://rustsec.org/advisories/RUSTSEC-2025-0010.html).
+      However, due to wide usage of the crate, it is still provided as a viable
+      backend
 
 ## License
 
@@ -183,3 +188,4 @@ dual licensed as above, without any additional terms or conditions.
 [RustCrypto]: https://github.com/RustCrypto
 [OpenSSL]: https://openssl-library.org/
 [AWS-LC]: https://github.com/aws/aws-lc
+[`ring`]: https://docs.rs/ring

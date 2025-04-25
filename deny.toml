@@ -40,7 +40,7 @@ highlight = "all"
 workspace-default-features = "allow"
 external-default-features = "allow"
 deny = [
-    { name = "ring", version = "*" },
+    # { name = "ring", version = "*" },
 ]
 skip = [
     #"ansi_term@0.11.0",
