@@ -374,6 +374,7 @@ impl<C: Curve> Signer<C> {
     /// Makes the sign operation of this EcDSA signer deterministic.
     ///
     /// This enables deterministic signature values, according to [RFC 6979](https://www.rfc-editor.org/rfc/rfc6979).
+    #[cfg(feature = "deterministic-ecdsa")]
     pub fn deterministic(mut self, deterministic: bool) -> Self {
         self.deterministic = deterministic;
         self

@@ -129,7 +129,6 @@ fn none_verifier_roundtrip() {
     assert_eq!(parsed_jws.payload(), &StringPayload::from("abc"));
 }
 
-#[cfg(not(feature = "crypto-aws-lc"))] // TODO: remove deterministic flag from this test
 #[test]
 fn detached_payload_with_context() {
     use jose::{
@@ -183,11 +182,10 @@ fn detached_payload_with_context() {
     .unwrap();
     let key: P256PrivateKey = serde_json::from_str(&key).unwrap();
 
-    let signer: P256Signer = key
+    let mut signer: P256Signer = key
         .clone()
         .into_signer(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
         .unwrap();
-    let mut signer = signer.deterministic(true); // required for tests to pass
 
     let mut verifier: P256Verifier = key
         .into_verifier(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
@@ -202,11 +200,12 @@ fn detached_payload_with_context() {
         .unwrap()
         .encode();
 
-    assert_eq!(
-        jws.to_string(),
-        "eyJhbGciOiJFUzI1NiJ9..\
-         66Pd7hVwuNAOP4qFlQW5zSOmLNehj69TbZifg7pD5QjRWMqbxEdalWzMJFmRtQisYunNK2Vhm7H54xOnL6_Q4w"
-    );
+    // After a recent change in jose, ecdas is not deterministic anymore
+    // assert_eq!(
+    //     jws.to_string(),
+    //     "eyJhbGciOiJFUzI1NiJ9..\
+    //      66Pd7hVwuNAOP4qFlQW5zSOmLNehj69TbZifg7pD5QjRWMqbxEdalWzMJFmRtQisYunNK2Vhm7H54xOnL6_Q4w"
+    // );
 
     let parsed_jws =
         Unverified::<Jws<Compact, MyPayload>>::decode_with_context(jws.clone(), &context)
@@ -224,11 +223,10 @@ fn detached_payload_with_context() {
         .unwrap_err();
 }
 
-#[cfg(not(feature = "crypto-aws-lc"))] // TODO: remove deterministic flag from this test
 #[test]
 fn sign_jws_using_p256() {
     use jose::{
-        crypto::ec::{P256PrivateKey, P256Signer},
+        crypto::ec::{P256PrivateKey, P256Signer, P256Verifier},
         jwa::EcDSA,
     };
 
@@ -240,10 +238,14 @@ fn sign_jws_using_p256() {
 
     let key: P256PrivateKey = serde_json::from_str(&key).unwrap();
 
-    let signer: P256Signer = key
+    let mut signer: P256Signer = key
+        .clone()
         .into_signer(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
         .unwrap();
-    let mut signer = signer.deterministic(true); // required for tests to pass
+
+    let mut verifier: P256Verifier = key
+        .into_verifier(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
+        .unwrap();
 
     let jws = Jws::<Compact, _>::builder()
         .build(StringPayload::from("hello world!"))
@@ -252,11 +254,19 @@ fn sign_jws_using_p256() {
         .unwrap()
         .encode();
 
-    assert_eq!(
-        jws.to_string().as_str(),
-        "eyJhbGciOiJFUzI1NiJ9.aGVsbG8gd29ybGQh.\
-         lVKmpTNK_Im3-JEpF1JzuXM-vP9tNSkR8785hqnYzOHd1__VVOeMzGW7nywUe7Xkp6Wlu3KgWXlvsxhQdU1PlQ"
-    );
+    // ecdsas is not deterministic anymore
+    // assert_eq!(
+    //     jws.to_string().as_str(),
+    //     "eyJhbGciOiJFUzI1NiJ9.aGVsbG8gd29ybGQh.\
+    //      lVKmpTNK_Im3-JEpF1JzuXM-vP9tNSkR8785hqnYzOHd1__VVOeMzGW7nywUe7Xkp6Wlu3KgWXlvsxhQdU1PlQ"
+    // );
+
+    let parsed_jws = Unverified::<Jws<Compact, StringPayload>>::decode(jws.clone())
+        .unwrap()
+        .verify(&mut verifier)
+        .unwrap();
+
+    assert_eq!(parsed_jws.payload().0, "hello world!");
 }
 
 #[test]
