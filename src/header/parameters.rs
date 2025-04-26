@@ -69,7 +69,9 @@ impl<'de> Deserialize<'de> for MediaTypeWithMaybeStrippedApplicationTopLevel {
         D: serde::Deserializer<'de>,
     {
         let raw: Cow<'_, str> = Cow::deserialize(deserializer)?;
-        let corrected = if raw.find("/").is_none() {
+        // if there is no `/` in the media type the RFC dictates to prepend
+        // `application/`
+        let corrected = if !raw.contains('/') {
             alloc::format!("application/{raw}")
         } else {
             raw.to_string()
@@ -86,6 +88,7 @@ impl Serialize for MediaTypeWithMaybeStrippedApplicationTopLevel {
     {
         let correct = self.0.to_string();
         if self.0.ty() == mediatype::names::APPLICATION
+            // ensure media type contains exactly one slash (parameters included)
             && correct.chars().filter(|c| *c == '/').count() == 1
         {
             let raw = correct.split_once('/').expect("contains one slash").1;
