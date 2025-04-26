@@ -4,6 +4,22 @@
 //! away the different cryptographic libraries and provides a common interface
 //! for them. The goal is to make it easy to switch between different libraries
 //! and implementations without changing the code that uses them.
+//!
+//! ## Random Number Generation
+//!
+//! Many of the private key types provide `generate` functions. These functions
+//! require access to secure, random data. Each backend provides it own way of
+//! getting secure random data from the underlying system. The
+//! `crypto-rustcrypto` and `crypto-ring` use the [`getrandom`] crate to get
+//! random data. In order to use the `jose` crate on `no_std` systems, the user
+//! must supply a custom random number generator by using the
+//! [`register_custom_getrandom`] macro.
+//!
+//! **Note:** The current version `ring` and Rust Crypto crates use the `0.2`
+//! version of the `getrandom` crate.
+//!
+//! [`register_custom_getrandom`]: (https://docs.rs/getrandom/0.2.10/getrandom/macro.register_custom_getrandom.html)
+//! [`getrandom`]: (https://docs.rs/getrandom/0.2.10/getrandom/index.html)
 
 pub(crate) mod backend;
 pub mod ec;
