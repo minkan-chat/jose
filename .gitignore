@@ -9,7 +9,6 @@
 # Nix / Direnv
 /result
 .direnv
-.envrc
 # Devenv
 .devenv*
 devenv.local.nix
