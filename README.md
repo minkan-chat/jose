@@ -145,7 +145,7 @@ This crate implements various RFCs related to JOSE:
 
 One of the core features of the `jose` crate is the ability to choose between
 different libraries for performing cryptographic operations. This gives the user
-maximum flexibility to include `jose`in it's codebase, and make it work under
+maximum flexibility to include `jose` in their codebase, and make it work under
 his cryptographic requirements.
 
 A backend is selected at compile time via feature flags. If no feature is
