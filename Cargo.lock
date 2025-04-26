@@ -643,7 +643,7 @@ dependencies = [
 
 [[package]]
 name = "jose"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "base64ct",
  "cfg-if",
