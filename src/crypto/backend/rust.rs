@@ -57,6 +57,11 @@ pub(crate) enum BackendError {
 
     #[error("RSA key expected to have exactly 2 prime numbers")]
     RsaTwoPrimes,
+
+    /// `rand_core` error.
+    #[cfg_attr(feature = "std", error("failed to generate random data"))]
+    #[cfg_attr(not(feature = "std"), error("failed to generate random data: {0}"))]
+    Rand(#[cfg_attr(feature = "std", source)] rand_core::Error),
 }
 
 impl From<digest::InvalidLength> for BackendError {
@@ -90,7 +95,7 @@ impl interface::Backend for Backend {
     fn fill_random(buf: &mut [u8]) -> Result<(), Self::Error> {
         use rand_core::OsRng;
 
-        OsRng.fill_bytes(buf);
+        OsRng.try_fill_bytes(buf).map_err(BackendError::Rand)?;
         Ok(())
     }
 
