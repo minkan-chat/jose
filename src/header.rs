@@ -8,7 +8,7 @@ use alloc::{
 };
 use core::{marker::PhantomData, ops::Deref};
 
-use mediatype::{MediaType, MediaTypeBuf};
+use mediatype::MediaType;
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
@@ -308,11 +308,22 @@ where
     /// This parameter is serialized as `typ` and defined in [section 4.1.9 of
     /// RFC 7515].
     ///
+    /// # Note
+    ///
+    /// Media types that start with [`application`]`/` (top-level type) and
+    /// do not contain any other `/` are shortend to just the subtype according
+    /// to [section 4.1.9 of RFC 7515]. Therefore, for example,
+    /// `application/jwt` would become just `jwt`. However, since the RFC
+    /// recommends that the mediatype `jwt` and `jose` should be uppercase for
+    /// interop with legacy implementations, it would actually become `JWT`.
+    ///
+    ///
     /// # Example
     ///
     /// When a [`JoseHeader`] is being used with a JSON Web Token and this
     /// parameter is set, it is recommended that this type will be
     /// [`application`]`/`[`jwt`] as defined in [section 5.1 of RFC 7519].
+    /// In the serialized form, `typ` will be `JWT`.
     ///
     /// [media type]: <https://www.iana.org/assignments/media-types>
     /// [section 4.1.9 of RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.9>
@@ -323,7 +334,7 @@ where
         self.parameters
             .typ
             .as_ref()
-            .map(|value| value.as_ref().map(MediaTypeBuf::to_ref))
+            .map(|value| value.as_ref().map(|v| v.0.to_ref()))
     }
 
     /// The Content Type parameter is used to declare the [media type] of the
@@ -348,7 +359,7 @@ where
         self.parameters
             .content_type
             .as_ref()
-            .map(|value| value.as_ref().map(MediaTypeBuf::to_ref))
+            .map(|value| value.as_ref().map(|v| v.0.to_ref()))
     }
 
     /// Get additional parameters by their serialized parameter name.
