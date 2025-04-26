@@ -1,7 +1,5 @@
 //! This backend implements the primitives using the [OpenSSL](openssl) library.
 
-use alloc::vec::Vec;
-
 use thiserror::Error;
 
 use super::interface;
@@ -48,15 +46,15 @@ impl interface::Backend for Backend {
         Ok(())
     }
 
-    fn sha256(data: &[u8]) -> Vec<u8> {
-        openssl::sha::sha256(data).to_vec()
+    fn sha256(data: &[u8]) -> [u8; 32] {
+        openssl::sha::sha256(data)
     }
 
-    fn sha384(data: &[u8]) -> Vec<u8> {
-        openssl::sha::sha384(data).to_vec()
+    fn sha384(data: &[u8]) -> [u8; 48] {
+        openssl::sha::sha384(data)
     }
 
-    fn sha512(data: &[u8]) -> Vec<u8> {
-        openssl::sha::sha512(data).to_vec()
+    fn sha512(data: &[u8]) -> [u8; 64] {
+        openssl::sha::sha512(data)
     }
 }

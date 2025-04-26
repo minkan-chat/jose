@@ -1,4 +1,4 @@
-use alloc::{collections::BTreeMap, string::String, vec::Vec};
+use alloc::{collections::BTreeMap, string::String};
 
 use serde::Serialize;
 
@@ -33,7 +33,7 @@ pub trait Thumbprint: Sealed {
     /// # Errors
     ///
     /// This method can fail if the underlying key fails to be serialized.
-    fn thumbprint_sha256(&self) -> Vec<u8> {
+    fn thumbprint_sha256(&self) -> [u8; 32] {
         let msg = self.thumbprint_prehashed();
         crate::crypto::sha256(msg.as_bytes())
     }
@@ -43,7 +43,7 @@ pub trait Thumbprint: Sealed {
     /// # Errors
     ///
     /// This method can fail if the underlying key fails to be serialized.
-    fn thumbprint_sha384(&self) -> Vec<u8> {
+    fn thumbprint_sha384(&self) -> [u8; 48] {
         let msg = self.thumbprint_prehashed();
         crate::crypto::sha384(msg.as_bytes())
     }
@@ -53,7 +53,7 @@ pub trait Thumbprint: Sealed {
     /// # Errors
     ///
     /// This method can fail if the underlying key fails to be serialized.
-    fn thumbprint_sha512(&self) -> Vec<u8> {
+    fn thumbprint_sha512(&self) -> [u8; 64] {
         let msg = self.thumbprint_prehashed();
         crate::crypto::sha512(msg.as_bytes())
     }

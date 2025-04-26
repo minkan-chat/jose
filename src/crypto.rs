@@ -11,7 +11,6 @@ pub mod hmac;
 pub mod okp;
 pub mod rsa;
 
-use alloc::vec::Vec;
 use core::{error, fmt};
 
 use backend::interface;
@@ -71,18 +70,18 @@ pub(crate) fn fill_random(buf: &mut [u8]) -> Result<()> {
 
 /// Performs a quick Sha256 of the given data.
 #[inline]
-pub(crate) fn sha256(data: &[u8]) -> Vec<u8> {
+pub(crate) fn sha256(data: &[u8]) -> [u8; 32] {
     <Backend as interface::Backend>::sha256(data)
 }
 
 /// Performs a quick Sha384 of the given data.
 #[inline]
-pub(crate) fn sha384(data: &[u8]) -> Vec<u8> {
+pub(crate) fn sha384(data: &[u8]) -> [u8; 48] {
     <Backend as interface::Backend>::sha384(data)
 }
 
 /// Performs a quick Sha512 of the given data.
 #[inline]
-pub(crate) fn sha512(data: &[u8]) -> Vec<u8> {
+pub(crate) fn sha512(data: &[u8]) -> [u8; 64] {
     <Backend as interface::Backend>::sha512(data)
 }

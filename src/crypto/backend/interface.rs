@@ -1,11 +1,5 @@
 //! Common traits that define the API each backend must implement.
 
-// FIXME: we should probably make sure to use `zeroize` on all
-// return values of all methods on the interface traits. Most prominous
-// is the rsa interface, which returns the primes and private components
-// without any protection
-
-use alloc::vec::Vec;
 use core::{error, fmt};
 
 pub(crate) mod ec;
@@ -46,11 +40,11 @@ pub(crate) trait Backend {
     fn fill_random(buf: &mut [u8]) -> Result<(), Self::Error>;
 
     /// Performs a quick Sha256 of the given data.
-    fn sha256(data: &[u8]) -> Vec<u8>;
+    fn sha256(data: &[u8]) -> [u8; 32];
 
     /// Performs a quick Sha384 of the given data.
-    fn sha384(data: &[u8]) -> Vec<u8>;
+    fn sha384(data: &[u8]) -> [u8; 48];
 
     /// Performs a quick Sha512 of the given data.
-    fn sha512(data: &[u8]) -> Vec<u8>;
+    fn sha512(data: &[u8]) -> [u8; 64];
 }

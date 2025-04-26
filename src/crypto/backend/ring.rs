@@ -1,7 +1,5 @@
 //! This backend implements the primitives using the [`ring`] crate
 
-use alloc::vec::Vec;
-
 use ring::{
     digest,
     rand::{SecureRandom as _, SystemRandom},
@@ -70,15 +68,24 @@ impl interface::Backend for Backend {
         Ok(())
     }
 
-    fn sha256(data: &[u8]) -> Vec<u8> {
-        digest::digest(&digest::SHA256, data).as_ref().to_vec()
+    fn sha256(data: &[u8]) -> [u8; 32] {
+        digest::digest(&digest::SHA256, data)
+            .as_ref()
+            .try_into()
+            .expect("SHA256 digest length mismatch")
     }
 
-    fn sha384(data: &[u8]) -> Vec<u8> {
-        digest::digest(&digest::SHA384, data).as_ref().to_vec()
+    fn sha384(data: &[u8]) -> [u8; 48] {
+        digest::digest(&digest::SHA384, data)
+            .as_ref()
+            .try_into()
+            .expect("SHA384 digest length mismatch")
     }
 
-    fn sha512(data: &[u8]) -> Vec<u8> {
-        digest::digest(&digest::SHA512, data).as_ref().to_vec()
+    fn sha512(data: &[u8]) -> [u8; 64] {
+        digest::digest(&digest::SHA512, data)
+            .as_ref()
+            .try_into()
+            .expect("SHA512 digest length mismatch")
     }
 }
