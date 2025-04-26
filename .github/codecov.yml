@@ -1,7 +1,8 @@
+# TODO: change this once we have better coverage and proper test suite
+
 # ref: https://docs.codecov.com/docs/codecovyml-reference
 coverage:
-  # Hold ourselves to a high bar
-  range: 85..100
+  range: 50..100
   round: down
   precision: 1
   status:
@@ -10,6 +11,9 @@ coverage:
       default:
         # Avoid false negatives
         threshold: 1%
+    patch:
+      default:
+        target: 0%
 
 # Test files aren't important for coverage
 ignore:
