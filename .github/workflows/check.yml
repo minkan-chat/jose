@@ -1,15 +1,19 @@
 permissions:
   contents: read
+
 # Spend CI time only on latest ref: https://github.com/jonhoo/rust-ci-conf/pull/5
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
+
 on:
   push:
     branches: [main]
   pull_request:
   merge_group:
+
 name: check
+
 jobs:
   fmt:
     runs-on: ubuntu-latest
@@ -24,6 +28,7 @@ jobs:
           components: rustfmt
       - name: cargo fmt --check
         run: cargo fmt --check
+
   clippy:
     runs-on: ubuntu-latest
     name: ${{ matrix.toolchain }} / clippy
@@ -46,6 +51,7 @@ jobs:
       - name: cargo clippy
         # simple check to start the pipeline, full feature subset testing comes later
         run: cargo clippy --features crypto-rustcrypto --locked -- -D warnings
+
   doc:
     runs-on: ubuntu-latest
     name: nightly / doc
@@ -59,6 +65,7 @@ jobs:
         run: cargo doc --no-deps --features crypto-rustcrypto,std
         env:
           RUSTDOCFLAGS: --cfg docsrs
+
   deny:
     runs-on: ubuntu-latest
     name: ubuntu / cargo-deny
@@ -76,6 +83,7 @@ jobs:
         uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check ${{ matrix.checks }}
+
   hack:
     runs-on: ubuntu-latest
     name: ubuntu / stable / features
@@ -97,6 +105,7 @@ jobs:
             --mutually-exclusive-features $CRYPTO_FEATURES \
             --at-least-one-of $CRYPTO_FEATURES \
             clippy --locked -- -D warnings
+
   msrv:
     runs-on: ubuntu-latest
     # we use a matrix here just because env can't be used in job names
