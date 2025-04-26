@@ -7,7 +7,7 @@ permissions:
 on:
   push:
     branches:
-      - ci-changes
+      - main
 
 jobs:
   # Release unpublished packages.
