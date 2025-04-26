@@ -1,17 +1,14 @@
 permissions:
   contents: read
-
 # Spend CI time only on latest ref: https://github.com/jonhoo/rust-ci-conf/pull/5
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
-
 on:
   push:
     branches: [main]
   pull_request:
   merge_group:
-
 name: check
 jobs:
   fmt:
@@ -27,7 +24,6 @@ jobs:
           components: rustfmt
       - name: cargo fmt --check
         run: cargo fmt --check
-
   clippy:
     runs-on: ubuntu-latest
     name: ${{ matrix.toolchain }} / clippy
@@ -48,7 +44,8 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           components: clippy
       - name: cargo clippy
-        run: cargo clippy --all-features -- -D warnings
+        # simple check to start the pipeline, full feature subset testing comes later
+        run: cargo clippy --features crypto-rustcrypto --locked -- -D warnings
   doc:
     runs-on: ubuntu-latest
     name: nightly / doc
@@ -59,10 +56,9 @@ jobs:
       - name: Install nightly
         uses: dtolnay/rust-toolchain@nightly
       - name: cargo doc
-        run: cargo doc --no-deps --all-features
+        run: cargo doc --no-deps --features crypto-rustcrypto,std
         env:
           RUSTDOCFLAGS: --cfg docsrs
-
   deny:
     runs-on: ubuntu-latest
     name: ubuntu / cargo-deny
@@ -80,7 +76,6 @@ jobs:
         uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check ${{ matrix.checks }}
-
   hack:
     runs-on: ubuntu-latest
     name: ubuntu / stable / features
@@ -94,8 +89,14 @@ jobs:
         uses: taiki-e/install-action@cargo-hack
       # intentionally no target specifier; see https://github.com/jonhoo/rust-ci-conf/pull/4
       - name: cargo hack
-        run: cargo hack --feature-powerset check
+        run: |
+          export CRYPTO_FEATURES="$(cat Cargo.toml | grep -o 'crypto-[^ ]* =' | tr -d ' =' | paste -sd ',')"
 
+          cargo hack \
+            --feature-powerset \
+            --mutually-exclusive-features $CRYPTO_FEATURES \
+            --at-least-one-of $CRYPTO_FEATURES \
+            clippy --locked -- -D warnings
   msrv:
     runs-on: ubuntu-latest
     # we use a matrix here just because env can't be used in job names
@@ -112,5 +113,14 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.msrv }}
+      - name: cargo install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
       - name: cargo +${{ matrix.msrv }} check
-        run: cargo check
+        run: |
+          export CRYPTO_FEATURES="$(cat Cargo.toml | grep -o 'crypto-[^ ]* =' | tr -d ' =' | paste -sd ',')"
+
+          cargo hack \
+            --feature-powerset \
+            --mutually-exclusive-features $CRYPTO_FEATURES \
+            --at-least-one-of $CRYPTO_FEATURES \
+            check

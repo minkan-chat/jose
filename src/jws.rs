@@ -4,9 +4,10 @@
 
 use alloc::{format, string::String, vec, vec::Vec};
 
-use thiserror_no_std::Error;
+use thiserror::Error;
 
 use crate::{
+    crypto,
     format::{
         Compact, DecodeFormat, DecodeFormatWithContext, Format, JsonFlattened, JsonGeneral,
         JsonGeneralSignature,
@@ -171,7 +172,7 @@ pub enum SignError<P> {
     InvalidHeader(#[source] header::Error),
     /// The underlying signing operation of the given signer failed.
     #[error(transparent)]
-    Sign(signature::Error),
+    Sign(crypto::Error),
     /// Failed to convert payload into it's raw byte representation.
     #[error(transparent)]
     Payload(P),

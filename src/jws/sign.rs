@@ -1,6 +1,7 @@
 use core::fmt;
 
 use crate::{
+    crypto,
     format::Format,
     jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::FromKey,
@@ -52,7 +53,7 @@ pub trait Signer<S: AsRef<[u8]>> {
     ///
     /// Returns an error if the signing operation fails.
     /// An error usually only appears when communicating with external signers.
-    fn sign(&mut self, msg: &[u8]) -> Result<S, signature::Error>;
+    fn sign(&mut self, msg: &[u8]) -> Result<S, crypto::Error>;
 
     /// Return the type of signing algorithm used by this signer.
     fn algorithm(&self) -> JsonWebSigningAlgorithm;
@@ -84,7 +85,7 @@ pub struct SignerWithoutKeyId<S> {
 }
 
 impl<SIG: AsRef<[u8]>, S: Signer<SIG>> Signer<SIG> for SignerWithoutKeyId<S> {
-    fn sign(&mut self, msg: &[u8]) -> Result<SIG, signature::Error> {
+    fn sign(&mut self, msg: &[u8]) -> Result<SIG, crypto::Error> {
         S::sign(&mut self.inner, msg)
     }
 
@@ -99,13 +100,13 @@ impl<SIG: AsRef<[u8]>, S: Signer<SIG>> Signer<SIG> for SignerWithoutKeyId<S> {
 
 /// An error returned if something expected a different
 /// [`JsonWebAlgorithm`]
-#[derive(Debug, thiserror_no_std::Error, PartialEq, Eq)]
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 #[error("Invalid algorithm")]
 pub struct InvalidSigningAlgorithmError;
 
 /// A trait to turn something into a [`Signer`].
 ///
-/// Some key types like the [`Rsa`](crate::jwk::rsa::RsaPrivateKey) key type
+/// Some key types like the [`Rsa`](crate::crypto::rsa::PrivateKey) key type
 /// need to know which [algorithm](JsonWebSigningAlgorithm) to use.
 pub trait IntoSigner<T, S>
 where

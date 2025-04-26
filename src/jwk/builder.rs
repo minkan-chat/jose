@@ -12,7 +12,7 @@ use crate::{
 
 /// Reasons the construction of a `JsonWebKey` via the
 /// [`JsonWebKeyBuilder::build`] method can fail.
-#[derive(Debug, thiserror_no_std::Error)]
+#[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum JsonWebKeyBuildError<P> {
     /// The [`JsonWebKeyType`] and [`JsonWebAlgorithm`] are not compatible.

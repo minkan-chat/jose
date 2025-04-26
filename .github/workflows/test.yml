@@ -1,12 +1,10 @@
 permissions:
   contents: read
-
 on:
   push:
     branches: [main]
   pull_request:
   merge_group:
-
 name: test
 jobs:
   required:
@@ -26,12 +24,28 @@ jobs:
       - name: cargo generate-lockfile
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
+      - name: cargo install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
       # https://twitter.com/jonhoo/status/1571290371124260865
       - name: cargo test --locked
-        run: cargo test --locked --all-features --all-targets
+        run: |
+          export CRYPTO_FEATURES="$(cat Cargo.toml | grep -o 'crypto-[^ ]* =' | tr -d ' =' | paste -sd ',')"
+
+          # run the tests for all crypto backends
+          cargo hack \
+            --each-feature \
+            --include-features $CRYPTO_FEATURES \
+            test --locked --all-targets
       # https://github.com/rust-lang/cargo/issues/6669
       - name: cargo test --doc
-        run: cargo test --locked --all-features --doc
+        run: |
+          export CRYPTO_FEATURES="$(cat Cargo.toml | grep -o 'crypto-[^ ]* =' | tr -d ' =' | paste -sd ',')"
+
+          # run the tests for all crypto backends
+          cargo hack \
+            --each-feature \
+            --include-features $CRYPTO_FEATURES \
+            test --locked --doc
   # FIXME: enable again after memchr use in serde-json is fixed -> serde-json 
   # needs to correctly pin memchr
   # minimal:
@@ -51,7 +65,6 @@ jobs:
   #       run: cargo +nightly update -Zminimal-versions
   #     - name: cargo test
   #       run: cargo test --locked --all-features --all-targets
-
   os-check:
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.os }} / stable
@@ -68,9 +81,9 @@ jobs:
       - name: cargo generate-lockfile
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
+      # TODO: check other possible backends too
       - name: cargo test
-        run: cargo test --locked --all-features --all-targets
-
+        run: cargo test --locked --features crypto-rustcrypto --all-targets
   coverage:
     runs-on: ubuntu-latest
     name: ubuntu / stable / coverage
@@ -87,8 +100,9 @@ jobs:
       - name: cargo generate-lockfile
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
+      # TODO: In the future we may want to expand coverage to all crypto backends
       - name: cargo llvm-cov
-        run: cargo llvm-cov --locked --all-features --lcov --output-path lcov.info
+        run: cargo llvm-cov --locked --features crypto-rustcrypto,std --lcov --output-path lcov.info
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v3
         with:

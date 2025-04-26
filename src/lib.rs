@@ -1,4 +1,5 @@
 #![doc = include_str!("../README.md")]
+#![allow(clippy::doc_overindented_list_items)]
 #![warn(
     missing_docs,
     missing_debug_implementations,
@@ -19,6 +20,7 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "std", allow(unused_qualifications))]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 extern crate alloc;
 
@@ -30,6 +32,7 @@ pub(crate) mod base64_url;
 pub(crate) mod tagged_visitor;
 pub(crate) mod sealed;
 
+pub mod crypto;
 pub mod format;
 pub mod header;
 pub mod jwa;

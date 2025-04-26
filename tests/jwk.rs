@@ -1,14 +1,10 @@
 use jose::{
+    crypto::hmac,
     jwa::{EcDSA, Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::{
-        ec::{EcPrivate, EcPublic},
-        okp::{curve25519::Curve25519Private, OkpPrivate},
-        symmetric::{
-            hmac::{HmacKey, Hs256},
-            FromOctetSequenceError, OctetSequence,
-        },
-        AsymmetricJsonWebKey, FromKey, JsonWebKey, JsonWebKeyType, JwkSigner, Private, Public,
-        Thumbprint,
+        symmetric::{FromOctetSequenceError, OctetSequence},
+        AsymmetricJsonWebKey, EcPrivate, EcPublic, FromKey as _, JsonWebKey, JsonWebKeyType,
+        JwkSigner, OkpPrivate, Private, Public, Thumbprint,
     },
     jws::Signer,
     policy::{Checkable, Checked, StandardPolicy},
@@ -63,11 +59,11 @@ macro_rules! key_roundtrip_test {
 }
 
 pub mod rsa {
-    use jose::jwk::rsa::RsaPrivateKey;
+    use jose::crypto::rsa;
 
     key_roundtrip_test! {
-        jose::jwk::rsa::RsaPrivateKey,
-        jose::jwk::rsa::RsaPublicKey,
+        rsa::PrivateKey,
+        rsa::PublicKey,
         "rsa",
         ["n", "e", "d", "p", "q", "dp", "dq", "di"],
         ["n", "e"],
@@ -91,7 +87,7 @@ pub mod rsa {
             "oth": []
         }"#;
 
-        let err = serde_json::from_str::<RsaPrivateKey>(json).unwrap_err();
+        let err = serde_json::from_str::<rsa::PrivateKey>(json).unwrap_err();
         assert_eq!(
             err.to_string(),
             "RSA private keys with `oth` field set are not supported"
@@ -114,7 +110,7 @@ pub mod rsa {
             "qi":"srk3oe6CxebsQo1QTTygg-dWBlXongHf2m4Asj7GBeswoa49NcqzUvv5wlWuTgKJeihjjp-L5lkC5JWiFfUpRkBqr7tUE9faUmDa6fPLlvqWcB9A04rrZ3aJYqHgJJZ9e6OrEKwhgliIYSsTxlD-bLGZVLj-dp0R7xSVOFqiRX0"
         }"#;
 
-        let err = serde_json::from_str::<RsaPrivateKey>(json).unwrap_err();
+        let err = serde_json::from_str::<rsa::PrivateKey>(json).unwrap_err();
         assert_eq!(
             err.to_string(),
             "expected `dp` to be present because all prime fields must be set if one of them is \
@@ -125,8 +121,8 @@ pub mod rsa {
 
 pub mod ec_p256 {
     key_roundtrip_test! {
-        jose::jwk::ec::p256::P256PrivateKey,
-        jose::jwk::ec::p256::P256PublicKey,
+        jose::crypto::ec::P256PrivateKey,
+        jose::crypto::ec::P256PublicKey,
         "p256",
         ["crv", "e", "x", "y", "d"],
         ["crv", "x", "y"],
@@ -135,8 +131,8 @@ pub mod ec_p256 {
 
 pub mod ec_p384 {
     key_roundtrip_test! {
-        jose::jwk::ec::p384::P384PrivateKey,
-        jose::jwk::ec::p384::P384PublicKey,
+        jose::crypto::ec::P384PrivateKey,
+        jose::crypto::ec::P384PublicKey,
         "p384",
         ["crv", "e", "x", "y", "d"],
         ["crv", "x", "y"],
@@ -144,29 +140,29 @@ pub mod ec_p384 {
 }
 
 pub mod ec {
-    use jose::jwk::ec::{EcPrivate, EcPublic};
+    use jose::jwk;
 
     use super::*;
 
     #[test]
     fn parse_generic_public_key() {
         let json = read_key_file("p256.pub");
-        let key: EcPublic = serde_json::from_str(&json).unwrap();
-        assert!(matches!(key, EcPublic::P256(..)));
+        let key: jwk::EcPublic = serde_json::from_str(&json).unwrap();
+        assert!(matches!(key, jwk::EcPublic::P256(..)));
     }
 
     #[test]
     fn parse_generic_private_key() {
         let json = read_key_file("p256");
-        let key: EcPrivate = serde_json::from_str(&json).unwrap();
-        assert!(matches!(key, EcPrivate::P256(..)));
+        let key: jwk::EcPrivate = serde_json::from_str(&json).unwrap();
+        assert!(matches!(key, jwk::EcPrivate::P256(..)));
     }
 }
 
 pub mod okp_ed25519 {
     key_roundtrip_test! {
-        jose::jwk::okp::curve25519::Curve25519Private,
-        jose::jwk::okp::curve25519::Curve25519Public,
+        jose::jwk::OkpPrivate,
+        jose::jwk::OkpPublic,
         "ed25519",
         ["crv", "x", "d"],
         ["crv", "x"],
@@ -274,15 +270,15 @@ fn deny_hmac_key_with_short_key() {
     let raw_key = r#"{"kty": "oct", "k": "QUFBQQ"}"#;
     let key = serde_json::from_str::<OctetSequence>(raw_key).unwrap();
 
-    let hmac = HmacKey::<Hs256>::from_key(
+    let hmac = hmac::Key::<hmac::Hs256>::from_key(
         &key,
         JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::Hmac(Hmac::Hs256)),
     );
 
-    assert_eq!(
+    assert!(matches!(
         hmac.unwrap_err(),
-        FromOctetSequenceError::InvalidLength(digest::InvalidLength)
-    );
+        FromOctetSequenceError::InvalidLength
+    ));
 }
 
 #[test]
@@ -290,9 +286,7 @@ fn ed25519_json_web_key() {
     let jwk: JsonWebKey = serde_json::from_str(&read_key_file("ed25519")).unwrap();
     match jwk.key_type() {
         JsonWebKeyType::Asymmetric(key) => match **key {
-            AsymmetricJsonWebKey::Private(Private::Okp(OkpPrivate::Curve25519(
-                Curve25519Private::Ed(_),
-            ))) => (),
+            AsymmetricJsonWebKey::Private(Private::Okp(OkpPrivate::Ed25519(..))) => (),
             _ => panic!(),
         },
         _ => panic!(),

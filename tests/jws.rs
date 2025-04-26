@@ -6,17 +6,17 @@
 use std::{convert::Infallible, str::FromStr};
 
 use jose::{
+    crypto::{
+        self,
+        okp::{Ed25519PrivateKey, Ed25519PublicKey, Ed25519Signer, Ed25519Verifier},
+    },
     format::{Compact, JsonFlattened, JsonGeneral},
     header::HeaderValue,
-    jwa::{EcDSA, JsonWebSigningAlgorithm},
-    jwk::{
-        ec::p256::{P256PrivateKey, P256Signer, P256Verifier},
-        okp::curve25519::{Ed25519PrivateKey, Ed25519PublicKey, Ed25519Signer, Ed25519Verifier},
-        JwkSigner, JwkVerifier,
-    },
+    jwa::JsonWebSigningAlgorithm,
+    jwk::{JwkSigner, JwkVerifier},
     jws::{
         FromRawPayload, IntoPayload, IntoSigner, IntoVerifier, ManyUnverified, PayloadData,
-        PayloadKind, Signer, Unverified, Verifier,
+        PayloadKind, Signer, Unverified, Verifier, VerifyError,
     },
     policy::{Checkable, StandardPolicy},
     Base64UrlString, JsonWebKey, Jws,
@@ -78,7 +78,7 @@ impl IntoPayload for StringPayload {
 
 struct NoneKey;
 impl Signer<[u8; 0]> for NoneKey {
-    fn sign(&mut self, _msg: &[u8]) -> Result<[u8; 0], signature::Error> {
+    fn sign(&mut self, _msg: &[u8]) -> Result<[u8; 0], crypto::Error> {
         Ok([])
     }
 
@@ -93,7 +93,7 @@ impl Signer<[u8; 0]> for NoneKey {
 
 struct NoneVerifier;
 impl Verifier for NoneVerifier {
-    fn verify(&mut self, _: &[u8], _: &[u8]) -> Result<(), signature::Error> {
+    fn verify(&mut self, _: &[u8], _: &[u8]) -> Result<(), VerifyError> {
         Ok(())
     }
 }
@@ -131,6 +131,11 @@ fn none_verifier_roundtrip() {
 
 #[test]
 fn detached_payload_with_context() {
+    use jose::{
+        crypto::ec::{P256PrivateKey, P256Signer, P256Verifier},
+        jwa::EcDSA,
+    };
+
     #[derive(Debug)]
     struct MyPayload(String);
 
@@ -176,10 +181,12 @@ fn detached_payload_with_context() {
     ))
     .unwrap();
     let key: P256PrivateKey = serde_json::from_str(&key).unwrap();
+
     let mut signer: P256Signer = key
         .clone()
         .into_signer(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
         .unwrap();
+
     let mut verifier: P256Verifier = key
         .into_verifier(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
         .unwrap();
@@ -193,11 +200,12 @@ fn detached_payload_with_context() {
         .unwrap()
         .encode();
 
-    assert_eq!(
-        jws.to_string(),
-        "eyJhbGciOiJFUzI1NiJ9..\
-         66Pd7hVwuNAOP4qFlQW5zSOmLNehj69TbZifg7pD5QjRWMqbxEdalWzMJFmRtQisYunNK2Vhm7H54xOnL6_Q4w"
-    );
+    // After a recent change in jose, ecdas is not deterministic anymore
+    // assert_eq!(
+    //     jws.to_string(),
+    //     "eyJhbGciOiJFUzI1NiJ9..\
+    //      66Pd7hVwuNAOP4qFlQW5zSOmLNehj69TbZifg7pD5QjRWMqbxEdalWzMJFmRtQisYunNK2Vhm7H54xOnL6_Q4w"
+    // );
 
     let parsed_jws =
         Unverified::<Jws<Compact, MyPayload>>::decode_with_context(jws.clone(), &context)
@@ -217,6 +225,11 @@ fn detached_payload_with_context() {
 
 #[test]
 fn sign_jws_using_p256() {
+    use jose::{
+        crypto::ec::{P256PrivateKey, P256Signer, P256Verifier},
+        jwa::EcDSA,
+    };
+
     let key = std::fs::read_to_string(format!(
         "{}/tests/keys/p256.json",
         env!("CARGO_MANIFEST_DIR"),
@@ -224,8 +237,14 @@ fn sign_jws_using_p256() {
     .unwrap();
 
     let key: P256PrivateKey = serde_json::from_str(&key).unwrap();
+
     let mut signer: P256Signer = key
+        .clone()
         .into_signer(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
+        .unwrap();
+
+    let mut verifier: P256Verifier = key
+        .into_verifier(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
         .unwrap();
 
     let jws = Jws::<Compact, _>::builder()
@@ -235,11 +254,19 @@ fn sign_jws_using_p256() {
         .unwrap()
         .encode();
 
-    assert_eq!(
-        jws.to_string().as_str(),
-        "eyJhbGciOiJFUzI1NiJ9.aGVsbG8gd29ybGQh.\
-         lVKmpTNK_Im3-JEpF1JzuXM-vP9tNSkR8785hqnYzOHd1__VVOeMzGW7nywUe7Xkp6Wlu3KgWXlvsxhQdU1PlQ"
-    );
+    // ecdsas is not deterministic anymore
+    // assert_eq!(
+    //     jws.to_string().as_str(),
+    //     "eyJhbGciOiJFUzI1NiJ9.aGVsbG8gd29ybGQh.\
+    //      lVKmpTNK_Im3-JEpF1JzuXM-vP9tNSkR8785hqnYzOHd1__VVOeMzGW7nywUe7Xkp6Wlu3KgWXlvsxhQdU1PlQ"
+    // );
+
+    let parsed_jws = Unverified::<Jws<Compact, StringPayload>>::decode(jws.clone())
+        .unwrap()
+        .verify(&mut verifier)
+        .unwrap();
+
+    assert_eq!(parsed_jws.payload().0, "hello world!");
 }
 
 #[test]

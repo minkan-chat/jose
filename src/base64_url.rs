@@ -4,23 +4,16 @@ use alloc::{borrow::ToOwned, string::String, vec::Vec};
 use core::{fmt, ops::Deref, str::FromStr};
 
 use base64ct::{Base64UrlUnpadded, Encoding};
-use elliptic_curve::{Curve, FieldBytes};
-use generic_array::{ArrayLength, GenericArray};
+use secrecy::{ExposeSecret as _, SecretSlice};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
+use thiserror::Error;
+use zeroize::{Zeroize, Zeroizing};
 
 /// Error type indicating that one part of the compact
 /// representation was an invalid Base64Url string.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Error)]
+#[error("the string is not a valid Base64Url representation")]
 pub struct NoBase64UrlString;
-
-impl fmt::Display for NoBase64UrlString {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("the string is not a valid Base64Url representation")
-    }
-}
-
-#[cfg(feature = "std")]
-impl std::error::Error for NoBase64UrlString {}
 
 /// A wrapper around a [`String`] that guarantees that the inner string is a
 /// valid Base64Url string.
@@ -90,7 +83,7 @@ impl Deref for Base64UrlString {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, Zeroize)]
 pub(crate) struct Base64UrlBytes(pub(crate) Vec<u8>);
 
 impl Serialize for Base64UrlBytes {
@@ -117,77 +110,32 @@ impl<'de> Deserialize<'de> for Base64UrlBytes {
     }
 }
 
-#[derive(Debug)]
-pub(crate) struct Base64UrlOctet<N: ArrayLength<u8>>(GenericArray<u8, N>);
+#[derive(Debug, Clone, Zeroize)]
+pub(crate) struct SecretBase64UrlBytes(pub(crate) SecretSlice<u8>);
 
-impl<'de, N> Deserialize<'de> for Base64UrlOctet<N>
-where
-    N: ArrayLength<u8>,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = <String as Deserialize>::deserialize(deserializer)?;
-
-        // let len = s.len();
-        // FIXME: this check fails but shouldn't?
-        // According to the JWA RFC (6.2.1.2):
-        // > The length of this octet string MUST
-        // > be the full size of a coordinate for the curve specified in the "crv"
-        // > parameter.
-        // if len != <N as Unsigned>::to_usize() {
-        // return Err(Error::custom(format!(
-        // "Expected a base64url encoded string with a length of {}, found a string with
-        // a \ length of {}.",
-        // len,
-        // <N as Unsigned>::to_usize(),
-        // )));
-        // }
-        let mut buf = GenericArray::<u8, N>::default();
-        Base64UrlUnpadded::decode(&*s, &mut buf).map_err(<D::Error as Error>::custom)?;
-        Ok(Self(buf))
-    }
-}
-
-/// Used for <http://www.secg.org/sec1-v2.pdf> section 2.3.5
-pub(crate) struct Base64UrlEncodedField<C>(pub(crate) FieldBytes<C>)
-where
-    C: Curve;
-
-impl<'de, C> Deserialize<'de> for Base64UrlEncodedField<C>
-where
-    C: Curve,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let field: Base64UrlOctet<C::FieldBytesSize> = Base64UrlOctet::deserialize(deserializer)?;
-
-        Ok(Self(field.0))
-    }
-}
-
-impl<C> Serialize for Base64UrlEncodedField<C>
-where
-    C: Curve,
-{
+impl Serialize for SecretBase64UrlBytes {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        let encoded = Base64UrlUnpadded::encode_string(&self.0);
-        serializer.serialize_str(&encoded)
+        let data = self.0.expose_secret();
+        let encoded = Zeroizing::new(Base64UrlUnpadded::encode_string(data));
+
+        encoded.serialize(serializer)
     }
 }
 
-impl<C> From<FieldBytes<C>> for Base64UrlEncodedField<C>
-where
-    C: Curve,
-{
-    fn from(v: FieldBytes<C>) -> Self {
-        Self(v)
+impl<'de> Deserialize<'de> for SecretBase64UrlBytes {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let encoded = Zeroizing::new(String::deserialize(deserializer)?);
+
+        let decoded = Base64UrlUnpadded::decode_vec(&encoded)
+            .map_err(|_| D::Error::custom("encountered invalid Base64Url string"))?;
+
+        Ok(Self(SecretSlice::from(decoded)))
     }
 }
 

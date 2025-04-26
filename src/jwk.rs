@@ -10,17 +10,10 @@ use hashbrown::HashSet;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
+    crypto::hmac::{self, Variant as _},
     jwa::{
         AesGcm, AesKw, EcDSA, Hmac, JsonWebAlgorithm, JsonWebEncryptionAlgorithm,
         JsonWebSigningAlgorithm, Pbes2,
-    },
-    jwk::{
-        ec::{EcPrivate, EcPublic},
-        okp::{
-            curve25519::{Curve25519Private, Curve25519Public},
-            OkpPrivate, OkpPublic,
-        },
-        symmetric::hmac::{HmacVariant, Hs256, Hs384, Hs512},
     },
     policy::{Checkable, Checked, CryptographicOperation, Policy},
     sealed::Sealed,
@@ -28,9 +21,6 @@ use crate::{
     UntypedAdditionalProperties, Uri,
 };
 
-pub mod ec;
-pub mod okp;
-pub mod rsa;
 pub mod symmetric;
 
 mod asymmetric;
@@ -51,8 +41,8 @@ pub use self::{
     builder::{JsonWebKeyBuildError, JsonWebKeyBuilder},
     key_ops::KeyOperation,
     key_use::KeyUsage,
-    private::Private,
-    public::Public,
+    private::{EcPrivate, OkpPrivate, Private},
+    public::{EcPublic, OkpPublic, Public},
     signer::{FromJwkError, JwkSigner},
     symmetric::SymmetricJsonWebKey,
     thumbprint::Thumbprint,
@@ -263,12 +253,15 @@ pub struct JsonWebKey<A = ()> {
 }
 
 impl JsonWebKey<()> {
-    fn new(key_type: JsonWebKeyType) -> Self {
+    pub(crate) fn new_with_algorithm(
+        key_type: JsonWebKeyType,
+        alg: Option<JsonWebAlgorithm>,
+    ) -> Self {
         Self {
             key_type,
             key_use: None,
             key_operations: None,
-            algorithm: None,
+            algorithm: alg,
             kid: None,
             x509_url: None,
             x509_certificate_chain: vec![],
@@ -385,7 +378,7 @@ impl<T> JsonWebKey<T> {
     /// TL;DR: check if you can use the [SHA-256
     /// thumbprint](JsonWebKey::x509_certificate_sha256_thumbprint) instead.
     ///
-    /// The following text is taken from the [`sha1`] crate: \
+    /// The following text is taken from the `sha1` crate: \
     /// The SHA-1 hash function should be considered cryptographically broken
     /// and unsuitable for further use in any security critical capacity, as it
     /// is [practically vulnerable to chosen-prefix collisions](https://sha-mbles.github.io/).
@@ -462,9 +455,8 @@ impl<T> JsonWebKey<T> {
             AsymmetricJsonWebKey::Public(_) => Some(self),
             AsymmetricJsonWebKey::Private(Private::Okp(okp)) => {
                 let key = match okp {
-                    OkpPrivate::Curve25519(Curve25519Private::Ed(key)) => {
-                        OkpPublic::Curve25519(Curve25519Public::Ed(key.to_public_key()))
-                    }
+                    OkpPrivate::Ed25519(key) => OkpPublic::Ed25519(key.to_public_key()),
+                    OkpPrivate::Ed448(key) => OkpPublic::Ed448(key.to_public_key()),
                 };
 
                 self.key_type = JsonWebKeyType::Asymmetric(Box::new(AsymmetricJsonWebKey::Public(
@@ -477,6 +469,7 @@ impl<T> JsonWebKey<T> {
                 let pub_key = match ec {
                     EcPrivate::P256(key) => EcPublic::P256(key.to_public_key()),
                     EcPrivate::P384(key) => EcPublic::P384(key.to_public_key()),
+                    EcPrivate::P521(key) => EcPublic::P521(key.to_public_key()),
                     EcPrivate::Secp256k1(key) => EcPublic::Secp256k1(key.to_public_key()),
                 };
 
@@ -515,9 +508,8 @@ impl<T> JsonWebKey<T> {
                 AsymmetricJsonWebKey::Public(_) => self,
                 AsymmetricJsonWebKey::Private(Private::Okp(okp)) => {
                     let key = match okp {
-                        OkpPrivate::Curve25519(Curve25519Private::Ed(key)) => {
-                            OkpPublic::Curve25519(Curve25519Public::Ed(key.to_public_key()))
-                        }
+                        OkpPrivate::Ed25519(key) => OkpPublic::Ed25519(key.to_public_key()),
+                        OkpPrivate::Ed448(key) => OkpPublic::Ed448(key.to_public_key()),
                     };
 
                     self.key_type = JsonWebKeyType::Asymmetric(Box::new(
@@ -530,6 +522,7 @@ impl<T> JsonWebKey<T> {
                     let pub_key = match ec {
                         EcPrivate::P256(key) => EcPublic::P256(key.to_public_key()),
                         EcPrivate::P384(key) => EcPublic::P384(key.to_public_key()),
+                        EcPrivate::P521(key) => EcPublic::P521(key.to_public_key()),
                         EcPrivate::Secp256k1(key) => EcPublic::Secp256k1(key.to_public_key()),
                     };
 
@@ -748,9 +741,9 @@ impl JsonWebKeyType {
                 Symmetric(SymmetricJsonWebKey::OctetSequence(key)),
                 Signing(JsonWebSigningAlgorithm::Hmac(hmac)),
             ) => match (hmac, key.len()) {
-                (Hmac::Hs256, Hs256::OUTPUT_SIZE..)
-                | (Hmac::Hs384, Hs384::OUTPUT_SIZE..)
-                | (Hmac::Hs512, Hs512::OUTPUT_SIZE..) => true,
+                (Hmac::Hs256, hmac::Hs256::OUTPUT_SIZE_BYTES..)
+                | (Hmac::Hs384, hmac::Hs384::OUTPUT_SIZE_BYTES..)
+                | (Hmac::Hs512, hmac::Hs512::OUTPUT_SIZE_BYTES..) => true,
                 _ => false,
             },
             (
@@ -800,8 +793,12 @@ impl JsonWebKeyType {
                     Signing(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256K)),
                 )
                 | (
-                    AsymmetricJsonWebKey::Public(Public::Okp(OkpPublic::Curve25519(..)))
-                    | AsymmetricJsonWebKey::Private(Private::Okp(OkpPrivate::Curve25519(..))),
+                    AsymmetricJsonWebKey::Public(Public::Okp(
+                        OkpPublic::Ed25519(..) | OkpPublic::Ed448(..),
+                    ))
+                    | AsymmetricJsonWebKey::Private(Private::Okp(
+                        OkpPrivate::Ed25519(..) | OkpPrivate::Ed448(..),
+                    )),
                     Signing(JsonWebSigningAlgorithm::EdDSA),
                     // FIXME: look how encryption is handled and which algorithm is used
                     //| Encryption(JsonWebEncryptionAlgorithm::EcDhES(..)),
@@ -865,26 +862,16 @@ pub trait IntoJsonWebKey: Sealed {
 mod hash_impl {
     use core::hash::{Hash, Hasher};
 
-    use super::{
-        ec::{
-            p256::{P256PrivateKey, P256PublicKey},
-            p384::{P384PrivateKey, P384PublicKey},
-            secp256k1::{Secp256k1PrivateKey, Secp256k1PublicKey},
-        },
-        okp::curve25519::{
-            Curve25519Private, Curve25519Public, Ed25519PrivateKey, Ed25519PublicKey,
-        },
-        rsa::{RsaPrivateKey, RsaPublicKey},
-        symmetric::OctetSequence,
-        JsonWebKey,
-    };
+    use super::{symmetric::OctetSequence, JsonWebKey};
+    use crate::crypto::{ec, okp, rsa};
 
-    impl_thumbprint_hash_trait!(Curve25519Public, Curve25519Private);
-    impl_thumbprint_hash_trait!(P256PublicKey, P256PrivateKey);
-    impl_thumbprint_hash_trait!(P384PublicKey, P384PrivateKey);
-    impl_thumbprint_hash_trait!(Secp256k1PublicKey, Secp256k1PrivateKey);
-    impl_thumbprint_hash_trait!(Ed25519PublicKey, Ed25519PrivateKey);
-    impl_thumbprint_hash_trait!(RsaPublicKey, RsaPrivateKey);
+    impl_thumbprint_hash_trait!(ec::P256PublicKey, ec::P256PrivateKey);
+    impl_thumbprint_hash_trait!(ec::P384PublicKey, ec::P384PrivateKey);
+    impl_thumbprint_hash_trait!(ec::P521PublicKey, ec::P521PrivateKey);
+    impl_thumbprint_hash_trait!(ec::Secp256k1PublicKey, ec::Secp256k1PrivateKey);
+    impl_thumbprint_hash_trait!(okp::Ed25519PublicKey, okp::Ed25519PrivateKey);
+    impl_thumbprint_hash_trait!(okp::Ed448PublicKey, okp::Ed448PrivateKey);
+    impl_thumbprint_hash_trait!(rsa::PublicKey, rsa::PrivateKey);
     impl_thumbprint_hash_trait!(OctetSequence);
 
     /// The [`Hash`] implementation of [`JsonWebKey`] uses the [`Hash`]
@@ -905,7 +892,10 @@ mod hash_impl {
     #[test]
     fn smoke() {
         use crate::{jwk::Thumbprint, JsonWebKey};
+
+        #[allow(unused_extern_crates)]
         extern crate std;
+
         // This is a serialized asymmetric key. The private key part is stored in
         // the `d` parameter
         let serialized_private_key = r#"
@@ -938,7 +928,7 @@ mod hash_impl {
 }
 "#;
 
-        let public_key: JsonWebKey = serde_json::from_str(&serialized_public_key).unwrap();
+        let public_key: JsonWebKey = serde_json::from_str(serialized_public_key).unwrap();
         let mut hasher = std::hash::DefaultHasher::default();
         public_key.hash(&mut hasher);
         let hash_public = hasher.finish();

@@ -1,13 +1,11 @@
 //! Symmetric cryptography for JWS and JWE
 
-pub mod hmac;
+use alloc::string::String;
 
-use alloc::{string::String, vec::Vec};
-
-use digest::InvalidLength;
 use secrecy::{ExposeSecret, SecretBox};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use subtle::ConstantTimeEq;
+use zeroize::Zeroize;
 
 use super::thumbprint::{self, Thumbprint};
 use crate::{base64_url::Base64UrlBytes, jws::InvalidSigningAlgorithmError};
@@ -43,20 +41,29 @@ impl Thumbprint for SymmetricJsonWebKey {
 /// [`SymmetricJsonWebKey`].
 ///
 /// However, because its length is not defined, it cannot be generated directly.
-/// Instead, you should use [`HmacKey<H>`](crate::jwk::symmetric::hmac::HmacKey)
+/// Instead, you should use [`HmacKey<H>`](crate::crypto::hmac::Key)
 /// with the appropriate key size, for example
-/// [`Hs512`](crate::jwk::symmetric::hmac::Hs512) and then, if needed, convert
+/// [`Hs512`](crate::crypto::hmac::Hs512) and then, if needed, convert
 /// it to a [`JsonWebKey`](crate::JsonWebKey) using
 /// [`IntoJsonWebKey`](crate::jwk::IntoJsonWebKey).
 ///
 /// <https://datatracker.ietf.org/doc/html/rfc7518#section-6.4.1>
-#[derive(Debug, Clone, ZeroizeOnDrop, Zeroize)]
-pub struct OctetSequence(pub(self) SecretBox<[u8]>);
+#[derive(Debug, Clone, Zeroize)]
+pub struct OctetSequence(SecretBox<[u8]>);
 
 impl OctetSequence {
-    pub(crate) fn new(x: impl Into<Vec<u8>>) -> Self {
-        let v: Vec<u8> = x.into();
-        Self(SecretBox::new(v.into_boxed_slice()))
+    pub(crate) fn new(x: SecretBox<[u8]>) -> Self {
+        Self(x)
+    }
+
+    /// Returns the bytes of this octet sequence.
+    pub(crate) fn bytes(&self) -> &SecretBox<[u8]> {
+        &self.0
+    }
+
+    /// Returns the bytes of this octet sequence.
+    pub(crate) fn into_bytes(self) -> SecretBox<[u8]> {
+        self.0
     }
 
     /// Returns the number of bytes that are in this octet sequence.
@@ -74,7 +81,7 @@ impl OctetSequence {
 
 impl PartialEq for OctetSequence {
     fn eq(&self, other: &Self) -> bool {
-        self.0.expose_secret() == other.0.expose_secret()
+        bool::from(self.0.expose_secret().ct_eq(other.0.expose_secret()))
     }
 }
 impl Eq for OctetSequence {}
@@ -134,14 +141,24 @@ impl Serialize for OctetSequence {
         .serialize(serializer)
     }
 }
-/// An error that can occur when creating an [`HmacKey`](hmac::HmacKey) from an
-/// [`OctetSequence`].
-#[derive(Debug, thiserror_no_std::Error, PartialEq, Eq)]
+
+/// An error that can occur when creating an
+/// [`HmacKey`](crate::crypto::hmac::Key) from an [`OctetSequence`].
+#[derive(Debug, thiserror::Error)]
 pub enum FromOctetSequenceError {
     /// An invalid signing algorithm was used
     #[error(transparent)]
     InvalidSigningAlgorithm(#[from] InvalidSigningAlgorithmError),
+
     /// A key from which a signer should've been created had an invalid length
-    #[error(transparent)]
-    InvalidLength(#[from] InvalidLength),
+    #[error("the length of the is invalid")]
+    InvalidLength,
+
+    /// Crypto backend threw an unknown error.
+    #[error("the crypto backend failed")]
+    Crypto(
+        #[from]
+        #[source]
+        crate::crypto::Error,
+    ),
 }

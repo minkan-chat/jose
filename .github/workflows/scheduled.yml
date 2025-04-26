@@ -1,11 +1,9 @@
 permissions:
   contents: read
-
 # Spend CI time only on latest ref: https://github.com/jonhoo/rust-ci-conf/pull/5
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
-
 on:
   push:
     branches: [main]
@@ -13,7 +11,6 @@ on:
   merge_group:
   schedule:
     - cron: "7 7 * * *"
-
 name: rolling
 jobs:
   # https://twitter.com/mycoliza/status/1571295690063753218
@@ -26,8 +23,17 @@ jobs:
           submodules: true
       - name: Install nightly
         uses: dtolnay/rust-toolchain@nightly
+      - name: cargo install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
       - name: cargo generate-lockfile
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
       - name: cargo test --locked
-        run: cargo test --locked --all-features --all-targets
+        run: |
+          export CRYPTO_FEATURES="$(cat Cargo.toml | grep -o 'crypto-[^ ]* =' | tr -d ' =' | paste -sd ',')"
+
+          # run the tests for all crypto backends
+          cargo hack \
+            --each-feature \
+            --include-features $CRYPTO_FEATURES \
+            test --locked --doc

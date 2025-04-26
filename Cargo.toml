@@ -24,16 +24,40 @@ categories = [
 [features]
 default = []
 std = [
-  "signature/std",
-  "thiserror-no-std/std",
-  "rsa/std",
-  "rand_core/std",
+  "thiserror/std",
   "fluent-uri/std",
   "serde_json/std",
+  "elliptic-curve?/std",
+  "signature?/std",
+  "rsa?/std",
+  "rand_core?/std",
+  "ring?/std",
 ]
+crypto-rustcrypto = [
+    "dep:rand_core",
+    "dep:hmac",
+    "dep:sha2",
+    "dep:p256",
+    "dep:p384",
+    "dep:k256",
+    "dep:elliptic-curve",
+    "dep:rsa",
+    "dep:digest",
+    "dep:ecdsa",
+    "dep:ed25519-dalek",
+    "dep:generic-array",
+    "dep:signature",
+]
+crypto-openssl = ["std", "dep:openssl", "dep:openssl-sys"]
+crypto-openssl-vendored = ["crypto-openssl", "openssl/vendored"]
+crypto-aws-lc = ["std", "dep:openssl", "openssl/aws-lc"]
+crypto-ring = ["dep:ring"]
+
+# This feature enables the deterministic signature generation
+# using EcDSA according to RFC 6979
+deterministic-ecdsa = []
 
 [dependencies]
-thiserror-no-std = "2.0.2"
 base64ct = { version = "1.5", default-features = false, features = ["alloc"] }
 serde = { version = "1", default-features = false, features = [
   "alloc",
@@ -41,24 +65,34 @@ serde = { version = "1", default-features = false, features = [
 ] }
 serde_json = { version = "1", default-features = false, features = ["alloc"] }
 hashbrown = { version = "0.15", features = ["serde"] }
-rand_core = { version = "0.6", features = ["getrandom", "alloc"] }
-hmac = { version = "0.12", default-features = false }
-sha1 = { version = "0.10", default-features = false, features = ["oid"] }
-sha2 = { version = "0.10", default-features = false, features = ["oid"] }
-ed25519 = { version = "2.2.1", default-features = false, features = ["alloc"] }
-p256 = { version = "0.13", default-features = false, features = [
+
+serde-value = { version = "0.7.0", default-features = false }
+# a replacement for the `mime` crate from hyper which seems to be no longer maintained
+mediatype = { version = "0.19.3", features = ["serde"] }
+fluent-uri = { version = "0.3.2", default-features = false }
+secrecy = { version = "0.10.3", default-features = false, features = ["serde"] }
+zeroize = { version = "1.8.1", default-features = false, features = ["derive", "serde"] }
+subtle = "2.6.1"
+thiserror = { version = "2.0.12", default-features = false }
+cfg-if = "1.0.0"
+
+# RustCrypto backend
+rand_core = { optional = true, version = "0.6", features = ["getrandom", "alloc"] }
+hmac = { optional = true, version = "0.12", default-features = false }
+sha2 = { optional = true, version = "0.10", default-features = false, features = ["oid"] }
+p256 = { optional = true, version = "0.13", default-features = false, features = [
   "arithmetic",
   "ecdsa",
 ] }
-p384 = { version = "0.13", default-features = false, features = [
+p384 = { optional = true, version = "0.13", default-features = false, features = [
   "arithmetic",
   "ecdsa",
 ] }
-k256 = { version = "0.13", default-features = false, features = [
+k256 = { optional = true, version = "0.13", default-features = false, features = [
   "arithmetic",
   "ecdsa",
 ] }
-elliptic-curve = { version = "0.13", default-features = false, features = [
+elliptic-curve = { optional = true, version = "0.13", default-features = false, features = [
   "arithmetic",
   "jwk",
   "serde",
@@ -66,43 +100,31 @@ elliptic-curve = { version = "0.13", default-features = false, features = [
   "pkcs8",
   "pem",
 ] }
-
-rsa = { version = "0.9", default-features = false }
-digest = { version = "0.10.7", default-features = false, features = ["mac"] }
-ecdsa = { version = "0.16", default-features = false, features = [
+rsa = { optional = true, version = "0.9", default-features = false }
+digest = { optional = true, version = "0.10.7", default-features = false, features = ["mac"] }
+ecdsa = { optional = true, version = "0.16", default-features = false, features = [
   "digest",
   "signing",
   "verifying",
   "alloc",
 ] }
-
-ed25519-dalek = { version = "2", default-features = false, features = [
+ed25519-dalek = { optional = true, version = "2", default-features = false, features = [
   "zeroize",
   "rand_core",
 ] }
-
-signature = { version = "2.1.0", default-features = false }
 # FIXME: remove this when we can use const generics
-generic-array = { version = "0.14", default-features = false, features = [
+generic-array = { optional = true, version = "0.14", default-features = false, features = [
   "serde",
 ] }
+signature = { optional = true, version = "2.1.0", default-features = false }
 
-typenum = { version = "1.15", default-features = false, features = ["no_std"] }
-num-traits = { version = "0.2.15", default-features = false }
-num-bigint-dig = { version = "0.8.1", default-features = false, features = [
-  "u64_digit",
-] }
-serde-value = { version = "0.7.0", default-features = false }
-
-# a replacement for the `mime` crate from hyper which seems to be no longer maintained
-mediatype = { version = "0.19.3", features = ["serde"] }
-fluent-uri = { version = "0.3.2", default-features = false }
-secrecy = { version = "0.10.3", default-features = false, features = ["serde"] }
-zeroize = { version = "1.8.1", default-features = false, features = ["derive", "serde"] }
+# OpenSSL backend (is also used for aws-lc and libressl)
+openssl = { version = "0.10.72", optional = true }
+openssl-sys = { version = "0.9.107", optional = true }
+# Ring crypto backend
+ring = { version = "0.17.14", optional = true }
 
 [dev-dependencies]
-rand = "0.8.5"
-
 # For examples
 eyre = "0.6.12"
 clap = { version = "4.5.27", features = ["derive"] }
@@ -114,3 +136,7 @@ clio = { version = "0.3.5", features = ["clap-parse"] }
 [[example]]
 name = "basic-jwt"
 required-features = ["std"]
+
+[package.metadata.docs.rs]
+features = ["crypto-rustcrypto", "std", "deterministic-ecdsa"]
+rustdoc-args = ["--cfg", "docsrs"]

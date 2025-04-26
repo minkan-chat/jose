@@ -106,7 +106,7 @@ where
 }
 
 /// Error returned by [`FromRawPayload`] implementation of [`Claims`]
-#[derive(Debug, thiserror_no_std::Error)]
+#[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum ClaimsDecodeError {
     /// [`Claims`] does not support this operation.
