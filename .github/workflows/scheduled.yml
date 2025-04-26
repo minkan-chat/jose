@@ -21,6 +21,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
+      - name: rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "jose" # we share cache across jobs
       - name: Install nightly
         uses: dtolnay/rust-toolchain@nightly
       - name: cargo install cargo-hack
