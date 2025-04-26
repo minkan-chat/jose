@@ -15,9 +15,9 @@ In order to prevent such vulnerabilities, this crate uses the Rust type system
 to make illegal states impossible and marks insecure or unverified /! states
 directly on the types themselves.
 
-# Example
+## Example
 
-## Create a basic [`Jwt`]
+### Create a basic [`Jwt`]
 
 In this crate, cryptographic keys are always represented as a type, never as a
 [`String`] or some other format that would lose essential information about a
@@ -141,12 +141,12 @@ This crate implements various RFCs related to JOSE:
 [`JsonWebKey`]: <https://docs.rs/jose/latest/jose/struct.JsonWebKey.html>
 [`String`]: <https://doc.rust-lang.org/nightly/std/string/struct.String.html>
 
-# Crypto backends
+## Crypto backends
 
 One of the core features of the `jose` crate is the ability to choose between
 different libraries for performing cryptographic operations. This gives the user
-maximum flexibility to include `jose` in their codebase, and make it work under
-his cryptographic requirements.
+maximum flexibility to include `jose` in their codebase and make it work under
+their cryptographic requirements.
 
 A backend is selected at compile time via feature flags. If no feature is
 enabled, this crate won't compile. Additionally, if multiple backends are
