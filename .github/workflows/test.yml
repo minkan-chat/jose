@@ -1,11 +1,14 @@
 permissions:
   contents: read
+
 on:
   push:
     branches: [main]
   pull_request:
   merge_group:
+
 name: test
+
 jobs:
   required:
     runs-on: ubuntu-latest
@@ -13,6 +16,10 @@ jobs:
     strategy:
       matrix:
         toolchain: [stable, beta]
+
+    env:
+      CARGO_TERM_COLOR: always
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,6 +33,9 @@ jobs:
         run: cargo generate-lockfile
       - name: cargo install cargo-hack
         uses: taiki-e/install-action@cargo-hack
+      - name: cargo install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
       # https://twitter.com/jonhoo/status/1571290371124260865
       - name: cargo test --locked
         run: |
@@ -35,8 +45,11 @@ jobs:
           cargo hack \
             --each-feature \
             --include-features $CRYPTO_FEATURES \
-            test --locked --all-targets
+            nextest run --all-targets
+
       # https://github.com/rust-lang/cargo/issues/6669
+      #
+      # Nextest doesn't support running doc tests, so use normal cargo for that
       - name: cargo test --doc
         run: |
           export CRYPTO_FEATURES="$(cat Cargo.toml | grep -o 'crypto-[^ ]* =' | tr -d ' =' | paste -sd ',')"
@@ -46,8 +59,9 @@ jobs:
             --each-feature \
             --include-features $CRYPTO_FEATURES \
             test --locked --doc
-  # FIXME: enable again after memchr use in serde-json is fixed -> serde-json 
-  # needs to correctly pin memchr
+
+  # FIXME: minimal versions is currently really hard to get to pass
+
   # minimal:
   #   runs-on: ubuntu-latest
   #   name: ubuntu / stable / minimal-versions
@@ -65,6 +79,7 @@ jobs:
   #       run: cargo +nightly update -Zminimal-versions
   #     - name: cargo test
   #       run: cargo test --locked --all-features --all-targets
+
   os-check:
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.os }} / stable
@@ -81,9 +96,12 @@ jobs:
       - name: cargo generate-lockfile
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
+      - name: cargo install cargo-nextest
+        uses: taiki-e/install-action@nextest
       # TODO: check other possible backends too
       - name: cargo test
-        run: cargo test --locked --features crypto-rustcrypto --all-targets
+        run: cargo nextest run --features crypto-rustcrypto --all-targets
+
   coverage:
     runs-on: ubuntu-latest
     name: ubuntu / stable / coverage

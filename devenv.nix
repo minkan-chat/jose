@@ -6,6 +6,7 @@
     cargo-shear
     cargo-udeps
     cargo-hack
+    cargo-nextest
 
     openssl
     pkg-config
