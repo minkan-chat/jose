@@ -56,13 +56,7 @@ impl fmt::Debug for Error {
 
 impl error::Error for Error {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        todo!()
-        // error::Error::source(&self.inner)
-    }
-
-    fn cause(&self) -> Option<&dyn error::Error> {
-        todo!()
-        // error::Error::cause(&self.inner)
+        error::Error::source(&self.inner)
     }
 }
 
