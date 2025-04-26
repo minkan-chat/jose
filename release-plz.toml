@@ -1,2 +1,6 @@
 [workspace]
 pr_labels = ["release"]
+
+[[package]]
+name = "jose"
+publish_features = ["crypto-rustcrypto"]
