@@ -135,12 +135,29 @@ impl Type for Jwe {
     }
 
     fn from_deserializer(
-        _de: HeaderDeserializer,
+        mut de: HeaderDeserializer,
     ) -> Result<(Self, HeaderDeserializer), (Error, HeaderDeserializer)>
     where
         Self: Sized,
     {
-        todo!()
+        // "try" blocks hack
+        let mut t = || {
+            Ok(Self {
+                algorithm: de
+                    .deserialize_field("alg")
+                    .transpose()?
+                    .ok_or(Error::MissingHeader("alg".to_string()))?,
+                content_encryption_algorithm: de
+                    .deserialize_field("enc")
+                    .transpose()?
+                    .ok_or(Error::MissingHeader("enc".to_string()))?,
+            })
+        };
+        let s: Result<Jwe, Error> = t();
+        match s {
+            Ok(v) => Ok((v, de)),
+            Err(e) => Err((e, de)),
+        }
     }
 
     fn specific_default() -> Specific {
