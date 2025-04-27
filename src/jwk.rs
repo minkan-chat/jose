@@ -161,7 +161,7 @@ use self::{
 /// ascii characters. An implementation for that purpose might look like this:
 /// ```
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// use jose::policy::{Checkable, Checked, Policy, PolicyError};
+/// use jose::jwk::policy::{Checkable, Checked, Policy, PolicyError};
 /// use serde::{Deserialize, Serialize};
 /// // our type from before
 /// #[derive(Deserialize, Serialize)]
