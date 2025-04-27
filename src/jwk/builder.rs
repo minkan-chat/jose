@@ -6,7 +6,7 @@ use hashbrown::HashSet;
 use super::{serde_impl::Base64DerCertificate, JsonWebKey, JsonWebKeyType, KeyOperation, KeyUsage};
 use crate::{
     jwa::JsonWebAlgorithm,
-    policy::{Checkable, Checked, Policy},
+    jwk::policy::{Checkable, Checked, Policy},
     Uri,
 };
 

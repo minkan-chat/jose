@@ -40,7 +40,6 @@ pub mod jwe;
 pub mod jwk;
 pub mod jws;
 pub mod jwt;
-pub mod policy;
 mod uri;
 
 use alloc::string::String;
