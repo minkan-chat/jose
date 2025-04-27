@@ -349,3 +349,27 @@ fn symmetric_thumbprint() {
     let p = Base64UrlString::encode(p);
     assert_eq!(&*p, "prDKy90VJzrDTpm8-W2Q_pv_kzrX_zyZ7ANjRAasDxc");
 }
+
+pub mod set {
+    use jose::{jwk::JsonWebKeySet, JsonWebKey};
+
+    use crate::read_key_file;
+
+    #[test]
+    fn construct_and_find() {
+        let set = read_key_file("set");
+        let set: JsonWebKeySet = serde_json::from_str(&set).unwrap();
+
+        let ec_key = read_key_file("p256");
+        let ec_key = serde_json::from_str::<JsonWebKey>(&ec_key).unwrap();
+
+        let hmac_key = read_key_file("hs256");
+        let hmac_key = serde_json::from_str::<JsonWebKey>(&hmac_key).unwrap();
+
+        let found_ec_key = set.find_by_keyid("ec_key").unwrap();
+        let found_hmac_key = set.find_by_keyid("hmac_key").unwrap();
+
+        assert_eq!(found_ec_key.key_type(), ec_key.key_type());
+        assert_eq!(found_hmac_key.key_type(), hmac_key.key_type());
+    }
+}

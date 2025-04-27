@@ -15,7 +15,7 @@ use jose::{
     jwa::JsonWebSigningAlgorithm,
     jwk::{
         policy::{Checkable, StandardPolicy},
-        JwkSigner, JwkVerifier,
+        JsonWebKeySet, JwkSigner, JwkVerifier,
     },
     jws::{
         FromRawPayload, IntoPayload, IntoSigner, IntoVerifier, ManyUnverified, PayloadData,
@@ -464,4 +464,33 @@ fn ed25519() {
     wrong_jws
         .verify(&mut verifier)
         .expect_err("signature made by different private key");
+}
+
+#[test]
+fn json_general_sign_with_set() {
+    let keys = std::fs::read_to_string(format!(
+        "{}/tests/keys/set.json",
+        env!("CARGO_MANIFEST_DIR"),
+    ))
+    .unwrap();
+    let payload = StringPayload::from("Hello guys!");
+
+    let keys: JsonWebKeySet = serde_json::from_str(&keys).unwrap();
+    let keys = keys.check(StandardPolicy::new()).unwrap();
+
+    let mut signers = keys.signers().unwrap();
+    let jws = Jws::<JsonGeneral, _>::builder()
+        .header(|b| b)
+        .header(|b| b)
+        .build(payload)
+        .unwrap()
+        .sign_many_type(signers.iter_mut())
+        .unwrap()
+        .encode();
+
+    let mut verifiers = keys.verifiers().unwrap();
+    let _parsed_jws = ManyUnverified::<Jws<JsonGeneral, StringPayload>>::decode(jws)
+        .unwrap()
+        .verify_many_type(verifiers.iter_mut())
+        .unwrap();
 }
