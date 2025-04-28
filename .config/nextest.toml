@@ -1,0 +1,3 @@
+[profile.default]
+# there are some flaky openssl tests
+retries = 3
