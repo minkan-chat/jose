@@ -151,8 +151,8 @@ impl ec::PrivateKey for PrivateKey {
         // the returned signature is in DER format, we need to convert it according
         // to Section 3.4 of RFC 7518
         let signature = EcdsaSig::from_der(&der_sig)?;
-        let r = signature.r().to_vec();
-        let s = signature.s().to_vec();
+        let r = signature.r().to_vec_padded(32)?;
+        let s = signature.s().to_vec_padded(32)?;
 
         let mut sig = Vec::with_capacity(r.len() + s.len());
         sig.extend_from_slice(&r);
