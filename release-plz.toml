@@ -1,5 +1,9 @@
 [workspace]
+changelog_path = "./CHANGELOG.md"
+changelog_config = "cliff.toml"
 pr_labels = ["release"]
+pr_draft  = true
+release_always = false
 
 [[package]]
 name = "jose"
