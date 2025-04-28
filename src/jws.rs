@@ -327,7 +327,7 @@ impl<T: IntoPayload> JsonWebSignature<JsonGeneral, T> {
         let payload = self.payload.into_payload().map_err(SignError::Payload)?;
         let payload_msg = match payload {
             PayloadKind::Attached(PayloadData::Standard(ref b64)) => b64.as_bytes(),
-            PayloadKind::Detached(_) => todo!(),
+            PayloadKind::Detached(PayloadData::Standard(ref b64)) => b64.as_bytes(),
         };
 
         let mut signatures = vec![];
