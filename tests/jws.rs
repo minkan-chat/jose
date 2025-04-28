@@ -13,12 +13,14 @@ use jose::{
     format::{Compact, JsonFlattened, JsonGeneral},
     header::HeaderValue,
     jwa::JsonWebSigningAlgorithm,
-    jwk::{JwkSigner, JwkVerifier},
+    jwk::{
+        policy::{Checkable, StandardPolicy},
+        JwkSigner, JwkVerifier,
+    },
     jws::{
         FromRawPayload, IntoPayload, IntoSigner, IntoVerifier, ManyUnverified, PayloadData,
         PayloadKind, Signer, Unverified, Verifier, VerifyError,
     },
-    policy::{Checkable, StandardPolicy},
     Base64UrlString, JsonWebKey, Jws,
 };
 

@@ -7,8 +7,8 @@ use super::{
 use crate::{
     crypto::{ec, hmac, okp, rsa},
     jwa::{EcDSA, Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
+    jwk::policy::{Checked, CryptographicOperation, Policy},
     jws::{IntoSigner, InvalidSigningAlgorithmError, Signer},
-    policy::{Checked, CryptographicOperation, Policy},
     JsonWebKey,
 };
 

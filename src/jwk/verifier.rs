@@ -7,9 +7,11 @@ use super::{
 use crate::{
     crypto::{ec, hmac, okp, rsa},
     jwa::{Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
-    jwk::JsonWebKeyType,
+    jwk::{
+        policy::{Checked, CryptographicOperation, Policy},
+        JsonWebKeyType,
+    },
     jws::{IntoVerifier, InvalidSigningAlgorithmError, Verifier, VerifyError},
-    policy::{Checked, CryptographicOperation, Policy},
     JsonWebKey,
 };
 #[derive(Debug)]

@@ -9,9 +9,11 @@ use jose::{
         hmac::{Hs256, Key as HmacKey},
     },
     format::{Compact, DecodeFormat},
-    jwk::{IntoJsonWebKey, JwkSigner, JwkVerifier, KeyOperation},
+    jwk::{
+        policy::{Checkable, StandardPolicy},
+        IntoJsonWebKey, JwkSigner, JwkVerifier, KeyOperation,
+    },
     jwt::Claims,
-    policy::{Checkable, StandardPolicy},
     JsonWebKey, Jwt, UntypedAdditionalProperties,
 };
 

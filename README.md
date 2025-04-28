@@ -33,10 +33,12 @@ use alloc::string::ToString;
 
 use jose::{
     format::{Compact, DecodeFormat},
-    jwk::{JwkSigner, JwkVerifier},
+    jwk::{
+        policy::{Checkable, StandardPolicy},
+        JwkSigner, JwkVerifier,
+    },
     jws::Unverified,
     jwt::Claims,
-    policy::{Checkable, StandardPolicy},
     JsonWebKey, Jwk, Jwt, UntypedAdditionalProperties,
 };
 

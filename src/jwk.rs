@@ -15,7 +15,6 @@ use crate::{
         AesGcm, AesKw, EcDSA, Hmac, JsonWebAlgorithm, JsonWebEncryptionAlgorithm,
         JsonWebSigningAlgorithm, Pbes2,
     },
-    policy::{Checkable, Checked, CryptographicOperation, Policy},
     sealed::Sealed,
     uri::BorrowedUri,
     UntypedAdditionalProperties, Uri,
@@ -27,6 +26,7 @@ mod asymmetric;
 mod builder;
 mod key_ops;
 mod key_use;
+pub mod policy;
 mod private;
 mod public;
 pub(crate) mod serde_impl;
@@ -34,7 +34,6 @@ mod signer;
 pub(crate) mod thumbprint;
 mod verifier;
 
-use self::serde_impl::Base64DerCertificate;
 #[doc(inline)]
 pub use self::{
     asymmetric::AsymmetricJsonWebKey,
@@ -47,6 +46,10 @@ pub use self::{
     symmetric::SymmetricJsonWebKey,
     thumbprint::Thumbprint,
     verifier::JwkVerifier,
+};
+use self::{
+    policy::{Checkable, Checked, CryptographicOperation, Policy},
+    serde_impl::Base64DerCertificate,
 };
 
 /// A [`JsonWebKey`] is a [JSON Object](serde_json::Value::Object) representing
@@ -158,7 +161,7 @@ pub use self::{
 /// ascii characters. An implementation for that purpose might look like this:
 /// ```
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// use jose::policy::{Checkable, Checked, Policy, PolicyError};
+/// use jose::jwk::policy::{Checkable, Checked, Policy, PolicyError};
 /// use serde::{Deserialize, Serialize};
 /// // our type from before
 /// #[derive(Deserialize, Serialize)]

@@ -2,12 +2,12 @@ use jose::{
     crypto::hmac,
     jwa::{EcDSA, Hmac, JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::{
+        policy::{Checkable, Checked, StandardPolicy},
         symmetric::{FromOctetSequenceError, OctetSequence},
         AsymmetricJsonWebKey, EcPrivate, EcPublic, FromKey as _, JsonWebKey, JsonWebKeyType,
         JwkSigner, OkpPrivate, Private, Public, Thumbprint,
     },
     jws::Signer,
-    policy::{Checkable, Checked, StandardPolicy},
     Base64UrlString,
 };
 use serde_json::json;
