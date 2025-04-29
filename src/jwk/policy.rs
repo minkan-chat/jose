@@ -209,7 +209,7 @@ impl<P: Policy> Policy for &P {
 }
 
 /// An error returned by the [`Policy`] trait
-pub trait PolicyError {
+pub trait PolicyError: core::error::Error {
     /// A custom error message
     fn custom<T>(msg: T) -> Self
     where

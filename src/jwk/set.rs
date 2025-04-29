@@ -8,7 +8,6 @@ use super::{
     policy::{Checkable, Checked, Policy},
     FromJwkError, JsonWebKey, JwkSigner, JwkVerifier,
 };
-use crate::jws::Signer;
 
 /// A list of raw [`JsonWebKey`] objects, which is parsed according to [Section
 /// 5 of RFC 7517](https://www.rfc-editor.org/rfc/rfc7517#section-5).
@@ -141,7 +140,11 @@ impl<A, P: Policy> CheckedJsonWebKeySet<P, A> {
 
     /// Tries to convert all keys in this set to [`JwkSigner`]s, in order to
     /// sign a JWS using them.
-    pub fn into_signers(self) -> Result<Vec<impl Signer<Vec<u8>>>, FromJwkError> {
+    ///
+    /// # Errors
+    ///
+    /// Fails if one of the JWKs could not be converted to a signer.
+    pub fn into_signers(self) -> Result<Vec<JwkSigner>, FromJwkError> {
         let signers: Vec<JwkSigner> = self
             .keys
             .into_iter()
@@ -154,6 +157,10 @@ impl<A, P: Policy> CheckedJsonWebKeySet<P, A> {
     /// Tries to convert all keys in this set to [`JwkSigner`]s, in order to
     /// sign a JWS using them. But instead of taking `self`, it will clone
     /// all keys.
+    ///
+    /// # Errors
+    ///
+    /// Fails if one of the JWKs could not be converted to a signer.
     pub fn signers(&self) -> Result<Vec<JwkSigner>, FromJwkError>
     where
         A: Clone,
@@ -171,6 +178,10 @@ impl<A, P: Policy> CheckedJsonWebKeySet<P, A> {
 
     /// Tries to convert all keys in this set to [`JwkVerifier`]s, in order to
     /// verify a JWS using them.
+    ///
+    /// # Errors
+    ///
+    /// Fails if one of the JWKs could not be converted to a verifier.
     pub fn into_verifiers(self) -> Result<Vec<JwkVerifier>, FromJwkError> {
         let verifiers: Vec<JwkVerifier> = self
             .keys
@@ -184,6 +195,10 @@ impl<A, P: Policy> CheckedJsonWebKeySet<P, A> {
     /// Tries to convert all keys in this set to [`JwkVerifier`]s, in order to
     /// verify a JWS using them. But instead of taking `self`, it will clone
     /// all keys.
+    ///
+    /// # Errors
+    ///
+    /// Fails if one of the JWKs could not be converted to a verifier.
     pub fn verifiers(&self) -> Result<Vec<JwkVerifier>, FromJwkError>
     where
         A: Clone,
