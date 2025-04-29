@@ -10,7 +10,7 @@ use jose::{
         self,
         okp::{Ed25519PrivateKey, Ed25519PublicKey, Ed25519Signer, Ed25519Verifier},
     },
-    format::{Compact, CompactJws, JsonFlattenedJws, JsonGeneral},
+    format::{Compact, CompactJws, JsonFlattenedJws, JsonGeneralJws},
     header::HeaderValue,
     jwa::JsonWebSigningAlgorithm,
     jwk::{
@@ -338,7 +338,7 @@ fn smoke() {
 
     let signers: [&mut dyn Signer<Vec<u8>>; 2] = [&mut signer, &mut signer2];
 
-    let jws = Jws::<JsonGeneral, _>::builder()
+    let jws = Jws::<JsonGeneralJws, _>::builder()
         .header(|b| b)
         .header(|b| b)
         .build(payload)
@@ -349,7 +349,7 @@ fn smoke() {
     println!("{jws}",);
 
     let verifiers: [&mut dyn Verifier; 2] = [&mut verifier, &mut verifier2];
-    let parsed_jws = ManyUnverified::<Jws<JsonGeneral, StringPayload>>::decode(jws)
+    let parsed_jws = ManyUnverified::<Jws<JsonGeneralJws, StringPayload>>::decode(jws)
         .unwrap()
         .verify_many(verifiers)
         .unwrap();

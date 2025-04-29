@@ -11,8 +11,8 @@ use core::fmt;
 
 pub use compact::{Compact, CompactJwe, CompactJws};
 pub use json_flattened::{JsonFlattened, JsonFlattenedJwe, JsonFlattenedJws};
-pub use json_general::JsonGeneral;
 pub(crate) use json_general::Signature as JsonGeneralSignature;
+pub use json_general::{JsonGeneral, JsonGeneralJwe, JsonGeneralJws};
 
 use crate::sealed::Sealed;
 

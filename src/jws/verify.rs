@@ -6,7 +6,7 @@ use thiserror::Error;
 use super::JsonWebSignature;
 use crate::{
     crypto,
-    format::{DecodeFormat, DecodeFormatWithContext, Format, JsonGeneral},
+    format::{DecodeFormat, DecodeFormatWithContext, Format, JsonGeneralJws},
     jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::FromKey,
 };
@@ -168,7 +168,7 @@ where
 ///
 /// Compared to [`Unverified`] this type can contain multiple signatures that
 /// need to be verified. An instance of this type can only be obtained by
-/// decoding a JWS using the [`JsonGeneral`] format.
+/// decoding a JWS using the [`JsonGeneralJws`] format.
 #[derive(Debug)]
 pub struct ManyUnverified<T> {
     pub(crate) value: T,
@@ -177,16 +177,16 @@ pub struct ManyUnverified<T> {
 }
 
 impl<T> ManyUnverified<T> {
-    /// Parses a JWS in the [`JsonGeneral`] format into an unverified
+    /// Parses a JWS in the [`JsonGeneralJws`] format into an unverified
     /// representation of `T`.
     ///
     /// # Errors
     ///
     /// Returns an error if the input format has an invalid representation for
     /// the `T` type.
-    pub fn decode(input: JsonGeneral) -> Result<Self, T::Error>
+    pub fn decode(input: JsonGeneralJws) -> Result<Self, T::Error>
     where
-        T: DecodeFormat<JsonGeneral, Decoded<T> = ManyUnverified<T>>,
+        T: DecodeFormat<JsonGeneralJws, Decoded<T> = ManyUnverified<T>>,
     {
         T::decode(input)
     }

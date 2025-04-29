@@ -11,7 +11,7 @@ use crate::{
     crypto,
     format::{
         CompactJws, DecodeFormat, DecodeFormatWithContext, Format, JsonFlattened, JsonFlattenedJws,
-        JsonGeneral, JsonGeneralSignature,
+        JsonGeneralJws, JsonGeneralSignature,
     },
     header, Base64UrlString, JoseHeader,
 };
@@ -158,7 +158,7 @@ pub enum SignError<P> {
     /// The number of headers in the JWS does not match the number of
     /// [`Signer`]s.
     ///
-    /// This error is only possible when using the [`JsonGeneral`] format.
+    /// This error is only possible when using the [`JsonGeneralJws`] format.
     #[error("the number of headers does not match the number of signers")]
     HeaderCountMismatch,
     /// Failed to serialize the [`JoseHeader`].
@@ -234,9 +234,9 @@ impl<T> JsonWebSignature<JsonFlattenedJws, T> {
     }
 }
 
-impl<T> JsonWebSignature<JsonGeneral, T> {
+impl<T> JsonWebSignature<JsonGeneralJws, T> {
     /// Returns a reference to the list of [`JoseHeader`] of this JWS.
-    pub fn header(&self) -> &Vec<JoseHeader<JsonGeneral, header::Jws>> {
+    pub fn header(&self) -> &Vec<JoseHeader<JsonGeneralJws, header::Jws>> {
         &self.header
     }
 }
@@ -298,10 +298,10 @@ impl<F: Format, T: IntoPayload> JsonWebSignature<F, T> {
     }
 }
 
-impl<T: IntoPayload> JsonWebSignature<JsonGeneral, T> {
+impl<T: IntoPayload> JsonWebSignature<JsonGeneralJws, T> {
     /// Signs this JWS using multiple signers.
     ///
-    /// This is only supported when the JWS is in the [`JsonGeneral`] format.
+    /// This is only supported when the JWS is in the [`JsonGeneralJws`] format.
     ///
     /// # Errors
     ///
@@ -312,7 +312,7 @@ impl<T: IntoPayload> JsonWebSignature<JsonGeneral, T> {
     pub fn sign_many<'s, S: AsRef<[u8]> + 's>(
         self,
         signers: impl IntoIterator<Item = &'s mut dyn Signer<S>>,
-    ) -> Result<Signed<JsonGeneral>, SignError<T::Error>> {
+    ) -> Result<Signed<JsonGeneralJws>, SignError<T::Error>> {
         if self.header.is_empty() {
             // this is unreachable right now, but we don't want to panic, so just return a
             // kind of matching error
@@ -375,9 +375,10 @@ impl<T: IntoPayload> JsonWebSignature<JsonGeneral, T> {
         };
 
         Ok(Signed {
-            value: JsonGeneral {
+            value: JsonGeneralJws {
                 payload,
                 signatures,
+                _crypto_typ: PhantomData,
             },
         })
     }
@@ -503,7 +504,7 @@ fn parse_json_header<F: Format, E>(
 pub enum ParseJsonError<P> {
     /// The `signatures` array was empty.
     ///
-    /// This error can only happen when decoding the [`JsonGeneral`] format.
+    /// This error can only happen when decoding the [`JsonGeneralJws`] format.
     #[error("the signatures array was empty")]
     EmptySignatures,
     /// The header of the JWS is invalid.
@@ -569,28 +570,29 @@ impl<C, T: FromRawPayload<Context = C>> DecodeFormatWithContext<JsonFlattenedJws
     }
 }
 
-impl<T: FromRawPayload<Context = ()>> DecodeFormat<JsonGeneral>
-    for JsonWebSignature<JsonGeneral, T>
+impl<T: FromRawPayload<Context = ()>> DecodeFormat<JsonGeneralJws>
+    for JsonWebSignature<JsonGeneralJws, T>
 {
     type Decoded<D> = ManyUnverified<D>;
     type Error = ParseJsonError<T::Error>;
 
-    fn decode(input: JsonGeneral) -> Result<Self::Decoded<Self>, Self::Error> {
+    fn decode(input: JsonGeneralJws) -> Result<Self::Decoded<Self>, Self::Error> {
         Self::decode_with_context(input, &())
     }
 }
 
-impl<C, T: FromRawPayload<Context = C>> DecodeFormatWithContext<JsonGeneral, C>
-    for JsonWebSignature<JsonGeneral, T>
+impl<C, T: FromRawPayload<Context = C>> DecodeFormatWithContext<JsonGeneralJws, C>
+    for JsonWebSignature<JsonGeneralJws, T>
 {
     type Decoded<D> = ManyUnverified<D>;
     type Error = ParseJsonError<T::Error>;
 
     fn decode_with_context(
-        JsonGeneral {
+        JsonGeneralJws {
             payload,
             signatures,
-        }: JsonGeneral,
+            _crypto_typ: PhantomData,
+        }: JsonGeneralJws,
         context: &C,
     ) -> Result<Self::Decoded<Self>, Self::Error> {
         if signatures.is_empty() {
