@@ -91,13 +91,13 @@ use crate::{
 ///
 /// ```
 /// use jose::{
-///     format::Compact,
+///     format::CompactJws,
 ///     header::{HeaderValue, JoseHeader, Jws},
 ///     jwa::Hmac,
 /// };
 ///
-/// // we are going to build a `JoseHeader` for a `Compact` `Jws`
-/// let header = JoseHeader::<Compact, Jws>::builder()
+/// // we are going to build a `JoseHeader` for a `CompactJws` `Jws`
+/// let header = JoseHeader::<CompactJws, Jws>::builder()
 ///     // we set the `alg` header parameter as an unprotected parameter
 ///     .algorithm(HeaderValue::Unprotected(Hmac::Hs256.into()))
 ///     // we set the `kid` header parameter as an protected parameter
@@ -124,7 +124,7 @@ use crate::{
 #[derive(Debug)]
 pub struct JoseHeader<F, T> {
     parameters: Parameters<T>,
-    // marker for the format (compact, json general, json flattened)
+    // marker for the format (CompactJws, json general, json flattened)
     _format: PhantomData<F>,
 }
 

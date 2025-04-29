@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
-use core::{fmt, str::FromStr};
+use core::{fmt, marker::PhantomData, str::FromStr};
 
-use super::{sealed, Format};
+use super::{sealed, Format, Jwe, Jws, SealedFormatType};
 use crate::{
     base64_url::NoBase64UrlString,
     header,
@@ -12,13 +12,19 @@ use crate::{
 /// The compact representation is essentially a list of Base64Url
 /// strings that are separated by `.`.
 #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Compact {
+pub struct Compact<T> {
     parts: Vec<Base64UrlString>,
+    _crypto_typ: PhantomData<T>,
 }
 
-impl Format for Compact {}
-impl sealed::SealedFormat<Compact> for Compact {
-    type JwsHeader = JoseHeader<Compact, header::Jws>;
+/// A [`JsonWebSignature`](crate::JsonWebSignature) in [`Compact`] format
+pub type CompactJws = Compact<Jws>;
+/// A [`JsonWebEncryption`](crate::JsonWebEncryption) in [`Compact`] format
+pub type CompactJwe = Compact<Jwe>;
+
+impl Format for Compact<Jws> {}
+impl sealed::SealedFormat<CompactJws> for CompactJws {
+    type JwsHeader = JoseHeader<Compact<Jws>, header::Jws>;
     type SerializedJwsHeader = Base64UrlString;
 
     fn update_header<S: AsRef<[u8]>>(header: &mut Self::JwsHeader, signer: &dyn Signer<S>) {
@@ -72,16 +78,20 @@ impl sealed::SealedFormat<Compact> for Compact {
 
     fn finalize_jws_header_builder(
         value_ref: &mut Result<Self::JwsHeader, header::JoseHeaderBuilderError>,
-        new_builder: header::JoseHeaderBuilder<Compact, header::Jws>,
+        new_builder: header::JoseHeaderBuilder<Compact<Jws>, header::Jws>,
     ) {
         *value_ref = new_builder.build();
     }
 }
 
-impl Compact {
+impl<T> Compact<T>
+where
+    T: SealedFormatType,
+{
     pub(crate) fn with_capacity(cap: usize) -> Self {
         Compact {
             parts: Vec::with_capacity(cap),
+            _crypto_typ: PhantomData,
         }
     }
 
@@ -102,7 +112,7 @@ impl Compact {
     }
 }
 
-impl FromStr for Compact {
+impl FromStr for CompactJws {
     type Err = NoBase64UrlString;
 
     /// Verifies if every part of the string is valid base64url format
@@ -111,11 +121,17 @@ impl FromStr for Compact {
             .split('.')
             .map(Base64UrlString::from_str)
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(Self { parts })
+        Ok(Self {
+            parts,
+            _crypto_typ: PhantomData,
+        })
     }
 }
 
-impl fmt::Display for Compact {
+impl<T> fmt::Display for Compact<T>
+where
+    T: SealedFormatType,
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let len = self.parts.len();
 

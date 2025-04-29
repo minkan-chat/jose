@@ -9,7 +9,7 @@ use thiserror::Error;
 use crate::{
     crypto,
     format::{
-        Compact, DecodeFormat, DecodeFormatWithContext, Format, JsonFlattened, JsonGeneral,
+        CompactJws, DecodeFormat, DecodeFormatWithContext, Format, JsonFlattened, JsonGeneral,
         JsonGeneralSignature,
     },
     header, Base64UrlString, JoseHeader,
@@ -164,8 +164,8 @@ pub enum SignError<P> {
     #[error("failed to serialize header: {0}")]
     SerializeHeader(#[source] serde_json::Error),
     /// The `protected` part of the header was empty, which is disallowed in the
-    /// compact format.
-    #[error("the protected header was empty on a compact JWS")]
+    /// CompactJws format.
+    #[error("the protected header was empty on a CompactJws JWS")]
     EmptyProtectedHeader,
     /// The header of the JWS is invalid.
     #[error("invalid JWS header: {0}")]
@@ -187,7 +187,7 @@ pub enum SignError<P> {
 ///
 /// The [`JsonWebSignature`] struct has two type parameters:
 ///
-/// * `F`: The format of the JWS. This can be either [`Compact`] or
+/// * `F`: The format of the JWS. This can be either [`CompactJws`] or
 ///   [`JsonFlattened`].
 /// * `T`: The type of the payload. This can be any type that implements the
 ///   [`IntoPayload`] trait and also the [`FromRawPayload`] trait.
@@ -217,10 +217,10 @@ impl<F: Format, T> JsonWebSignature<F, T> {
     }
 }
 
-impl<T> JsonWebSignature<Compact, T> {
+impl<T> JsonWebSignature<CompactJws, T> {
     /// Returns a reference to the [`JoseHeader`] of
     /// this JWS.
-    pub fn header(&self) -> &JoseHeader<Compact, header::Jws> {
+    pub fn header(&self) -> &JoseHeader<CompactJws, header::Jws> {
         &self.header
     }
 }
@@ -383,9 +383,9 @@ impl<T: IntoPayload> JsonWebSignature<JsonGeneral, T> {
 }
 
 /// Different kinds of errors that can occurr while parsing a JWS from it's
-/// compact format.
+/// CompactJws format.
 #[derive(Debug, Error)]
-pub enum ParseCompactError<P> {
+pub enum ParseCompactJwsError<P> {
     /// `crit` header field contained an unsupported name.
     #[error("encountered unsupported critical headers (crit header field)")]
     UnsupportedCriticalHeader,
@@ -398,8 +398,8 @@ pub enum ParseCompactError<P> {
     /// The header of the JWS is invalid.
     #[error("invalid JWS header: {0}")]
     InvalidHeader(#[source] header::Error),
-    /// Got a `Compact` with less or more than three elements.
-    #[error("got compact representation that didn't have 3 parts")]
+    /// Got a `CompactJws` with less or more than three elements.
+    #[error("got CompactJws representation that didn't have 3 parts")]
     InvalidLength,
     /// Failed to parse the payload.
     #[error(transparent)]
@@ -408,36 +408,39 @@ pub enum ParseCompactError<P> {
 
 impl<F: Format, T> crate::sealed::Sealed for JsonWebSignature<F, T> {}
 
-impl<T: FromRawPayload<Context = ()>> DecodeFormat<Compact> for JsonWebSignature<Compact, T> {
+impl<T: FromRawPayload<Context = ()>> DecodeFormat<CompactJws> for JsonWebSignature<CompactJws, T> {
     type Decoded<D> = Unverified<D>;
-    type Error = ParseCompactError<T::Error>;
+    type Error = ParseCompactJwsError<T::Error>;
 
-    fn decode(input: Compact) -> Result<Self::Decoded<Self>, Self::Error> {
+    fn decode(input: CompactJws) -> Result<Self::Decoded<Self>, Self::Error> {
         Self::decode_with_context(input, &())
     }
 }
 
-impl<C, T: FromRawPayload<Context = C>> DecodeFormatWithContext<Compact, C>
-    for JsonWebSignature<Compact, T>
+impl<C, T: FromRawPayload<Context = C>> DecodeFormatWithContext<CompactJws, C>
+    for JsonWebSignature<CompactJws, T>
 {
     type Decoded<D> = Unverified<D>;
-    type Error = ParseCompactError<T::Error>;
+    type Error = ParseCompactJwsError<T::Error>;
 
-    fn decode_with_context(input: Compact, context: &C) -> Result<Unverified<Self>, Self::Error> {
+    fn decode_with_context(
+        input: CompactJws,
+        context: &C,
+    ) -> Result<Unverified<Self>, Self::Error> {
         if input.len() != 3 {
-            return Err(ParseCompactError::InvalidLength);
+            return Err(ParseCompactJwsError::InvalidLength);
         }
 
         let (header, raw_header) = {
             let raw = input.part(0).expect("`len()` is checked above to be 3");
             let json = String::from_utf8(raw.decode())
-                .map_err(|_| ParseCompactError::InvalidUtf8Encoding)?;
+                .map_err(|_| ParseCompactJwsError::InvalidUtf8Encoding)?;
 
             let header = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&json)
-                .map_err(ParseCompactError::InvalidJson)?;
+                .map_err(ParseCompactJwsError::InvalidJson)?;
 
             let header = JoseHeader::from_values(Some(header), None)
-                .map_err(ParseCompactError::InvalidHeader)?;
+                .map_err(ParseCompactJwsError::InvalidHeader)?;
 
             (header, raw)
         };
@@ -447,12 +450,13 @@ impl<C, T: FromRawPayload<Context = C>> DecodeFormatWithContext<Compact, C>
 
             // if payload is empty, detached payload
             let (payload, raw) = if raw.is_empty() {
-                T::from_detached(context, &header).map_err(ParseCompactError::Payload)?
+                T::from_detached(context, &header).map_err(ParseCompactJwsError::Payload)?
             } else {
                 let data = PayloadData::Standard(raw.clone());
 
                 (
-                    T::from_attached(context, data.clone()).map_err(ParseCompactError::Payload)?,
+                    T::from_attached(context, data.clone())
+                        .map_err(ParseCompactJwsError::Payload)?,
                     data,
                 )
             };

@@ -18,7 +18,7 @@ impl<F: Format> JsonWebSignatureBuilder<F> {
 
     /// Configures the custom header for this [`JsonWebSignature`].
     ///
-    /// For [`Compact`](crate::format::Compact) and
+    /// For [`CompactJws`](crate::format::CompactJws) and
     /// [`JsonFlattened`](crate::format::JsonFlattened) format, this method
     /// will set the single protected, and unprotected header if JSON flattened,
     /// header.
@@ -36,7 +36,7 @@ impl<F: Format> JsonWebSignatureBuilder<F> {
     /// manually.
     ///
     /// However, you must note, that this feature is not supported for the
-    /// [`Compact`](crate::format::Compact) format, becuase that format can only
+    /// [`CompactJws`](crate::format::CompactJws) format, becuase that format can only
     /// have a protected header.
     ///
     /// ```

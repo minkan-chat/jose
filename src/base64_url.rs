@@ -9,7 +9,7 @@ use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 use zeroize::{Zeroize, Zeroizing};
 
-/// Error type indicating that one part of the compact
+/// Error type indicating that one part of the CompactJws
 /// representation was an invalid Base64Url string.
 #[derive(Debug, Clone, Copy, Error)]
 #[error("the string is not a valid Base64Url representation")]

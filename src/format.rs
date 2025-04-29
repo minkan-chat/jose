@@ -1,7 +1,7 @@
 //! Contains abstractions for different kinds of
 //! serialization formats.
 //!
-//! Currently, the only two formats are [`Compact`] and [`JsonFlattened`].
+//! The formats are [`Compact`], [`JsonFlattened`] and [`JsonGeneral`].
 
 mod compact;
 mod json_flattened;
@@ -9,7 +9,7 @@ mod json_general;
 
 use core::fmt;
 
-pub use compact::Compact;
+pub use compact::{Compact, CompactJwe, CompactJws};
 pub use json_flattened::JsonFlattened;
 pub use json_general::JsonGeneral;
 pub(crate) use json_general::Signature as JsonGeneralSignature;
@@ -99,4 +99,41 @@ pub trait DecodeFormatWithContext<F, C>: Sealed + Sized {
     /// Returns an error if the input format has an invalid representation for
     /// this type.
     fn decode_with_context(input: F, context: &C) -> Result<Self::Decoded<Self>, Self::Error>;
+}
+
+/// A trait to distinguish between
+/// [`JsonWebSignature`](crate::JsonWebSignature)s and
+/// [`JsonWebEncryption`](crate::JsonWebEncryption) in different serialization
+/// [`Format`]s.
+///
+/// This allows us to reuse types like [`Compact`] across JWS and JWE.
+pub trait SealedFormatType: Sealed {
+    /// In [`Compact`] serialization, the different parts are base64urlsafe no
+    /// pad encoded and then separated by `.`.
+    ///
+    /// For example, in [`JsonWebSignature`](crate::JsonWebSignature)s, it is
+    /// header.payload.signature (all base64urlsafe no pad encoded of course)
+    const COMAPCT_PARTS: usize;
+}
+
+/// A marker type to represent a [`JsonWebSignature`](crate::JsonWebSignature)
+/// in some serialization [`Format`]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct Jws {}
+
+impl Sealed for Jws {}
+impl SealedFormatType for Jws {
+    const COMAPCT_PARTS: usize = 3;
+}
+
+/// A marker type to represent a [`JsonWebEncryption`](crate::JsonWebEncryption)
+///  in some serialization [`Format`]
+#[derive(Debug)]
+#[non_exhaustive]
+pub struct Jwe {}
+
+impl Sealed for Jwe {}
+impl SealedFormatType for Jwe {
+    const COMAPCT_PARTS: usize = 5;
 }
