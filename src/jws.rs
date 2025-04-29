@@ -463,7 +463,7 @@ impl<C, T: FromRawPayload<Context = C>> DecodeFormatWithContext<Compact, C>
 
         let signature = input.part(2).expect("`len()` is checked above to be 3");
 
-        let msg = format!("{}.{}", raw_header, raw_payload);
+        let msg = format!("{raw_header}.{raw_payload}");
 
         Ok(Unverified {
             value: JsonWebSignature { header, payload },
@@ -554,7 +554,7 @@ impl<C, T: FromRawPayload<Context = C>> DecodeFormatWithContext<JsonFlattened, C
         };
         let PayloadData::Standard(raw_payload) = raw_payload;
 
-        let msg = format!("{}.{}", protected_str, raw_payload);
+        let msg = format!("{protected_str}.{raw_payload}");
         Ok(Unverified {
             value: JsonWebSignature { header, payload },
             signature: signature.decode(),
@@ -614,7 +614,7 @@ impl<C, T: FromRawPayload<Context = C>> DecodeFormatWithContext<JsonGeneral, C>
         let unverified_signatures = sigs
             .into_iter()
             .map(|(protected, signature)| {
-                let msg = format!("{}.{}", protected, raw_payload);
+                let msg = format!("{protected}.{raw_payload}");
 
                 (msg.into_bytes(), signature)
             })
