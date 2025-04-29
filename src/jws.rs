@@ -3,14 +3,15 @@
 //! [RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515>
 
 use alloc::{format, string::String, vec, vec::Vec};
+use core::marker::PhantomData;
 
 use thiserror::Error;
 
 use crate::{
     crypto,
     format::{
-        CompactJws, DecodeFormat, DecodeFormatWithContext, Format, JsonFlattened, JsonGeneral,
-        JsonGeneralSignature,
+        CompactJws, DecodeFormat, DecodeFormatWithContext, Format, JsonFlattened, JsonFlattenedJws,
+        JsonGeneral, JsonGeneralSignature,
     },
     header, Base64UrlString, JoseHeader,
 };
@@ -225,10 +226,10 @@ impl<T> JsonWebSignature<CompactJws, T> {
     }
 }
 
-impl<T> JsonWebSignature<JsonFlattened, T> {
+impl<T> JsonWebSignature<JsonFlattenedJws, T> {
     /// Returns a reference to the [`JoseHeader`] of
     /// this JWS.
-    pub fn header(&self) -> &JoseHeader<JsonFlattened, header::Jws> {
+    pub fn header(&self) -> &JoseHeader<JsonFlattenedJws, header::Jws> {
         &self.header
     }
 }
@@ -519,19 +520,19 @@ pub enum ParseJsonError<P> {
     Payload(P),
 }
 
-impl<T: FromRawPayload<Context = ()>> DecodeFormat<JsonFlattened>
-    for JsonWebSignature<JsonFlattened, T>
+impl<T: FromRawPayload<Context = ()>> DecodeFormat<JsonFlattenedJws>
+    for JsonWebSignature<JsonFlattenedJws, T>
 {
     type Decoded<D> = Unverified<D>;
     type Error = ParseJsonError<T::Error>;
 
-    fn decode(input: JsonFlattened) -> Result<Self::Decoded<Self>, Self::Error> {
+    fn decode(input: JsonFlattenedJws) -> Result<Self::Decoded<Self>, Self::Error> {
         Self::decode_with_context(input, &())
     }
 }
 
-impl<C, T: FromRawPayload<Context = C>> DecodeFormatWithContext<JsonFlattened, C>
-    for JsonWebSignature<JsonFlattened, T>
+impl<C, T: FromRawPayload<Context = C>> DecodeFormatWithContext<JsonFlattenedJws, C>
+    for JsonWebSignature<JsonFlattenedJws, T>
 {
     type Decoded<D> = Unverified<D>;
     type Error = ParseJsonError<T::Error>;
@@ -542,7 +543,8 @@ impl<C, T: FromRawPayload<Context = C>> DecodeFormatWithContext<JsonFlattened, C
             protected,
             header,
             signature,
-        }: JsonFlattened,
+            _crypto_typ: PhantomData,
+        }: JsonFlattenedJws,
         context: &C,
     ) -> Result<Self::Decoded<Self>, Self::Error> {
         let protected_str = protected.clone().unwrap_or_default().into_inner();

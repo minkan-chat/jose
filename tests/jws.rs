@@ -10,7 +10,7 @@ use jose::{
         self,
         okp::{Ed25519PrivateKey, Ed25519PublicKey, Ed25519Signer, Ed25519Verifier},
     },
-    format::{Compact, CompactJws, JsonFlattened, JsonGeneral},
+    format::{Compact, CompactJws, JsonFlattenedJws, JsonGeneral},
     header::HeaderValue,
     jwa::JsonWebSigningAlgorithm,
     jwk::{
@@ -297,7 +297,7 @@ fn json_flattened_jws_with_no_protected_header() {
     let payload = "It's a dangerous business, Frodo, going out your door. You step onto the road, \
                    and if you don't keep your feet, there's no knowing where you";
 
-    let jws: Jws<JsonFlattened, StringPayload> = Jws::builder()
+    let jws: Jws<JsonFlattenedJws, StringPayload> = Jws::builder()
         .header(|b| b.algorithm(HeaderValue::Unprotected(JsonWebSigningAlgorithm::None)))
         .build(StringPayload::from(payload))
         .unwrap();

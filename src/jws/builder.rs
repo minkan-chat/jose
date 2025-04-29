@@ -36,13 +36,13 @@ impl<F: Format> JsonWebSignatureBuilder<F> {
     /// manually.
     ///
     /// However, you must note, that this feature is not supported for the
-    /// [`CompactJws`](crate::format::CompactJws) format, becuase that format can only
-    /// have a protected header.
+    /// [`CompactJws`](crate::format::CompactJws) format, becuase that format
+    /// can only have a protected header.
     ///
     /// ```
     /// # use jose::{format::*, jws::*, header::HeaderValue, jwa::*};
     /// # fn main() {
-    /// let jws = JsonWebSignature::<JsonFlattened, _>::builder()
+    /// let jws = JsonWebSignature::<JsonFlattenedJws, _>::builder()
     ///     .header(|b| b.algorithm(HeaderValue::Unprotected(JsonWebSigningAlgorithm::None)))
     ///     .build(())
     ///     .unwrap();
