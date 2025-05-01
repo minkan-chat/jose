@@ -43,7 +43,7 @@ impl<T> fmt::Display for JsonFlattened<T> {
     }
 }
 
-impl sealed::SealedFormat<JsonFlattenedJws> for JsonFlattenedJws {
+impl sealed::SealedFormatJws<JsonFlattenedJws> for JsonFlattenedJws {
     type JwsHeader = JoseHeader<JsonFlattenedJws, header::Jws>;
     type SerializedJwsHeader = (
         Option<Base64UrlString>,

@@ -23,7 +23,7 @@ pub type CompactJws = Compact<Jws>;
 pub type CompactJwe = Compact<Jwe>;
 
 impl Format for Compact<Jws> {}
-impl sealed::SealedFormat<CompactJws> for CompactJws {
+impl sealed::SealedFormatJws<CompactJws> for CompactJws {
     type JwsHeader = JoseHeader<Compact<Jws>, header::Jws>;
     type SerializedJwsHeader = Base64UrlString;
 

@@ -28,7 +28,7 @@ pub(crate) mod sealed {
     // We put all methods, types, etc into a sealed trait, so
     // the user is not able to access these thing as they should
     // only be used internally by this crate
-    pub trait SealedFormat<F>: Sized {
+    pub trait SealedFormatJws<F>: Sized {
         type JwsHeader: fmt::Debug;
         type SerializedJwsHeader: fmt::Debug;
 
@@ -61,7 +61,7 @@ pub(crate) mod sealed {
 
 /// This trait represents any possible format in which a JWS or JWE can be
 /// represented.
-pub trait Format: fmt::Display + sealed::SealedFormat<Self> + Sized {}
+pub trait Format: fmt::Display + sealed::SealedFormatJws<Self> + Sized {}
 
 /// Used to parse a [`Compact`] or another format representation
 /// into a concrete type.

@@ -50,7 +50,7 @@ impl<T> fmt::Display for JsonGeneral<T> {
 
 impl Format for JsonGeneralJws {}
 
-impl sealed::SealedFormat<JsonGeneralJws> for JsonGeneralJws {
+impl sealed::SealedFormatJws<JsonGeneralJws> for JsonGeneralJws {
     type JwsHeader = Vec<JoseHeader<JsonGeneralJws, header::Jws>>;
     // this only a single header, even though JsonGeneralJws supports multiple
     // headers, because this trait implementation is only be used for a single
