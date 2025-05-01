@@ -6,7 +6,7 @@ use thiserror::Error;
 use super::JsonWebSignature;
 use crate::{
     crypto,
-    format::{DecodeFormat, DecodeFormatWithContext, Format, JsonGeneralJws},
+    format::{sealed::SealedFormatJws, DecodeFormat, DecodeFormatWithContext, JsonGeneralJws},
     jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::FromKey,
 };
@@ -62,7 +62,7 @@ impl<T> Unverified<T> {
     ///
     /// Returns an error if the input format has an invalid representation for
     /// the `T` type.
-    pub fn decode<F: Format>(input: F) -> Result<Self, T::Error>
+    pub fn decode<F: SealedFormatJws<F>>(input: F) -> Result<Self, T::Error>
     where
         T: DecodeFormat<F, Decoded<T> = Unverified<T>>,
     {
@@ -76,7 +76,10 @@ impl<T> Unverified<T> {
     ///
     /// Returns an error if the input format has an invalid representation for
     /// the `T` type.
-    pub fn decode_with_context<F: Format, C>(input: F, context: &C) -> Result<Self, T::Error>
+    pub fn decode_with_context<F: SealedFormatJws<F>, C>(
+        input: F,
+        context: &C,
+    ) -> Result<Self, T::Error>
     where
         T: DecodeFormatWithContext<F, C, Decoded<T> = Unverified<T>>,
     {
@@ -98,7 +101,7 @@ impl<T> Unverified<T> {
 
 impl<T, F> Unverified<JsonWebSignature<F, T>>
 where
-    F: Format,
+    F: SealedFormatJws<F>,
 {
     /// Exposes the **unverified** [`JoseHeader`](crate::JoseHeader) of this
     /// [`JsonWebSignature`]
@@ -225,7 +228,7 @@ impl<T> ManyUnverified<T> {
 
 impl<T, F> ManyUnverified<JsonWebSignature<F, T>>
 where
-    F: Format,
+    F: SealedFormatJws<F>,
 {
     /// Exposes the **unverified** [`JoseHeader`](crate::JoseHeader) of this
     /// [`JsonWebSignature`]

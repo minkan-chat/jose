@@ -27,7 +27,7 @@ pub use self::{
     value::*,
 };
 use crate::{
-    format::Format,
+    format::sealed::SealedFormatJws,
     jwa::{JsonWebContentEncryptionAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
     uri::BorrowedUri,
     JsonWebKey, UntypedAdditionalProperties,
@@ -130,7 +130,7 @@ pub struct JoseHeader<F, T> {
 
 impl<F> JoseHeader<F, Jws>
 where
-    F: Format,
+    F: SealedFormatJws<F>,
 {
     /// Method to override the alg and kid fields.
     /// Only intended for internal usage.
@@ -163,7 +163,6 @@ where
 
 impl<F, T> JoseHeader<F, T>
 where
-    F: Format,
     T: Type,
 {
     /// Build a new [`JoseHeader`].
@@ -399,10 +398,7 @@ where
     }
 }
 
-impl<F> JoseHeader<F, Jws>
-where
-    F: Format,
-{
+impl<F> JoseHeader<F, Jws> {
     /// The [signing algorithm](JsonWebSigningAlgorithm) used to create the
     /// signature for the JWS this [`JoseHeader`] is contained in.
     ///
@@ -433,10 +429,7 @@ where
     }
 }
 
-impl<F> JoseHeader<F, Jwe>
-where
-    F: Format,
-{
+impl<F> JoseHeader<F, Jwe> {
     /// The [encryption algorithm][JsonWebEncryptionAlgorithm] used to
     /// encryption the content encryption key (CEK).
     ///
@@ -465,7 +458,6 @@ where
 
 impl<F, T> JoseHeader<F, T>
 where
-    F: Format,
     T: Type,
 {
     /// Build a JoseHeader from its `header` and `protected` part.

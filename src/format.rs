@@ -7,8 +7,6 @@ mod compact;
 mod json_flattened;
 mod json_general;
 
-use core::fmt;
-
 pub use compact::{Compact, CompactJwe, CompactJws};
 pub use json_flattened::{JsonFlattened, JsonFlattenedJwe, JsonFlattenedJws};
 pub(crate) use json_general::Signature as JsonGeneralSignature;
@@ -18,7 +16,7 @@ use crate::sealed::Sealed;
 
 pub(crate) mod sealed {
     use alloc::fmt;
-    use core::convert::Infallible;
+    use core::{convert::Infallible, fmt::Display};
 
     use crate::{
         header::{self, JoseHeaderBuilder, JoseHeaderBuilderError},
@@ -28,7 +26,7 @@ pub(crate) mod sealed {
     // We put all methods, types, etc into a sealed trait, so
     // the user is not able to access these thing as they should
     // only be used internally by this crate
-    pub trait SealedFormatJws<F>: Sized {
+    pub trait SealedFormatJws<F>: Sized + Display {
         type JwsHeader: fmt::Debug;
         type SerializedJwsHeader: fmt::Debug;
 
@@ -57,11 +55,11 @@ pub(crate) mod sealed {
             new_builder: JoseHeaderBuilder<F, header::Jws>,
         );
     }
-}
 
-/// This trait represents any possible format in which a JWS or JWE can be
-/// represented.
-pub trait Format: fmt::Display + sealed::SealedFormatJws<Self> + Sized {}
+    pub trait SealedFormatJwe: Sized {
+        type JweHeader: fmt::Debug;
+    }
+}
 
 /// Used to parse a [`Compact`] or another format representation
 /// into a concrete type.

@@ -4,7 +4,7 @@ use core::{convert::Infallible, fmt, marker::PhantomData};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::{sealed, Format, Jwe, Jws};
+use super::{sealed, Jwe, Jws};
 use crate::{
     header::{self, JoseHeaderBuilder, JoseHeaderBuilderError},
     jws::{PayloadData, SignError, Signer},
@@ -48,7 +48,6 @@ impl<T> fmt::Display for JsonGeneral<T> {
     }
 }
 
-impl Format for JsonGeneralJws {}
 
 impl sealed::SealedFormatJws<JsonGeneralJws> for JsonGeneralJws {
     type JwsHeader = Vec<JoseHeader<JsonGeneralJws, header::Jws>>;

@@ -4,7 +4,7 @@ use core::{fmt, marker::PhantomData};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::{sealed, Format, Jwe, Jws};
+use super::{sealed, Jwe, Jws};
 use crate::{
     header,
     jws::{PayloadData, SignError},
@@ -28,8 +28,6 @@ pub type JsonFlattenedJws = JsonFlattened<Jws>;
 /// A [`JsonWebEncryption`](crate::JsonWebEncryption) in [`JsonFlattened`]
 /// format
 pub type JsonFlattenedJwe = JsonFlattened<Jwe>;
-
-impl Format for JsonFlattenedJws {}
 
 impl<T> fmt::Display for JsonFlattened<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

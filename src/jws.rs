@@ -10,8 +10,8 @@ use thiserror::Error;
 use crate::{
     crypto,
     format::{
-        CompactJws, DecodeFormat, DecodeFormatWithContext, Format, JsonFlattened, JsonFlattenedJws,
-        JsonGeneralJws, JsonGeneralSignature,
+        sealed::SealedFormatJws, CompactJws, DecodeFormat, DecodeFormatWithContext, JsonFlattened,
+        JsonFlattenedJws, JsonGeneralJws, JsonGeneralSignature,
     },
     header, Base64UrlString, JoseHeader,
 };
@@ -195,19 +195,19 @@ pub enum SignError<P> {
 ///
 /// [RFC 7515]: <https://datatracker.ietf.org/doc/html/rfc7515>
 #[derive(Debug)]
-pub struct JsonWebSignature<F: Format, T = ()> {
+pub struct JsonWebSignature<F: SealedFormatJws<F>, T = ()> {
     header: F::JwsHeader,
     payload: T,
 }
 
-impl<F: Format> JsonWebSignature<F, ()> {
+impl<F: SealedFormatJws<F>> JsonWebSignature<F, ()> {
     /// Constructs a [`JsonWebSignatureBuilder`].
     pub fn builder() -> JsonWebSignatureBuilder<F> {
         JsonWebSignatureBuilder::new()
     }
 }
 
-impl<F: Format, T> JsonWebSignature<F, T> {
+impl<F: SealedFormatJws<F>, T> JsonWebSignature<F, T> {
     pub(crate) fn new(header: F::JwsHeader, payload: T) -> Self {
         Self { header, payload }
     }
@@ -241,7 +241,7 @@ impl<T> JsonWebSignature<JsonGeneralJws, T> {
     }
 }
 
-impl<F: Format, T: IntoPayload> JsonWebSignature<F, T> {
+impl<F: SealedFormatJws<F>, T: IntoPayload> JsonWebSignature<F, T> {
     /// Signs this [`JsonWebSignature`] using the given `signer`.
     ///
     /// When signing the JWS, some fields of the header of this JWS may be
@@ -408,7 +408,7 @@ pub enum ParseCompactJwsError<P> {
     Payload(P),
 }
 
-impl<F: Format, T> crate::sealed::Sealed for JsonWebSignature<F, T> {}
+impl<F: SealedFormatJws<F>, T> crate::sealed::Sealed for JsonWebSignature<F, T> {}
 
 impl<T: FromRawPayload<Context = ()>> DecodeFormat<CompactJws> for JsonWebSignature<CompactJws, T> {
     type Decoded<D> = Unverified<D>;
@@ -479,7 +479,7 @@ impl<C, T: FromRawPayload<Context = C>> DecodeFormatWithContext<CompactJws, C>
     }
 }
 
-fn parse_json_header<F: Format, E>(
+fn parse_json_header<F: SealedFormatJws<F>, E>(
     protected: Option<&Base64UrlString>,
     header: Option<serde_json::Map<String, serde_json::Value>>,
 ) -> Result<JoseHeader<F, header::Jws>, ParseJsonError<E>> {

@@ -1,5 +1,5 @@
 use crate::{
-    format::Format,
+    format::sealed::SealedFormatJws,
     header::{self, HeaderValue, JoseHeaderBuilder, JoseHeaderBuilderError},
     jwa::JsonWebSigningAlgorithm,
     JoseHeader, JsonWebSignature,
@@ -7,11 +7,11 @@ use crate::{
 
 /// Builds a [`JsonWebSignature`] with custom header parameters.
 #[derive(Debug)]
-pub struct JsonWebSignatureBuilder<F: Format> {
+pub struct JsonWebSignatureBuilder<F: SealedFormatJws<F>> {
     header: Option<Result<F::JwsHeader, JoseHeaderBuilderError>>,
 }
 
-impl<F: Format> JsonWebSignatureBuilder<F> {
+impl<F: SealedFormatJws<F>> JsonWebSignatureBuilder<F> {
     pub(super) fn new() -> Self {
         Self { header: None }
     }

@@ -12,7 +12,6 @@ use super::{
     parameters::MediaTypeWithMaybeStrippedApplicationTopLevel, HeaderValue, Jwe, Jws, Type,
 };
 use crate::{
-    format::Format,
     header::parameters::Parameters,
     jwa::{JsonWebContentEncryptionAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
     jwk::serde_impl::Base64DerCertificate,
@@ -41,7 +40,6 @@ pub struct JoseHeaderBuilder<F, T> {
 
 impl<F, T> JoseHeaderBuilder<F, T>
 where
-    F: Format,
     T: Type,
 {
     /// Set the [`critical_headers`](crate::JoseHeader::critical_headers)
@@ -143,7 +141,6 @@ where
 
 impl<F, T> Default for JoseHeaderBuilder<F, T>
 where
-    F: Format,
     T: Type,
 {
     fn default() -> Self {
@@ -190,10 +187,7 @@ pub enum JoseHeaderBuilderError {
     InvalidX509CertificateChain,
 }
 
-impl<F> JoseHeaderBuilder<F, Jws>
-where
-    F: Format,
-{
+impl<F> JoseHeaderBuilder<F, Jws> {
     /// Set the [`algorithm`](crate::JoseHeader::algorithm) parameter for
     /// [`Jws`].
     pub fn algorithm(self, algorithm: HeaderValue<JsonWebSigningAlgorithm>) -> Self {
@@ -270,10 +264,7 @@ where
     }
 }
 
-impl<F> JoseHeaderBuilder<F, Jwe>
-where
-    F: Format,
-{
+impl<F> JoseHeaderBuilder<F, Jwe> {
     /// Set the [`algorithm`](crate::JoseHeader::algorithm) parameter for
     /// [`Jwe`].
     pub fn algorithm(self, algorithm: HeaderValue<JsonWebEncryptionAlgorithm>) -> Self {
@@ -355,7 +346,6 @@ macro_rules! setter {
     ($($parameter:ident: $parameter_typ:ty),+,) => {
         impl<F, T> JoseHeaderBuilder<F, T>
         where
-            F: Format,
             T: Type,
         {
             $(

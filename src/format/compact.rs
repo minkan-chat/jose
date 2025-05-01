@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 use core::{fmt, marker::PhantomData, str::FromStr};
 
-use super::{sealed, Format, Jwe, Jws, SealedFormatType};
+use super::{sealed, Jwe, Jws, SealedFormatType};
 use crate::{
     base64_url::NoBase64UrlString,
     header,
@@ -22,7 +22,6 @@ pub type CompactJws = Compact<Jws>;
 /// A [`JsonWebEncryption`](crate::JsonWebEncryption) in [`Compact`] format
 pub type CompactJwe = Compact<Jwe>;
 
-impl Format for Compact<Jws> {}
 impl sealed::SealedFormatJws<CompactJws> for CompactJws {
     type JwsHeader = JoseHeader<Compact<Jws>, header::Jws>;
     type SerializedJwsHeader = Base64UrlString;
