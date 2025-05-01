@@ -1,5 +1,5 @@
 use crate::{
-    format::Format,
+    format::sealed::SealedFormatJws,
     header::{self, HeaderValue, JoseHeaderBuilder, JoseHeaderBuilderError},
     jwa::JsonWebSigningAlgorithm,
     JoseHeader, JsonWebSignature,
@@ -7,18 +7,18 @@ use crate::{
 
 /// Builds a [`JsonWebSignature`] with custom header parameters.
 #[derive(Debug)]
-pub struct JsonWebSignatureBuilder<F: Format> {
+pub struct JsonWebSignatureBuilder<F: SealedFormatJws<F>> {
     header: Option<Result<F::JwsHeader, JoseHeaderBuilderError>>,
 }
 
-impl<F: Format> JsonWebSignatureBuilder<F> {
+impl<F: SealedFormatJws<F>> JsonWebSignatureBuilder<F> {
     pub(super) fn new() -> Self {
         Self { header: None }
     }
 
     /// Configures the custom header for this [`JsonWebSignature`].
     ///
-    /// For [`Compact`](crate::format::Compact) and
+    /// For [`CompactJws`](crate::format::CompactJws) and
     /// [`JsonFlattened`](crate::format::JsonFlattened) format, this method
     /// will set the single protected, and unprotected header if JSON flattened,
     /// header.
@@ -36,13 +36,13 @@ impl<F: Format> JsonWebSignatureBuilder<F> {
     /// manually.
     ///
     /// However, you must note, that this feature is not supported for the
-    /// [`Compact`](crate::format::Compact) format, becuase that format can only
-    /// have a protected header.
+    /// [`CompactJws`](crate::format::CompactJws) format, becuase that format
+    /// can only have a protected header.
     ///
     /// ```
     /// # use jose::{format::*, jws::*, header::HeaderValue, jwa::*};
     /// # fn main() {
-    /// let jws = JsonWebSignature::<JsonFlattened, _>::builder()
+    /// let jws = JsonWebSignature::<JsonFlattenedJws, _>::builder()
     ///     .header(|b| b.algorithm(HeaderValue::Unprotected(JsonWebSigningAlgorithm::None)))
     ///     .build(())
     ///     .unwrap();

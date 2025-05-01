@@ -27,7 +27,7 @@ pub use self::{
     value::*,
 };
 use crate::{
-    format::Format,
+    format::sealed::SealedFormatJws,
     jwa::{JsonWebContentEncryptionAlgorithm, JsonWebEncryptionAlgorithm, JsonWebSigningAlgorithm},
     uri::BorrowedUri,
     JsonWebKey, UntypedAdditionalProperties,
@@ -46,7 +46,7 @@ use crate::{
 ///
 /// A [`JoseHeader`] may be a bit different, depending where it is being used.
 /// Therefore, [`JoseHeader<F, T>`] has two generic types that define where and
-/// how exactly it is being used. `F` defines the [`Format`] that this
+/// how exactly it is being used. `F` defines the format that this
 /// [`JoseHeader`] is being used in. `T` defines whether the [`JoseHeader`] is
 /// part of a [JSON Web Signature][Jws] or [JSON Web Encryption][Jwe].
 ///
@@ -91,13 +91,13 @@ use crate::{
 ///
 /// ```
 /// use jose::{
-///     format::Compact,
+///     format::CompactJws,
 ///     header::{HeaderValue, JoseHeader, Jws},
 ///     jwa::Hmac,
 /// };
 ///
-/// // we are going to build a `JoseHeader` for a `Compact` `Jws`
-/// let header = JoseHeader::<Compact, Jws>::builder()
+/// // we are going to build a `JoseHeader` for a `CompactJws` `Jws`
+/// let header = JoseHeader::<CompactJws, Jws>::builder()
 ///     // we set the `alg` header parameter as an unprotected parameter
 ///     .algorithm(HeaderValue::Unprotected(Hmac::Hs256.into()))
 ///     // we set the `kid` header parameter as an protected parameter
@@ -124,13 +124,13 @@ use crate::{
 #[derive(Debug)]
 pub struct JoseHeader<F, T> {
     parameters: Parameters<T>,
-    // marker for the format (compact, json general, json flattened)
+    // marker for the format (CompactJws, json general, json flattened)
     _format: PhantomData<F>,
 }
 
 impl<F> JoseHeader<F, Jws>
 where
-    F: Format,
+    F: SealedFormatJws<F>,
 {
     /// Method to override the alg and kid fields.
     /// Only intended for internal usage.
@@ -163,7 +163,6 @@ where
 
 impl<F, T> JoseHeader<F, T>
 where
-    F: Format,
     T: Type,
 {
     /// Build a new [`JoseHeader`].
@@ -399,10 +398,7 @@ where
     }
 }
 
-impl<F> JoseHeader<F, Jws>
-where
-    F: Format,
-{
+impl<F> JoseHeader<F, Jws> {
     /// The [signing algorithm](JsonWebSigningAlgorithm) used to create the
     /// signature for the JWS this [`JoseHeader`] is contained in.
     ///
@@ -433,10 +429,7 @@ where
     }
 }
 
-impl<F> JoseHeader<F, Jwe>
-where
-    F: Format,
-{
+impl<F> JoseHeader<F, Jwe> {
     /// The [encryption algorithm][JsonWebEncryptionAlgorithm] used to
     /// encryption the content encryption key (CEK).
     ///
@@ -465,7 +458,6 @@ where
 
 impl<F, T> JoseHeader<F, T>
 where
-    F: Format,
     T: Type,
 {
     /// Build a JoseHeader from its `header` and `protected` part.

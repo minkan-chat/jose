@@ -1,5 +1,5 @@
 use jose::{
-    format::Compact,
+    format::CompactJws,
     header::{HeaderValue, Jws},
     jwa::JsonWebSigningAlgorithm,
     JoseHeader,
@@ -7,7 +7,7 @@ use jose::{
 
 #[test]
 fn build_header() {
-    let builder = JoseHeader::<Compact, Jws>::builder();
+    let builder = JoseHeader::<CompactJws, Jws>::builder();
     let header = builder
         .algorithm(HeaderValue::Protected(JsonWebSigningAlgorithm::None))
         .build()

@@ -32,7 +32,7 @@ extern crate alloc;
 use alloc::string::ToString;
 
 use jose::{
-    format::{Compact, DecodeFormat},
+    format::{CompactJws, DecodeFormat},
     jwk::{
         policy::{Checkable, StandardPolicy},
         JwkSigner, JwkVerifier,
@@ -111,7 +111,7 @@ let mut verifier: JwkVerifier = public_key
     .unwrap();
 
 // deserialize the JWT
-let encoded: Compact = serialized.parse().expect("valid format");
+let encoded: CompactJws = serialized.parse().expect("valid format");
 
 // decode the JWT
 // Note: this JWT is not yet verified!

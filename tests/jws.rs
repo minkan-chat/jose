@@ -10,7 +10,7 @@ use jose::{
         self,
         okp::{Ed25519PrivateKey, Ed25519PublicKey, Ed25519Signer, Ed25519Verifier},
     },
-    format::{Compact, JsonFlattened, JsonGeneral},
+    format::{Compact, CompactJws, JsonFlattenedJws, JsonGeneralJws},
     header::HeaderValue,
     jwa::JsonWebSigningAlgorithm,
     jwk::{
@@ -113,7 +113,7 @@ fn signer_without_key_id() {
 
 #[test]
 fn none_verifier_roundtrip() {
-    let jws = Jws::<Compact, _>::builder()
+    let jws = Jws::<CompactJws, _>::builder()
         .build(StringPayload::from("abc"))
         .unwrap();
     let jws_compact = jws.sign(&mut NoneKey.without_key_id()).unwrap().encode();
@@ -123,7 +123,7 @@ fn none_verifier_roundtrip() {
         String::from("eyJhbGciOiJub25lIn0.YWJj.")
     );
 
-    let parsed_jws = Unverified::<Jws<Compact, StringPayload>>::decode(jws_compact)
+    let parsed_jws = Unverified::<Jws<CompactJws, StringPayload>>::decode(jws_compact)
         .unwrap()
         .verify(&mut NoneVerifier)
         .unwrap();
@@ -195,7 +195,7 @@ fn detached_payload_with_context() {
 
     let context = "hello".to_string();
 
-    let jws = Jws::<Compact, _>::builder()
+    let jws = Jws::<CompactJws, _>::builder()
         .build(MyPayload(context.clone()))
         .unwrap()
         .sign(&mut signer)
@@ -210,7 +210,7 @@ fn detached_payload_with_context() {
     // );
 
     let parsed_jws =
-        Unverified::<Jws<Compact, MyPayload>>::decode_with_context(jws.clone(), &context)
+        Unverified::<Jws<CompactJws, MyPayload>>::decode_with_context(jws.clone(), &context)
             .unwrap()
             .verify(&mut verifier)
             .unwrap();
@@ -219,7 +219,7 @@ fn detached_payload_with_context() {
 
     // decoding with another context, should fail signature validation
     let context2 = "world".to_string();
-    Unverified::<Jws<Compact, MyPayload>>::decode_with_context(jws, &context2)
+    Unverified::<Jws<CompactJws, MyPayload>>::decode_with_context(jws, &context2)
         .unwrap()
         .verify(&mut verifier)
         .unwrap_err();
@@ -249,7 +249,7 @@ fn sign_jws_using_p256() {
         .into_verifier(JsonWebSigningAlgorithm::EcDSA(EcDSA::Es256))
         .unwrap();
 
-    let jws = Jws::<Compact, _>::builder()
+    let jws = Jws::<CompactJws, _>::builder()
         .build(StringPayload::from("hello world!"))
         .unwrap()
         .sign(&mut signer)
@@ -263,7 +263,7 @@ fn sign_jws_using_p256() {
     //      lVKmpTNK_Im3-JEpF1JzuXM-vP9tNSkR8785hqnYzOHd1__VVOeMzGW7nywUe7Xkp6Wlu3KgWXlvsxhQdU1PlQ"
     // );
 
-    let parsed_jws = Unverified::<Jws<Compact, StringPayload>>::decode(jws.clone())
+    let parsed_jws = Unverified::<Jws<CompactJws, StringPayload>>::decode(jws.clone())
         .unwrap()
         .verify(&mut verifier)
         .unwrap();
@@ -273,7 +273,7 @@ fn sign_jws_using_p256() {
 
 #[test]
 fn deny_compact_jws_with_empty_protected_header() {
-    let jws: Jws<Compact, StringPayload> = Jws::builder()
+    let jws: Jws<CompactJws, StringPayload> = Jws::builder()
         .header(|b| b.algorithm(HeaderValue::Unprotected(JsonWebSigningAlgorithm::None)))
         .build(StringPayload::from("abc"))
         .unwrap();
@@ -297,14 +297,14 @@ fn json_flattened_jws_with_no_protected_header() {
     let payload = "It's a dangerous business, Frodo, going out your door. You step onto the road, \
                    and if you don't keep your feet, there's no knowing where you";
 
-    let jws: Jws<JsonFlattened, StringPayload> = Jws::builder()
+    let jws: Jws<JsonFlattenedJws, StringPayload> = Jws::builder()
         .header(|b| b.algorithm(HeaderValue::Unprotected(JsonWebSigningAlgorithm::None)))
         .build(StringPayload::from(payload))
         .unwrap();
 
     let jws = jws.sign(&mut signer).unwrap();
 
-    println!("{:#}", jws);
+    println!("{jws:#}");
 }
 
 #[test]
@@ -338,7 +338,7 @@ fn smoke() {
 
     let signers: [&mut dyn Signer<Vec<u8>>; 2] = [&mut signer, &mut signer2];
 
-    let jws = Jws::<JsonGeneral, _>::builder()
+    let jws = Jws::<JsonGeneralJws, _>::builder()
         .header(|b| b)
         .header(|b| b)
         .build(payload)
@@ -346,15 +346,15 @@ fn smoke() {
         .sign_many(signers)
         .unwrap()
         .encode();
-    println!("{}", jws);
+    println!("{jws}",);
 
     let verifiers: [&mut dyn Verifier; 2] = [&mut verifier, &mut verifier2];
-    let parsed_jws = ManyUnverified::<Jws<JsonGeneral, StringPayload>>::decode(jws)
+    let parsed_jws = ManyUnverified::<Jws<JsonGeneralJws, StringPayload>>::decode(jws)
         .unwrap()
         .verify_many(verifiers)
         .unwrap();
 
-    println!("{:#?}", parsed_jws);
+    println!("{parsed_jws:#?}");
 }
 
 #[test]
@@ -387,14 +387,14 @@ fn additional_jwk_parameters_in_header() {
         .unwrap();
     let key = key.into_untyped_additional().unwrap();
 
-    let jws: Jws<Compact, StringPayload> = Jws::builder()
+    let jws: Jws<CompactJws, StringPayload> = Jws::builder()
         .header(|b| b.json_web_key(Some(HeaderValue::Protected(key))))
         .build(StringPayload::from("abc"))
         .unwrap();
 
     let jws = jws.sign(&mut signer).unwrap().encode();
 
-    let parsed_jws = Unverified::<Jws<Compact, StringPayload>>::decode(jws)
+    let parsed_jws = Unverified::<Jws<CompactJws, StringPayload>>::decode(jws)
         .unwrap()
         .verify(&mut verifier)
         .unwrap();
@@ -428,13 +428,13 @@ fn ed25519() {
         .into_signer(jose::jwa::JsonWebSigningAlgorithm::EdDSA)
         .unwrap();
 
-    let jws = Jws::<Compact, _>::builder()
+    let jws = Jws::<CompactJws, _>::builder()
         .build(StringPayload(msg.to_string()))
         .unwrap();
 
     let jws = jws.sign(&mut signer).unwrap();
 
-    println!("{:#?}", jws);
+    println!("{jws:#?}");
 
     let mut verifier: Ed25519Verifier = public
         .into_verifier(JsonWebSigningAlgorithm::EdDSA)
@@ -448,7 +448,7 @@ fn ed25519() {
     );
 
     let unverified_jws =
-        Unverified::<Jws<Compact, StringPayload>>::decode(Compact::from_str(&encoded).unwrap())
+        Unverified::<Jws<CompactJws, StringPayload>>::decode(Compact::from_str(&encoded).unwrap())
             .unwrap();
     unverified_jws
         .verify(&mut verifier)
@@ -458,7 +458,7 @@ fn ed25519() {
         "eyJhbGciOiJFZERTQSJ9.SSB3YXMgY3VyZWQgYWxsIHJpZ2h0Lg.\
          xuBNTX8MSX1Du5sAdSGBUKijn8yqHG8v-3CYrZpoHizzwU9T6aT-XqbS5FBuMR9_pGagmpO6EiPHqZiTUpxXDQ";
 
-    let wrong_jws: Unverified<Jws<Compact, StringPayload>> =
+    let wrong_jws: Unverified<Jws<CompactJws, StringPayload>> =
         Unverified::decode(Compact::from_str(signature_by_different_key).unwrap()).unwrap();
 
     wrong_jws

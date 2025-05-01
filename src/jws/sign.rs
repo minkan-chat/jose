@@ -2,7 +2,7 @@ use core::fmt;
 
 use crate::{
     crypto,
-    format::Format,
+    format::sealed::SealedFormatJws,
     jwa::{JsonWebAlgorithm, JsonWebSigningAlgorithm},
     jwk::FromKey,
 };
@@ -21,13 +21,13 @@ pub struct Signed<F> {
     pub(crate) value: F,
 }
 
-impl<F: Format> fmt::Display for Signed<F> {
+impl<F: SealedFormatJws<F>> fmt::Display for Signed<F> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.value, f)
     }
 }
 
-impl<F: Format> Signed<F> {
+impl<F: SealedFormatJws<F>> Signed<F> {
     /// Encodes this signed value into the format of the signed JWS.
     #[inline]
     pub fn encode(self) -> F {

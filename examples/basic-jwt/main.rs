@@ -8,7 +8,7 @@ use jose::{
         ec::P256PrivateKey,
         hmac::{Hs256, Key as HmacKey},
     },
-    format::{Compact, DecodeFormat},
+    format::{Compact, CompactJws, DecodeFormat},
     jwk::{
         policy::{Checkable, StandardPolicy},
         IntoJsonWebKey, JwkSigner, JwkVerifier, KeyOperation,
@@ -78,7 +78,7 @@ fn main() -> eyre::Result<()> {
             let key: JsonWebKey = serde_json::from_reader(key)?;
             let key = key.check(StandardPolicy::default()).map_err(|(_, e)| e)?;
             let mut verifier: JwkVerifier = key.try_into()?;
-            let encoded: Compact = jwt.parse()?;
+            let encoded: CompactJws = jwt.parse()?;
             let unverified_jwt = Jwt::<UntypedAdditionalProperties>::decode(encoded)?;
             let jwt = unverified_jwt.verify(&mut verifier)?;
             let payload = jwt.payload();

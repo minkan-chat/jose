@@ -7,25 +7,25 @@ use alloc::string::String;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
-    format::{self, Compact},
+    format::{self, CompactJws},
     jws::{FromRawPayload, IntoPayload, JsonWebSignatureBuilder, PayloadData, PayloadKind},
     Base64UrlString, JsonWebSignature, Jws,
 };
 
 /// A JSON Web Token (JWT) as defined in [RFC 7519].
 ///
-/// Since a JWT is only allowed to be serialized in the compact format, the
-/// `F` type parameter is fixed to [`Compact`] in this type
+/// Since a JWT is only allowed to be serialized in the CompactJws format, the
+/// `F` type parameter is fixed to [`CompactJws`] in this type
 /// alias.
 ///
 /// [RFC 7519]: <https://datatracker.ietf.org/doc/html/rfc7519>
-pub type JsonWebToken<A> = JsonWebSignature<format::Compact, Claims<A>>;
+pub type JsonWebToken<A> = JsonWebSignature<format::CompactJws, Claims<A>>;
 
 impl JsonWebToken<()> {
     /// Returns a [`JsonWebSignatureBuilder`] for a [`JsonWebToken`]
     // this method is needed because of interference problems if it is named
     // builder directly.
-    pub fn builder_jwt() -> JsonWebSignatureBuilder<Compact> {
+    pub fn builder_jwt() -> JsonWebSignatureBuilder<CompactJws> {
         Jws::builder()
     }
 }

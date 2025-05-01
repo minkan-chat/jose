@@ -161,7 +161,7 @@ impl<'de> Deserialize<'de> for PublicKey {
             e: repr.e.0,
         };
         let key = rsa::PublicKey::from_components(components)
-            .map_err(|e| D::Error::custom(format!("failed to construct RSA public key: {}", e)))?;
+            .map_err(|e| D::Error::custom(format!("failed to construct RSA public key: {e}")))?;
         Ok(Self { inner: key })
     }
 }
@@ -332,9 +332,8 @@ impl<'de> Deserialize<'de> for PrivateKey {
         let prime_info = if any_prime_present {
             let err = |field: &str| {
                 D::Error::custom(format!(
-                    "expected `{}` to be present because all prime fields must be set if one of \
-                     them is set",
-                    field
+                    "expected `{field}` to be present because all prime fields must be set if one \
+                     of them is set",
                 ))
             };
 

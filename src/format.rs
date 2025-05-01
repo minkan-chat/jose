@@ -1,24 +1,22 @@
 //! Contains abstractions for different kinds of
 //! serialization formats.
 //!
-//! Currently, the only two formats are [`Compact`] and [`JsonFlattened`].
+//! The formats are [`Compact`], [`JsonFlattened`] and [`JsonGeneral`].
 
 mod compact;
 mod json_flattened;
 mod json_general;
 
-use core::fmt;
-
-pub use compact::Compact;
-pub use json_flattened::JsonFlattened;
-pub use json_general::JsonGeneral;
+pub use compact::{Compact, CompactJwe, CompactJws};
+pub use json_flattened::{JsonFlattened, JsonFlattenedJwe, JsonFlattenedJws};
 pub(crate) use json_general::Signature as JsonGeneralSignature;
+pub use json_general::{JsonGeneral, JsonGeneralJwe, JsonGeneralJws};
 
 use crate::sealed::Sealed;
 
 pub(crate) mod sealed {
     use alloc::fmt;
-    use core::convert::Infallible;
+    use core::{convert::Infallible, fmt::Display};
 
     use crate::{
         header::{self, JoseHeaderBuilder, JoseHeaderBuilderError},
@@ -28,7 +26,7 @@ pub(crate) mod sealed {
     // We put all methods, types, etc into a sealed trait, so
     // the user is not able to access these thing as they should
     // only be used internally by this crate
-    pub trait SealedFormat<F>: Sized {
+    pub trait SealedFormatJws<F>: Sized + Display {
         type JwsHeader: fmt::Debug;
         type SerializedJwsHeader: fmt::Debug;
 
@@ -57,11 +55,11 @@ pub(crate) mod sealed {
             new_builder: JoseHeaderBuilder<F, header::Jws>,
         );
     }
-}
 
-/// This trait represents any possible format in which a JWS or JWE can be
-/// represented.
-pub trait Format: fmt::Display + sealed::SealedFormat<Self> + Sized {}
+    pub trait SealedFormatJwe: Sized {
+        type JweHeader: fmt::Debug;
+    }
+}
 
 /// Used to parse a [`Compact`] or another format representation
 /// into a concrete type.
@@ -99,4 +97,41 @@ pub trait DecodeFormatWithContext<F, C>: Sealed + Sized {
     /// Returns an error if the input format has an invalid representation for
     /// this type.
     fn decode_with_context(input: F, context: &C) -> Result<Self::Decoded<Self>, Self::Error>;
+}
+
+/// A trait to distinguish between
+/// [`JsonWebSignature`](crate::JsonWebSignature)s and
+/// [`JsonWebEncryption`](crate::JsonWebEncryption) in different serialization
+/// formats.
+///
+/// This allows us to reuse types like [`Compact`] across JWS and JWE.
+pub trait SealedFormatType: Sealed {
+    /// In [`Compact`] serialization, the different parts are base64urlsafe no
+    /// pad encoded and then separated by `.`.
+    ///
+    /// For example, in [`JsonWebSignature`](crate::JsonWebSignature)s, it is
+    /// header.payload.signature (all base64urlsafe no pad encoded of course)
+    const COMAPCT_PARTS: usize;
+}
+
+/// A marker type to represent a [`JsonWebSignature`](crate::JsonWebSignature)
+/// in some serialization format
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct Jws {}
+
+impl Sealed for Jws {}
+impl SealedFormatType for Jws {
+    const COMAPCT_PARTS: usize = 3;
+}
+
+/// A marker type to represent a [`JsonWebEncryption`](crate::JsonWebEncryption)
+///  in some serialization format
+#[derive(Debug)]
+#[non_exhaustive]
+pub struct Jwe {}
+
+impl Sealed for Jwe {}
+impl SealedFormatType for Jwe {
+    const COMAPCT_PARTS: usize = 5;
 }

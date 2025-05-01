@@ -48,10 +48,13 @@ pub use base64_url::Base64UrlString;
 pub use uri::Uri;
 
 #[doc(inline)]
-pub use self::{header::JoseHeader, jwk::JsonWebKey, jws::JsonWebSignature, jwt::JsonWebToken};
+pub use self::{
+    header::JoseHeader, jwe::JsonWebEncryption, jwk::JsonWebKey, jws::JsonWebSignature,
+    jwt::JsonWebToken,
+};
 
 /// Type alias to make [`JsonWebSignature`] easier to access.
-pub type Jws<F = format::Compact, T = ()> = JsonWebSignature<F, T>;
+pub type Jws<F = format::CompactJws, T = ()> = JsonWebSignature<F, T>;
 
 /// Type alias to make [`JsonWebToken`] easier to access.
 pub type Jwt<A = ()> = JsonWebToken<A>;

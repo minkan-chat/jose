@@ -1,10 +1,10 @@
 use alloc::string::String;
-use core::fmt;
+use core::{fmt, marker::PhantomData};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::{sealed, Format};
+use super::{sealed, Jwe, Jws};
 use crate::{
     header,
     jws::{PayloadData, SignError},
@@ -13,18 +13,23 @@ use crate::{
 
 /// The flattened json serialization format.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct JsonFlattened {
+pub struct JsonFlattened<T> {
     pub(crate) payload: Option<Base64UrlString>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) protected: Option<Base64UrlString>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) header: Option<serde_json::Map<String, Value>>,
     pub(crate) signature: Base64UrlString,
+    pub(crate) _crypto_typ: PhantomData<T>,
 }
 
-impl Format for JsonFlattened {}
+/// A [`JsonWebSignature`](crate::JsonWebSignature) in [`JsonFlattened`] format
+pub type JsonFlattenedJws = JsonFlattened<Jws>;
+/// A [`JsonWebEncryption`](crate::JsonWebEncryption) in [`JsonFlattened`]
+/// format
+pub type JsonFlattenedJwe = JsonFlattened<Jwe>;
 
-impl fmt::Display for JsonFlattened {
+impl<T> fmt::Display for JsonFlattened<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repr = if f.alternate() {
             serde_json::to_string_pretty(&self).map_err(|_| fmt::Error)?
@@ -36,8 +41,8 @@ impl fmt::Display for JsonFlattened {
     }
 }
 
-impl sealed::SealedFormat<JsonFlattened> for JsonFlattened {
-    type JwsHeader = JoseHeader<JsonFlattened, header::Jws>;
+impl sealed::SealedFormatJws<JsonFlattenedJws> for JsonFlattenedJws {
+    type JwsHeader = JoseHeader<JsonFlattenedJws, header::Jws>;
     type SerializedJwsHeader = (
         Option<Base64UrlString>,
         Option<serde_json::Map<String, Value>>,
@@ -86,12 +91,13 @@ impl sealed::SealedFormat<JsonFlattened> for JsonFlattened {
             protected,
             header: unprotected,
             signature,
+            _crypto_typ: PhantomData,
         })
     }
 
     fn finalize_jws_header_builder(
         value_ref: &mut Result<Self::JwsHeader, header::JoseHeaderBuilderError>,
-        new_builder: header::JoseHeaderBuilder<JsonFlattened, header::Jws>,
+        new_builder: header::JoseHeaderBuilder<JsonFlattenedJws, header::Jws>,
     ) {
         *value_ref = new_builder.build();
     }
