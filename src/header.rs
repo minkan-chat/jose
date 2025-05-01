@@ -46,7 +46,7 @@ use crate::{
 ///
 /// A [`JoseHeader`] may be a bit different, depending where it is being used.
 /// Therefore, [`JoseHeader<F, T>`] has two generic types that define where and
-/// how exactly it is being used. `F` defines the [`Format`] that this
+/// how exactly it is being used. `F` defines the format that this
 /// [`JoseHeader`] is being used in. `T` defines whether the [`JoseHeader`] is
 /// part of a [JSON Web Signature][Jws] or [JSON Web Encryption][Jwe].
 ///

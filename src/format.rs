@@ -102,7 +102,7 @@ pub trait DecodeFormatWithContext<F, C>: Sealed + Sized {
 /// A trait to distinguish between
 /// [`JsonWebSignature`](crate::JsonWebSignature)s and
 /// [`JsonWebEncryption`](crate::JsonWebEncryption) in different serialization
-/// [`Format`]s.
+/// formats.
 ///
 /// This allows us to reuse types like [`Compact`] across JWS and JWE.
 pub trait SealedFormatType: Sealed {
@@ -115,7 +115,7 @@ pub trait SealedFormatType: Sealed {
 }
 
 /// A marker type to represent a [`JsonWebSignature`](crate::JsonWebSignature)
-/// in some serialization [`Format`]
+/// in some serialization format
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Jws {}
@@ -126,7 +126,7 @@ impl SealedFormatType for Jws {
 }
 
 /// A marker type to represent a [`JsonWebEncryption`](crate::JsonWebEncryption)
-///  in some serialization [`Format`]
+///  in some serialization format
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct Jwe {}

@@ -111,7 +111,7 @@ where
     }
 }
 
-impl FromStr for CompactJws {
+impl<T> FromStr for Compact<T> {
     type Err = NoBase64UrlString;
 
     /// Verifies if every part of the string is valid base64url format

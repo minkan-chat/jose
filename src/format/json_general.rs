@@ -48,7 +48,6 @@ impl<T> fmt::Display for JsonGeneral<T> {
     }
 }
 
-
 impl sealed::SealedFormatJws<JsonGeneralJws> for JsonGeneralJws {
     type JwsHeader = Vec<JoseHeader<JsonGeneralJws, header::Jws>>;
     // this only a single header, even though JsonGeneralJws supports multiple
