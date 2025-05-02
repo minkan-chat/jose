@@ -304,7 +304,7 @@ fn json_flattened_jws_with_no_protected_header() {
 
     let jws = jws.sign(&mut signer).unwrap();
 
-    println!("{:#}", jws);
+    println!("{jws:#}");
 }
 
 #[test]
@@ -346,7 +346,7 @@ fn smoke() {
         .sign_many(signers)
         .unwrap()
         .encode();
-    println!("{}", jws);
+    println!("{jws}");
 
     let verifiers: [&mut dyn Verifier; 2] = [&mut verifier, &mut verifier2];
     let parsed_jws = ManyUnverified::<Jws<JsonGeneral, StringPayload>>::decode(jws)
@@ -354,7 +354,7 @@ fn smoke() {
         .verify_many(verifiers)
         .unwrap();
 
-    println!("{:#?}", parsed_jws);
+    println!("{parsed_jws:#?}");
 }
 
 #[test]
@@ -434,7 +434,7 @@ fn ed25519() {
 
     let jws = jws.sign(&mut signer).unwrap();
 
-    println!("{:#?}", jws);
+    println!("{jws:#?}");
 
     let mut verifier: Ed25519Verifier = public
         .into_verifier(JsonWebSigningAlgorithm::EdDSA)
