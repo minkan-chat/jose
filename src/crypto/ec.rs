@@ -8,6 +8,7 @@
 use alloc::{boxed::Box, format, string::String, vec::Vec};
 use core::{fmt, marker::PhantomData};
 
+use secrecy::ExposeSecret;
 use serde::{de::Error as _, Deserialize, Serialize};
 
 use super::backend::{interface, Backend};
@@ -79,6 +80,30 @@ pub trait Curve: sealed::Sealed {
 
     /// The algorithm used for this curve.
     const ALGORITHM: jwa::EcDSA;
+}
+
+/// Returns the number of bytes a single coordinate of the given curve holds.
+pub(crate) fn coordinate_size(alg: jwa::EcDSA) -> usize {
+    match alg {
+        jwa::EcDSA::Es256 => 32,
+        jwa::EcDSA::Es384 => 48,
+        jwa::EcDSA::Es512 => 66,
+        jwa::EcDSA::Es256K => 32,
+    }
+}
+
+/// The number of bytes for a scalar value for the given curve.
+///
+/// This is mostly used to ensure the private key has the correct length.
+pub(crate) fn scalar_size(alg: jwa::EcDSA) -> usize {
+    // The length of this octet string MUST be ceiling(log-base-2(n)/8) octets
+    // (where n is the order of the curve).
+    match alg {
+        jwa::EcDSA::Es256 => 32,
+        jwa::EcDSA::Es384 => 48,
+        jwa::EcDSA::Es512 => 66,
+        jwa::EcDSA::Es256K => 32,
+    }
 }
 
 /// The returned signature from a sign operation.
@@ -191,6 +216,24 @@ impl<'de, C: Curve> Deserialize<'de> for PublicKey<C> {
                 C::NAME,
             )));
         }
+
+        let check_coordinate = |c: &[u8], name: &str| {
+            if c.len() != coordinate_size(C::ALGORITHM) {
+                return Err(D::Error::custom(alloc::format!(
+                    "ECC coordinate {name} has invalid length of {}, expected {}",
+                    c.len(),
+                    coordinate_size(C::ALGORITHM),
+                )));
+            }
+
+            Ok(())
+        };
+
+        // https://datatracker.ietf.org/doc/html/rfc7518#section-6.2.1.2
+        //
+        // Verifies that both coordinates are the same length as the curve size.
+        check_coordinate(&key.x.0, "x")?;
+        check_coordinate(&key.y.0, "y")?;
 
         Ok(Self {
             inner: <BackendPublicKey as interface::ec::PublicKey>::new(
@@ -320,6 +363,14 @@ impl<'de, C: Curve> Deserialize<'de> for PrivateKey<C> {
             d: SecretBase64UrlBytes,
         }
         let key = Repr::deserialize(deserializer)?;
+
+        let len = key.d.0.expose_secret().len();
+        if len != scalar_size(C::ALGORITHM) {
+            return Err(D::Error::custom(alloc::format!(
+                "ECC scalar has invalid length of {len}, expected {}",
+                scalar_size(C::ALGORITHM),
+            )));
+        }
 
         Ok(Self {
             inner: <BackendPrivateKey as interface::ec::PrivateKey>::new(
