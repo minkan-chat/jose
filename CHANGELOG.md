@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.3] - 2025-05-02
+
+### Bug Fixes
+
+- Remove todo!() panic in sign_many method
+- Implement `from_deserializer` method for Jwe header type
+- Try to fix CI cache and release-plz
+- Retry unit tests in CI to avoid flaky failure
+- Correctly encode EC signature by padding nums to 32
+- Ensure correct length of ECC x, y & d
+- Correctly handle unknown algorithms in `JsonWebAlgorithm`
+
+### Miscellaneous Tasks
+
+- Revert back rust cache action
+- Update nix inputs for new rust version
+- Update format! to use inline variables
+
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
