@@ -48,7 +48,7 @@ pub use self::{
     verifier::JwkVerifier,
 };
 use self::{
-    policy::{Checkable, Checked, CryptographicOperation, Policy},
+    policy::{Checkable, Checked, CryptographicOperation, Policy, PolicyError as _},
     serde_impl::Base64DerCertificate,
 };
 
@@ -621,6 +621,9 @@ where
                 ],
                 JsonWebAlgorithm::Signing(..) => {
                     [CryptographicOperation::Sign, CryptographicOperation::Verify]
+                }
+                JsonWebAlgorithm::Other(..) => {
+                    return Err((self, P::Error::custom("specified key algorithm is unknown")))
                 }
             };
             debug_assert!(!operations.is_empty());

@@ -11,7 +11,7 @@ mod hmac;
 mod pbes2;
 mod rsa;
 
-use alloc::string::String;
+use alloc::{borrow::Cow, string::String};
 
 use serde::{Deserialize, Serialize};
 
@@ -32,13 +32,36 @@ pub use self::{
 /// `JSON Web Signature and Encryption Algorithms` registry][1].
 ///
 /// [1]: <https://www.iana.org/assignments/jose/jose.xhtml#web-signature-encryption-algorithms>
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 #[serde(untagged)]
 pub enum JsonWebAlgorithm {
     /// Signing algorithm.
     Signing(JsonWebSigningAlgorithm),
+
     /// Encryption algorithm.
     Encryption(JsonWebEncryptionAlgorithm),
+
+    /// Unknown algorithm.
+    Other(String),
+}
+
+impl<'de> Deserialize<'de> for JsonWebAlgorithm {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let name = Cow::<'_, str>::deserialize(deserializer)?;
+
+        let sign =
+            JsonWebSigningAlgorithm::from_str_without_other(name.as_ref()).map(Self::Signing);
+        let enc =
+            JsonWebEncryptionAlgorithm::from_str_without_other(name.as_ref()).map(Self::Encryption);
+
+        let alg = sign
+            .or(enc)
+            .unwrap_or_else(|| Self::Other(name.into_owned()));
+        Ok(alg)
+    }
 }
 
 /// A JSON Web Algorithm (JWA) for singing operations (JWS) as defined in [RFC
@@ -82,6 +105,10 @@ pub enum JsonWebSigningAlgorithm {
     /// [`Signer`](crate::jws::Signer) and [`Verifier`](crate::jws::Verifier)
     /// type, you should use this type to define an identifier for your
     /// algorithm.
+    ///
+    /// Note: When you deserialize the `alg` header parameter via the
+    /// [`JsonWebAlgorithm`] enum, this variant will never be
+    /// constructed.
     Other(String),
 }
 
@@ -117,11 +144,6 @@ impl_serde_jwa!(
 
 
         "none" => Self::None; Self::None,
-
-        contrary: <JsonWebEncryptionAlgorithm>::Other,
-
-        expected: "a JSON Web Signing Algorithm",
-        got: "JSON Web Encryption Algorithm",
     ]
 );
 
@@ -161,9 +183,8 @@ pub enum JsonWebEncryptionAlgorithm {
     /// encryption, you should use this variant to identify your algorithm.
     ///
     /// Note: When you deserialize the `alg` header parameter via the
-    /// [`JsonWebAlgorithm`] enum, this variant will probably never be
-    /// constructed, because it matches [`JsonWebSigningAlgorithm::Other`]
-    /// first.
+    /// [`JsonWebAlgorithm`] enum, this variant will never be
+    /// constructed.
     Other(String),
 }
 
@@ -193,11 +214,6 @@ impl_serde_jwa!(
         "PBES2-HS256+A128KW" => Self::Pbes2(Pbes2::Hs256Aes128); Self::Pbes2(Pbes2::Hs256Aes128),
         "PBES2-HS384+A192KW" => Self::Pbes2(Pbes2::Hs384Aes192); Self::Pbes2(Pbes2::Hs384Aes192),
         "PBES2-HS512+A256KW" => Self::Pbes2(Pbes2::Hs512Aes256); Self::Pbes2(Pbes2::Hs512Aes256),
-
-        contrary: <JsonWebSigningAlgorithm>::Other,
-
-        expected: "a JSON Web Encryption Algorithm",
-        got: "JSON Web Signing Algorithm",
     ]
 );
 
@@ -233,9 +249,6 @@ impl_serde_jwa!(
         "A128GCM" => Self::AesGcm(AesGcm::Aes128); Self::AesGcm(AesGcm::Aes128),
         "A192GCM" => Self::AesGcm(AesGcm::Aes192); Self::AesGcm(AesGcm::Aes192),
         "A256GCM" => Self::AesGcm(AesGcm::Aes256); Self::AesGcm(AesGcm::Aes256),
-
-        expected: "JSON Web Content Encryption Algorithm",
-        got: "an invalid variant",
     ]
 );
 
@@ -245,8 +258,8 @@ fn test_others_not_stealing() {
     let jwe = "dir";
     let jwa: JsonWebAlgorithm =
         serde_json::from_value(serde_json::Value::String(jwe.to_string())).unwrap();
-    assert!(matches!(
+    assert_eq!(
         jwa,
         JsonWebAlgorithm::Encryption(JsonWebEncryptionAlgorithm::Direct)
-    ));
+    );
 }

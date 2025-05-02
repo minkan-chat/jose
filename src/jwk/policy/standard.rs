@@ -93,6 +93,7 @@ impl Policy for StandardPolicy {
             JsonWebAlgorithm::Signing(JsonWebSigningAlgorithm::None) => {
                 Err(StandardPolicyFail::NoneAlgorithm)
             }
+            JsonWebAlgorithm::Other(..) => Err(StandardPolicyFail::OtherAlgorithm),
             _ => Ok(()),
         }
     }
