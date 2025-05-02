@@ -126,7 +126,9 @@ where
         }
 
         match alg {
-            JsonWebAlgorithm::Encryption(..) => Err(FromJwkError::InvalidAlgorithm),
+            JsonWebAlgorithm::Encryption(..) | JsonWebAlgorithm::Other(..) => {
+                Err(FromJwkError::InvalidAlgorithm)
+            }
             JsonWebAlgorithm::Signing(alg) => Self::new(jwk.into_type().key_type, alg),
         }
     }

@@ -13,7 +13,11 @@ use openssl::{
 use secrecy::{ExposeSecret, SecretSlice};
 
 use crate::{
-    crypto::{backend::interface::ec, Result},
+    crypto::{
+        backend::interface::ec,
+        ec::{coordinate_size, scalar_size},
+        Result,
+    },
     jwa::{self, EcDSA},
 };
 
@@ -43,9 +47,9 @@ pub(crate) struct PrivateKey {
     alg: jwa::EcDSA,
 
     key: PKey<Private>,
-    data: EcKey<Private>,
     public_key: PKey<Public>,
 
+    d: SecretSlice<u8>,
     x: Vec<u8>,
     y: Vec<u8>,
 }
@@ -68,13 +72,18 @@ impl ec::PrivateKey for PrivateKey {
         let mut ctx = BigNumContext::new()?;
         public_point.affine_coordinates(&group, &mut x, &mut y, &mut ctx)?;
 
+        let coordinate_size = coordinate_size(alg) as i32;
         Ok(Self {
             alg,
             public_key: PKey::from_ec_key(public_key)?,
-            data: ec_key.clone(),
+            d: SecretSlice::from(
+                ec_key
+                    .private_key()
+                    .to_vec_padded(scalar_size(alg) as i32)?,
+            ),
             key: PKey::from_ec_key(ec_key)?,
-            x: x.to_vec(),
-            y: y.to_vec(),
+            x: x.to_vec_padded(coordinate_size)?,
+            y: y.to_vec_padded(coordinate_size)?,
         })
     }
 
@@ -91,18 +100,19 @@ impl ec::PrivateKey for PrivateKey {
         let key = EcKey::from_private_components(&group, &d, public_key.public_key())?;
         key.check_key()?;
 
+        let coordinate_size = coordinate_size(alg) as i32;
         Ok(Self {
             alg,
             key: PKey::from_ec_key(key.clone())?,
-            data: key,
+            d: SecretSlice::from(key.private_key().to_vec_padded(scalar_size(alg) as i32)?),
             public_key: PKey::from_ec_key(public_key)?,
-            x: x.to_vec(),
-            y: y.to_vec(),
+            x: x.to_vec_padded(coordinate_size)?,
+            y: y.to_vec_padded(coordinate_size)?,
         })
     }
 
     fn private_material(&self) -> SecretSlice<u8> {
-        SecretSlice::from(self.data.private_key().to_vec())
+        self.d.clone()
     }
 
     #[inline]
@@ -172,21 +182,22 @@ pub(crate) struct PublicKey {
 }
 
 impl ec::PublicKey for PublicKey {
-    fn new(alg: EcDSA, x: Vec<u8>, y: Vec<u8>) -> Result<Self> {
+    fn new(alg: EcDSA, raw_x: Vec<u8>, raw_y: Vec<u8>) -> Result<Self> {
         let group = ec_group(alg)?;
 
-        let x = BigNum::from_slice(&x)?;
-        let y = BigNum::from_slice(&y)?;
+        let x = BigNum::from_slice(&raw_x)?;
+        let y = BigNum::from_slice(&raw_y)?;
 
         let public_key = EcKey::from_public_key_affine_coordinates(&group, &x, &y)?;
         public_key.check_key()?;
         let key = PKey::from_ec_key(public_key)?;
 
+        let coordinate_size = coordinate_size(alg) as i32;
         Ok(Self {
             digest: digest(alg),
             key,
-            x: x.to_vec(),
-            y: y.to_vec(),
+            x: x.to_vec_padded(coordinate_size)?,
+            y: y.to_vec_padded(coordinate_size)?,
         })
     }
 

@@ -1,11 +1,6 @@
 macro_rules! impl_serde_jwa {
     ($T:ty, [
         $($name:literal => $val:expr; $valp:pat,)*
-
-        $(contrary: <$contrary:ty>::$contrary_variant:ident,)?
-
-        expected: $expected:literal,
-        got: $got:literal,
     ]) => {
 
         impl core::fmt::Display for $T {
@@ -24,26 +19,9 @@ macro_rules! impl_serde_jwa {
             {
                 let name = <alloc::borrow::Cow<'_, str> as serde::Deserialize>::deserialize(deserializer)?;
 
-                Ok(match name.as_ref() {
-                    $($name => $val,)*
-                    _ => {
-                        $(
-                            use $contrary as _Contrary;
-                            let de: serde::de::value::CowStrDeserializer<'_, D::Error> = serde::de::value::CowStrDeserializer::new(name);
-                            let variant: $contrary = <$contrary>::deserialize(de)?;
-                            if let _Contrary::$contrary_variant(name) = variant {
-                                return Ok(Self::Other(name));
-                            } else {
-                                let fmt = alloc::format!("{} `{}`", $got, variant);
-                                let unexpected = serde::de::Unexpected::Str(&fmt);
-                                return Err(<D::Error as serde::de::Error>::invalid_value(unexpected, &$expected));
-                            }
-                        )*
-                        // this will be reachable if contrary is not present
-                        #[allow(unreachable_code)]
-                        Self::Other(name.into_owned())
-                    },
-                })
+                Ok(Self::from_str_without_other(&name).unwrap_or_else(|| {
+                    Self::Other(name.into_owned())
+                }))
             }
         }
 
@@ -61,6 +39,16 @@ macro_rules! impl_serde_jwa {
             }
         }
 
+        impl $T {
+            /// Tries to parse the given name into a variant, and returns `None`
+            /// if no variant matched.
+            pub(crate) fn from_str_without_other(name: &str) -> Option<Self> {
+                match name {
+                    $($name => Some($val),)*
+                    _ => None,
+                }
+            }
+        }
     };
 }
 
