@@ -132,6 +132,7 @@ clio = { version = "0.3.5", features = ["clap-parse"] }
 
 # For integration tests
 pretty_assertions = "1.4.1"
+rstest = "0.25.0"
 
 # For X.509 certificates of Json Web Keys
 # x509-cert = { git = "https://github.com/RustCrypto/formats.git" }

@@ -1,10 +1,11 @@
 use jose::{
     crypto::hmac,
-    jwa,
-    jwk::{self, FromKey as _, Thumbprint as _},
+    jwa::{self, JsonWebAlgorithm},
+    jwk::{self, policy::Checkable, FromKey as _, Thumbprint as _},
     Base64UrlString, JsonWebKey,
 };
 use pretty_assertions::assert_eq;
+use serde::{Deserialize, Serialize};
 
 use crate::common::{read_jwk, TestResult};
 
@@ -49,12 +50,62 @@ fn roundtrip(file: &str, unsupported: bool, check: fn(&JsonWebKey)) -> TestResul
     assert_eq!(json_key, serialized);
     assert_eq!(json_key, serialized_from_str);
 
+    // now try constructing a builder using this key, and check invalid
+    // algorithm
+    let err = JsonWebKey::builder(jwk.key_type().clone())
+        .algorithm(Some(JsonWebAlgorithm::Other("foo".to_string())))
+        .build()
+        .unwrap_err();
+    assert!(matches!(
+        err,
+        jwk::JsonWebKeyBuildError::IncompatibleKeyType
+    ));
+
+    let err = jwk
+        .into_builder()
+        .algorithm(Some(JsonWebAlgorithm::Other("foo".to_string())))
+        .build()
+        .unwrap_err();
+    assert!(matches!(
+        err,
+        jwk::JsonWebKeyBuildError::IncompatibleKeyType
+    ));
+
     Ok(())
 }
 
-fn roundtrip_pair(private: &str, public: &str, check: fn(&JsonWebKey)) -> TestResult {
-    roundtrip(private, false, check)?;
-    roundtrip(public, false, check)?;
+fn roundtrip_pair(
+    private: &str,
+    public: &str,
+    unsupported: bool,
+    check: fn(&JsonWebKey),
+) -> TestResult {
+    roundtrip(private, unsupported, check)?;
+    roundtrip(public, unsupported, check)?;
+
+    let private_key: JsonWebKey = serde_json::from_value(read_jwk(private)?)?;
+    let public_key: JsonWebKey = serde_json::from_value(read_jwk(public)?)?;
+
+    assert!(private_key.is_signing_key());
+    assert!(!public_key.is_signing_key());
+
+    assert!(!private_key.is_symmetric());
+    assert!(!public_key.is_symmetric());
+
+    assert!(private_key.is_asymmetric());
+    assert!(public_key.is_asymmetric());
+
+    let stripped = private_key.clone().strip_secret_material().unwrap();
+    assert_eq!(stripped.key_type(), public_key.key_type());
+
+    let stripped_from_public = public_key.clone().strip_secret_material().unwrap();
+    assert_eq!(stripped_from_public.key_type(), public_key.key_type());
+
+    let into_verifying = private_key.into_verifying_key();
+    assert_eq!(into_verifying.key_type(), public_key.key_type());
+
+    let public_into_verifying = public_key.clone().into_verifying_key();
+    assert_eq!(public_into_verifying.key_type(), public_key.key_type());
 
     Ok(())
 }
@@ -71,29 +122,19 @@ fn assert_thumbprint(jwk: &JsonWebKey, sha256: &str, sha384: &str, sha512: &str)
 }
 
 pub mod roundtrip {
-    use jose::{
-        jwa,
-        jwk::{self, AsymmetricJsonWebKey, JsonWebKeyType},
-    };
+    use jose::{jwa, jwk};
     use pretty_assertions::assert_eq;
 
     use crate::{assert_thumbprint, common::TestResult, roundtrip, roundtrip_pair};
 
     #[test]
-    fn _3_1_ec_public_key() -> TestResult {
-        roundtrip(
+    fn _3_1_and_2_ec() -> TestResult {
+        roundtrip_pair(
+            "3_2.ec_private_key",
             "3_1.ec_public_key",
             // RustCrypto and ring do not support P-521 curve
             cfg!(feature = "crypto-rustcrypto") || cfg!(feature = "crypto-ring"),
             |jwk| {
-                let JsonWebKeyType::Asymmetric(key) = jwk.key_type() else {
-                    panic!("Expected asymmetric key type");
-                };
-
-                assert!(matches!(
-                    **key,
-                    AsymmetricJsonWebKey::Public(jwk::Public::Ec(jwk::EcPublic::P521(..)))
-                ));
                 assert_eq!(jwk.key_usage(), Some(&jwk::KeyUsage::Signing));
                 assert_thumbprint(
                     jwk,
@@ -106,47 +147,8 @@ pub mod roundtrip {
     }
 
     #[test]
-    fn _3_2_ec_private_key() -> TestResult {
-        roundtrip(
-            "3_2.ec_private_key",
-            // RustCrypto and ring do not support P-521 curve
-            cfg!(feature = "crypto-rustcrypto") || cfg!(feature = "crypto-ring"),
-            |jwk| {
-                let JsonWebKeyType::Asymmetric(key) = jwk.key_type() else {
-                    panic!("Expected asymmetric key type");
-                };
-
-                assert!(matches!(
-                    **key,
-                    AsymmetricJsonWebKey::Private(jwk::Private::Ec(jwk::EcPrivate::P521(..)))
-                ));
-                assert_eq!(jwk.key_usage(), Some(&jwk::KeyUsage::Signing));
-
-                assert_thumbprint(
-                    jwk,
-                    "dHri3SADZkrush5HU_50AoRhcKFryN-PI6jPBtPL55M",
-                    "HncTFMje-quVjjwt2ufqfFb75ZwHLDh9M-VY4wJ9awQkfbu194TmVpeGbG6Ykb9b",
-                    "i8RIsIb6HVP2AO9o38HtraybJAP5veAfBIgynNUqpxlhuvq2UDgSA3JFgGgle1YvmCQDHllAn7MG52Idb8B4fA"
-                );
-            },
-        )
-    }
-
-    #[test]
-    fn _3_3_rsa_public_key() -> TestResult {
-        roundtrip("3_3.rsa_public_key", false, |jwk| {
-            assert_thumbprint(
-                jwk,
-                "9jg46WB3rR_AHD-EBXdN7cBkH1WOu0tA3M9fm21mqTI",
-                "iRBthSmwxk6o9pTGF6a9yLHohmMXSFRvKoN9rgcbOWFgLldwqED1DrOgDtLq5Q4R",
-                "FerGBUpYnzT0ptNAC7Y3qNpGINqILXdZ_9-Na3UkPUtDznnAChw7NWluNRjx-lmKDnuO1CpmIZL7e2bzRkQBew",
-            );
-        })
-    }
-
-    #[test]
-    fn _3_4_rsa_private_key() -> TestResult {
-        roundtrip("3_4.rsa_private_key", false, |jwk| {
+    fn _3_3_and_4_rsa() -> TestResult {
+        roundtrip_pair("3_4.rsa_private_key", "3_3.rsa_public_key", false, |jwk| {
             assert_thumbprint(
                 jwk,
                 "9jg46WB3rR_AHD-EBXdN7cBkH1WOu0tA3M9fm21mqTI",
@@ -163,6 +165,11 @@ pub mod roundtrip {
                 jwk.algorithm(),
                 Some(&jwa::JsonWebAlgorithm::from(jwa::Hmac::Hs256))
             );
+
+            assert!(jwk.is_symmetric());
+            assert!(jwk.is_signing_key());
+
+            assert_eq!(jwk.key_type(), jwk.clone().into_verifying_key().key_type());
 
             assert_thumbprint(
                 jwk,
@@ -195,7 +202,7 @@ pub mod roundtrip {
 
     #[test]
     fn ed25519() -> TestResult {
-        roundtrip_pair("ed25519", "ed25519.pub", |jwk| {
+        roundtrip_pair("ed25519", "ed25519.pub", false, |jwk| {
             assert_eq!(
                 jwk.algorithm(),
                 Some(&jwa::JsonWebAlgorithm::from(
@@ -281,7 +288,7 @@ pub mod roundtrip {
 
     #[test]
     fn p256() -> TestResult {
-        roundtrip_pair("p256", "p256.pub", |jwk| {
+        roundtrip_pair("p256", "p256.pub", false, |jwk| {
             assert_eq!(
                 jwk.algorithm(),
                 Some(&jwa::JsonWebAlgorithm::from(jwa::EcDSA::Es256))
@@ -298,7 +305,7 @@ pub mod roundtrip {
 
     #[test]
     fn p384() -> TestResult {
-        roundtrip_pair("p384", "p384.pub", |jwk| {
+        roundtrip_pair("p384", "p384.pub", false, |jwk| {
             assert_eq!(
                 jwk.algorithm(),
                 Some(&jwa::JsonWebAlgorithm::from(jwa::EcDSA::Es384))
@@ -314,13 +321,51 @@ pub mod roundtrip {
     }
 
     #[test]
+    #[cfg_attr(feature = "crypto-ring", ignore)]
+    fn secp256k1() -> TestResult {
+        roundtrip_pair("k256", "k256.pub", false, |jwk| {
+            assert_eq!(
+                jwk.algorithm(),
+                Some(&jwa::JsonWebAlgorithm::from(jwa::EcDSA::Es256K))
+            );
+
+            assert_thumbprint(
+                jwk,
+                "i0H0zy_Zyc4g9gUfIU3ZgSk21eC_a9B-J_keq5eRVq4",
+                "NWo1frAmwhk6vYKYK0YCTpJWbgvI-EDV5ZvEFvA_7V4y6VRAG0l4Q_uNkFIiisuL",
+                "E1oJ78FUrNMsq66wi7AT8jIU4QUMoV_JnYiCqwy2vgDod7yDHMXLkweJ0Vhd1A1TJysPMFNr4Q8yVvQ4Q1fXKg"
+            );
+        })
+    }
+
+    #[test]
     fn rsa() -> TestResult {
-        roundtrip_pair("rsa", "rsa.pub", |jwk| {
+        roundtrip_pair("rsa", "rsa.pub", false, |jwk| {
             assert_thumbprint(
                 jwk,
                 "nYPs6qc5zj3VOVKr4yY-EzirO-AcdUl0JC5bcXKGE6Y",
                 "JhX_riWIrTLs3p7SnueDgpcO27pDgXh1xQOivPzOKsU3CaQgHoLgiKIinmb2CMoE",
                 "DQd_FsR8hTwlVrv3WGQP2E1KQejcBbJCFtqWy489xmmPm8LdNT91zYFX-yTghCtq2zutBGYY2mkwIWN-VQWYyQ"
+            );
+        })
+    }
+
+    #[test]
+    #[cfg_attr(
+        any(
+            feature = "crypto-ring",
+            feature = "crypto-aws-lc",
+            feature = "crypto-rustcrypto"
+        ),
+        ignore
+    )]
+    fn ed448() -> TestResult {
+        roundtrip_pair("ed448", "ed448.pub", false, |jwk| {
+            assert_thumbprint(
+                jwk,
+                "-K8d13H2SA_vuRYSxn05sQN4hAkeWXFt5XainSnkfZc",
+                "a_AWZk_w5qSm2XziCOKyHRLU1amUzTlbb1df8Q0JCx3bOaQp0YcLqdHS2Sbyw2PQ",
+                "qM1ai1zIZ-NRzbkOKxVkOY6DXVXmDWsSXMCQRRy7oIZEwRzQ0gQK5c-cruMkpyYcBs7ftQcofV_YXWfCdKhSWw",
             );
         })
     }
@@ -369,10 +414,7 @@ pub mod generate {
     use crate::common::TestResult;
 
     #[test]
-    #[cfg_attr(
-        feature = "crypto-ring",
-        ignore = "crypto backend does not support ECC key generation"
-    )]
+    #[cfg_attr(feature = "crypto-ring", ignore)]
     fn ec_p256() -> TestResult {
         let p256 = P256PrivateKey::generate()?;
         let p256_pub = p256.to_public_key();
@@ -382,10 +424,7 @@ pub mod generate {
     }
 
     #[test]
-    #[cfg_attr(
-        feature = "crypto-ring",
-        ignore = "crypto backend does not support ECC key generation"
-    )]
+    #[cfg_attr(feature = "crypto-ring", ignore)]
     fn ec_p384() -> TestResult {
         let p384 = P384PrivateKey::generate()?;
         let p384_pub = p384.to_public_key();
@@ -395,10 +434,7 @@ pub mod generate {
     }
 
     #[test]
-    #[cfg_attr(
-        any(feature = "crypto-rustcrypto", feature = "crypto-ring"),
-        ignore = "crypto backend does not support P-521 curve"
-    )]
+    #[cfg_attr(any(feature = "crypto-rustcrypto", feature = "crypto-ring"), ignore)]
     fn ec_p521() -> TestResult {
         let p521 = P521PrivateKey::generate()?;
         let p521_pub = p521.to_public_key();
@@ -408,10 +444,7 @@ pub mod generate {
     }
 
     #[test]
-    #[cfg_attr(
-        feature = "crypto-ring",
-        ignore = "crypto backend does not support RSA key generation"
-    )]
+    #[cfg_attr(feature = "crypto-ring", ignore)]
     fn rsa() -> TestResult {
         let rsa = rsa::PrivateKey::generate(4096)?;
         let rsa_pub = rsa.to_public_key();
@@ -427,10 +460,7 @@ pub mod generate {
     }
 
     #[test]
-    #[cfg_attr(
-        feature = "crypto-ring",
-        ignore = "crypto backend does not support Ed448 curve"
-    )]
+    #[cfg_attr(feature = "crypto-ring", ignore)]
     fn ed25519() -> TestResult {
         let ed25519 = okp::PrivateKey::<okp::Ed25519>::generate()?;
         let ed25519_pub = ed25519.to_public_key();
@@ -446,7 +476,7 @@ pub mod generate {
             feature = "crypto-ring",
             feature = "crypto-aws-lc"
         ),
-        ignore = "crypto backend does not support Ed448 curve"
+        ignore
     )]
     fn ed448() -> TestResult {
         let ed448 = okp::PrivateKey::<okp::Ed448>::generate()?;
@@ -479,6 +509,49 @@ fn symmetric_key_can_not_strip_secret() -> TestResult {
     let key = read_jwk("3_5.symmetric_key_mac_computation")?;
     let key: JsonWebKey = serde_json::from_value(key)?;
     assert!(key.strip_secret_material().is_none());
+
+    Ok(())
+}
+
+#[test]
+fn additional_properties() -> TestResult {
+    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+    struct Additional {
+        #[serde(rename = "additional/one")]
+        one: String,
+        another_additional: i32,
+    }
+
+    impl Checkable for Additional {
+        fn check<P: jwk::policy::Policy>(
+            self,
+            policy: P,
+        ) -> Result<jwk::policy::Checked<Self, P>, (Self, P::Error)> {
+            Ok(jwk::policy::Checked::new(self, policy))
+        }
+    }
+
+    let key = read_jwk("rsa_with_additional_props.pub")?;
+    let key: JsonWebKey<Additional> = serde_json::from_value(key)?;
+
+    assert_eq!(key.additional().one.as_str(), "my rsa key");
+    assert_eq!(key.additional().another_additional, 1);
+
+    let untyped = key.clone().into_untyped_additional()?;
+    assert_eq!(
+        untyped
+            .clone()
+            .deserialize_additional::<Additional>()?
+            .additional(),
+        key.additional()
+    );
+
+    let untyped = untyped.additional();
+
+    assert_eq!(untyped["additional/one"], "my rsa key");
+    assert_eq!(untyped["another_additional"], 1);
+
+    let _checked = key.check(jwk::policy::StandardPolicy::new()).unwrap();
 
     Ok(())
 }

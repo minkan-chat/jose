@@ -1,0 +1,10 @@
+{
+    "use": "sig",
+    "kty": "RSA",
+    "kid": "nYPs6qc5zj3VOVKr4yY-EzirO-AcdUl0JC5bcXKGE6Y",
+    "alg": "RS256",
+    "n": "vxmzEVX_Fus8i8BWT_sC_m389t615iPxKSMavPFv0xEhES42RWkO6yNpb_cwWhlJtoy_UdiRW8-0DHYJIbpiwkw4oRRnfMYX4FU77yjovSQLEhKPfIuYDBuP-9LQgF8_NgB9z1WokSUcH-tAf_35MpiXptGxoFuIe1EE7u1TWpTnMwGBnqO1EvJltyWej9R6rt47oqizn1VN8P2No3tys181B_TE9c6N2tXzWpnm5QY7UZO2zPLtYFGbj7hJCNhc5SL3vt-81KkaNjPcW1rgCIoRKvHVI79n_H81LQdiJDJyIobtvPH3XFQa_tM4CP2ul121E_Zi0tcjuD1zyLCq7Q",
+    "e": "AQAB",
+    "additional/one": "my rsa key",
+    "another_additional": 1
+}
