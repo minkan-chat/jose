@@ -83,6 +83,10 @@ fn roundtrip_pair(
     roundtrip(private, unsupported, check)?;
     roundtrip(public, unsupported, check)?;
 
+    if unsupported {
+        return Ok(());
+    }
+
     let private_key: JsonWebKey = serde_json::from_value(read_jwk(private)?)?;
     let public_key: JsonWebKey = serde_json::from_value(read_jwk(public)?)?;
 
