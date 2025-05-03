@@ -21,16 +21,98 @@ use crate::{
 
 #[derive(Clone)]
 enum ErasedPrivateKey {
-    P256(SecretKey<NistP256>),
-    P384(SecretKey<NistP384>),
-    Secp256k1(SecretKey<Secp256k1>),
+    P256 {
+        key: SecretKey<NistP256>,
+        public: EncodedPoint<NistP256>,
+        d: Zeroizing<FieldBytes<NistP256>>,
+    },
+    P384 {
+        key: SecretKey<NistP384>,
+        public: EncodedPoint<NistP384>,
+        d: Zeroizing<FieldBytes<NistP384>>,
+    },
+    Secp256k1 {
+        key: SecretKey<Secp256k1>,
+        public: EncodedPoint<Secp256k1>,
+        d: Zeroizing<FieldBytes<Secp256k1>>,
+    },
+}
+
+impl ErasedPrivateKey {
+    fn new_p256(key: SecretKey<NistP256>) -> PrivateKey {
+        PrivateKey {
+            inner: Self::P256 {
+                public: key.public_key().to_encoded_point(false),
+                d: Zeroizing::new(key.to_bytes()),
+                key,
+            },
+        }
+    }
+
+    fn new_p384(key: SecretKey<NistP384>) -> PrivateKey {
+        PrivateKey {
+            inner: Self::P384 {
+                public: key.public_key().to_encoded_point(false),
+                d: Zeroizing::new(key.to_bytes()),
+                key,
+            },
+        }
+    }
+
+    fn new_secp256k1(key: SecretKey<Secp256k1>) -> PrivateKey {
+        PrivateKey {
+            inner: Self::Secp256k1 {
+                public: key.public_key().to_encoded_point(false),
+                d: Zeroizing::new(key.to_bytes()),
+                key,
+            },
+        }
+    }
 }
 
 #[derive(Clone)]
 enum ErasedPublicKey {
-    P256(elliptic_curve::PublicKey<NistP256>),
-    P384(elliptic_curve::PublicKey<NistP384>),
-    Secp256k1(elliptic_curve::PublicKey<Secp256k1>),
+    P256 {
+        key: elliptic_curve::PublicKey<NistP256>,
+        point: EncodedPoint<NistP256>,
+    },
+    P384 {
+        key: elliptic_curve::PublicKey<NistP384>,
+        point: EncodedPoint<NistP384>,
+    },
+    Secp256k1 {
+        key: elliptic_curve::PublicKey<Secp256k1>,
+        point: EncodedPoint<Secp256k1>,
+    },
+}
+
+impl ErasedPublicKey {
+    fn new_p256(key: elliptic_curve::PublicKey<NistP256>) -> PublicKey {
+        PublicKey {
+            inner: Self::P256 {
+                key,
+                point: key.to_encoded_point(false),
+            },
+        }
+    }
+
+    fn new_p384(key: elliptic_curve::PublicKey<NistP384>) -> PublicKey {
+        PublicKey {
+            inner: Self::P384 {
+                key,
+                point: key.to_encoded_point(false),
+            },
+        }
+    }
+
+    fn new_secp256k1(key: elliptic_curve::PublicKey<Secp256k1>) -> PublicKey {
+        PublicKey {
+            inner: Self::Secp256k1 {
+                key,
+                point: key.to_encoded_point(false),
+            },
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -75,7 +157,6 @@ fn to_field_bytes<C: elliptic_curve::Curve>(
 
 /// A low level private EC key.
 #[derive(Clone)]
-#[repr(transparent)]
 pub(crate) struct PrivateKey {
     inner: ErasedPrivateKey,
 }
@@ -88,12 +169,15 @@ impl ec::PrivateKey for PrivateKey {
         let mut rng = OsRng;
 
         let key = match alg {
-            EcDSA::Es256 => ErasedPrivateKey::P256(SecretKey::<NistP256>::random(&mut rng)),
-            EcDSA::Es384 => ErasedPrivateKey::P384(SecretKey::<NistP384>::random(&mut rng)),
+            EcDSA::Es256 => ErasedPrivateKey::new_p256(SecretKey::<NistP256>::random(&mut rng)),
+            EcDSA::Es384 => ErasedPrivateKey::new_p384(SecretKey::<NistP384>::random(&mut rng)),
             EcDSA::Es512 => return Err(super::BackendError::CurveNotSupported("P-521").into()),
-            EcDSA::Es256K => ErasedPrivateKey::Secp256k1(SecretKey::<Secp256k1>::random(&mut rng)),
+            EcDSA::Es256K => {
+                ErasedPrivateKey::new_secp256k1(SecretKey::<Secp256k1>::random(&mut rng))
+            }
         };
-        Ok(Self { inner: key })
+
+        Ok(key)
     }
 
     fn new(alg: EcDSA, x: Vec<u8>, y: Vec<u8>, d: SecretSlice<u8>) -> Result<Self> {
@@ -122,62 +206,55 @@ impl ec::PrivateKey for PrivateKey {
             Ok(secret)
         }
 
-        match alg {
-            EcDSA::Es256 => Ok(Self {
-                inner: ErasedPrivateKey::P256(new_typed::<NistP256>(x, y, d)?),
-            }),
-            EcDSA::Es384 => Ok(Self {
-                inner: ErasedPrivateKey::P384(new_typed::<NistP384>(x, y, d)?),
-            }),
-            EcDSA::Es512 => Err(super::BackendError::CurveNotSupported("P-521").into()),
-            EcDSA::Es256K => Ok(Self {
-                inner: ErasedPrivateKey::Secp256k1(new_typed::<Secp256k1>(x, y, d)?),
-            }),
-        }
+        Ok(match alg {
+            EcDSA::Es256 => ErasedPrivateKey::new_p256(new_typed::<NistP256>(x, y, d)?),
+            EcDSA::Es384 => ErasedPrivateKey::new_p384(new_typed::<NistP384>(x, y, d)?),
+            EcDSA::Es512 => return Err(super::BackendError::CurveNotSupported("P-521").into()),
+            EcDSA::Es256K => ErasedPrivateKey::new_secp256k1(new_typed::<Secp256k1>(x, y, d)?),
+        })
     }
 
-    fn private_material(&self) -> SecretSlice<u8> {
+    fn private_material(&self) -> &[u8] {
         match self.inner {
-            ErasedPrivateKey::P256(ref key) => {
-                let material = Zeroizing::new(key.to_bytes());
-                let material = material.to_vec();
-                SecretSlice::from(material)
-            }
-            ErasedPrivateKey::P384(ref key) => {
-                let material = Zeroizing::new(key.to_bytes());
-                let material = material.to_vec();
-                SecretSlice::from(material)
-            }
-            ErasedPrivateKey::Secp256k1(ref key) => {
-                let material = Zeroizing::new(key.to_bytes());
-                let material = material.to_vec();
-                SecretSlice::from(material)
-            }
+            ErasedPrivateKey::P256 { ref d, .. } => d.as_slice(),
+            ErasedPrivateKey::P384 { ref d, .. } => d.as_slice(),
+            ErasedPrivateKey::Secp256k1 { ref d, .. } => d.as_slice(),
         }
     }
 
     #[inline]
-    fn public_point(&self) -> (Vec<u8>, Vec<u8>) {
-        ec::PublicKey::to_point(&self.to_public_key())
+    fn public_point(&self) -> (&[u8], &[u8]) {
+        let identity_point = || &[0u8][..];
+
+        match self.inner {
+            ErasedPrivateKey::P256 { public: ref p, .. } => (
+                p.x().map(|a| a.as_slice()).unwrap_or_else(identity_point),
+                p.y().map(|a| a.as_slice()).unwrap_or_else(identity_point),
+            ),
+            ErasedPrivateKey::P384 { public: ref p, .. } => (
+                p.x().map(|a| a.as_slice()).unwrap_or_else(identity_point),
+                p.y().map(|a| a.as_slice()).unwrap_or_else(identity_point),
+            ),
+            ErasedPrivateKey::Secp256k1 { public: ref p, .. } => (
+                p.x().map(|a| a.as_slice()).unwrap_or_else(identity_point),
+                p.y().map(|a| a.as_slice()).unwrap_or_else(identity_point),
+            ),
+        }
     }
 
     fn to_public_key(&self) -> Self::PublicKey {
         match self.inner {
-            ErasedPrivateKey::P256(ref key) => PublicKey {
-                inner: ErasedPublicKey::P256(key.public_key()),
-            },
-            ErasedPrivateKey::P384(ref key) => PublicKey {
-                inner: ErasedPublicKey::P384(key.public_key()),
-            },
-            ErasedPrivateKey::Secp256k1(ref key) => PublicKey {
-                inner: ErasedPublicKey::Secp256k1(key.public_key()),
-            },
+            ErasedPrivateKey::P256 { ref key, .. } => ErasedPublicKey::new_p256(key.public_key()),
+            ErasedPrivateKey::P384 { ref key, .. } => ErasedPublicKey::new_p384(key.public_key()),
+            ErasedPrivateKey::Secp256k1 { ref key, .. } => {
+                ErasedPublicKey::new_secp256k1(key.public_key())
+            }
         }
     }
 
     fn sign(&mut self, data: &[u8], deterministic: bool) -> Result<Self::Signature> {
         let sig = match self.inner {
-            ErasedPrivateKey::P256(ref key) => {
+            ErasedPrivateKey::P256 { ref key, .. } => {
                 let key = ecdsa::SigningKey::<NistP256>::from(key);
 
                 let sig = if deterministic {
@@ -191,7 +268,7 @@ impl ec::PrivateKey for PrivateKey {
 
                 ErasedSignature::P256(sig.to_bytes())
             }
-            ErasedPrivateKey::P384(ref key) => {
+            ErasedPrivateKey::P384 { ref key, .. } => {
                 let key = ecdsa::SigningKey::<NistP384>::from(key);
 
                 let sig = if deterministic {
@@ -205,7 +282,7 @@ impl ec::PrivateKey for PrivateKey {
 
                 ErasedSignature::P384(sig.to_bytes())
             }
-            ErasedPrivateKey::Secp256k1(ref key) => {
+            ErasedPrivateKey::Secp256k1 { ref key, .. } => {
                 let key = ecdsa::SigningKey::<Secp256k1>::from(key);
 
                 let sig = if deterministic {
@@ -252,64 +329,50 @@ impl ec::PublicKey for PublicKey {
             Ok(key)
         }
 
-        match alg {
-            EcDSA::Es256 => Ok(Self {
-                inner: ErasedPublicKey::P256(new_typed::<NistP256>(x, y)?),
-            }),
-            EcDSA::Es384 => Ok(Self {
-                inner: ErasedPublicKey::P384(new_typed::<NistP384>(x, y)?),
-            }),
-            EcDSA::Es512 => Err(super::BackendError::CurveNotSupported("P-521").into()),
-            EcDSA::Es256K => Ok(Self {
-                inner: ErasedPublicKey::Secp256k1(new_typed::<Secp256k1>(x, y)?),
-            }),
-        }
+        Ok(match alg {
+            EcDSA::Es256 => ErasedPublicKey::new_p256(new_typed::<NistP256>(x, y)?),
+            EcDSA::Es384 => ErasedPublicKey::new_p384(new_typed::<NistP384>(x, y)?),
+            EcDSA::Es512 => return Err(super::BackendError::CurveNotSupported("P-521").into()),
+            EcDSA::Es256K => ErasedPublicKey::new_secp256k1(new_typed::<Secp256k1>(x, y)?),
+        })
     }
 
-    fn to_point(&self) -> (Vec<u8>, Vec<u8>) {
-        let identity_point = || alloc::vec![0u8];
+    fn to_point(&self) -> (&[u8], &[u8]) {
+        let identity_point = || &[0u8][..];
+
         match self.inner {
-            ErasedPublicKey::P256(ref key) => {
-                let point = key.to_encoded_point(false);
-                (
-                    point.x().map(|a| a.to_vec()).unwrap_or_else(identity_point),
-                    point.y().map(|a| a.to_vec()).unwrap_or_else(identity_point),
-                )
-            }
-            ErasedPublicKey::P384(ref key) => {
-                let point = key.to_encoded_point(false);
-                (
-                    point.x().map(|a| a.to_vec()).unwrap_or_else(identity_point),
-                    point.y().map(|a| a.to_vec()).unwrap_or_else(identity_point),
-                )
-            }
-            ErasedPublicKey::Secp256k1(ref key) => {
-                let point = key.to_encoded_point(false);
-                (
-                    point.x().map(|a| a.to_vec()).unwrap_or_else(identity_point),
-                    point.y().map(|a| a.to_vec()).unwrap_or_else(identity_point),
-                )
-            }
+            ErasedPublicKey::P256 { point: ref p, .. } => (
+                p.x().map(|a| a.as_slice()).unwrap_or_else(identity_point),
+                p.y().map(|a| a.as_slice()).unwrap_or_else(identity_point),
+            ),
+            ErasedPublicKey::P384 { point: ref p, .. } => (
+                p.x().map(|a| a.as_slice()).unwrap_or_else(identity_point),
+                p.y().map(|a| a.as_slice()).unwrap_or_else(identity_point),
+            ),
+            ErasedPublicKey::Secp256k1 { point: ref p, .. } => (
+                p.x().map(|a| a.as_slice()).unwrap_or_else(identity_point),
+                p.y().map(|a| a.as_slice()).unwrap_or_else(identity_point),
+            ),
         }
     }
 
     fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<bool> {
         Ok(match self.inner {
-            ErasedPublicKey::P256(ref key) => {
+            ErasedPublicKey::P256 { ref key, .. } => {
                 let Ok(sig) = ecdsa::Signature::<NistP256>::try_from(signature) else {
                     return Ok(false);
                 };
                 let key = ecdsa::VerifyingKey::<NistP256>::from(key);
                 key.verify(msg, &sig).is_ok()
             }
-            ErasedPublicKey::P384(ref key) => {
+            ErasedPublicKey::P384 { ref key, .. } => {
                 let Ok(sig) = ecdsa::Signature::<NistP384>::try_from(signature) else {
                     return Ok(false);
                 };
                 let key = ecdsa::VerifyingKey::<NistP384>::from(key);
                 key.verify(msg, &sig).is_ok()
             }
-            ErasedPublicKey::Secp256k1(ref key) => {
+            ErasedPublicKey::Secp256k1 { ref key, .. } => {
                 let Ok(sig) = ecdsa::Signature::<Secp256k1>::try_from(signature) else {
                     return Ok(false);
                 };

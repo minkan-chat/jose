@@ -12,6 +12,7 @@ use openssl::{
 };
 use secrecy::{ExposeSecret, SecretSlice};
 
+use super::ZeroizingBigNum;
 use crate::{
     crypto::{
         backend::interface::ec,
@@ -90,14 +91,14 @@ impl ec::PrivateKey for PrivateKey {
     fn new(alg: EcDSA, x: Vec<u8>, y: Vec<u8>, d: SecretSlice<u8>) -> Result<Self> {
         let group = ec_group(alg)?;
 
-        let d = BigNum::from_slice(d.expose_secret())?;
+        let d = ZeroizingBigNum::from_slice(d.expose_secret())?;
         let x = BigNum::from_slice(&x)?;
         let y = BigNum::from_slice(&y)?;
 
         let public_key = EcKey::from_public_key_affine_coordinates(&group, &x, &y)?;
         public_key.check_key()?;
 
-        let key = EcKey::from_private_components(&group, &d, public_key.public_key())?;
+        let key = EcKey::from_private_components(&group, &d.0, public_key.public_key())?;
         key.check_key()?;
 
         let coordinate_size = coordinate_size(alg) as i32;
@@ -111,13 +112,14 @@ impl ec::PrivateKey for PrivateKey {
         })
     }
 
-    fn private_material(&self) -> SecretSlice<u8> {
-        self.d.clone()
+    #[inline]
+    fn private_material(&self) -> &[u8] {
+        self.d.expose_secret()
     }
 
     #[inline]
-    fn public_point(&self) -> (Vec<u8>, Vec<u8>) {
-        (self.x.clone(), self.y.clone())
+    fn public_point(&self) -> (&[u8], &[u8]) {
+        (&self.x, &self.y)
     }
 
     fn to_public_key(&self) -> Self::PublicKey {
@@ -201,8 +203,9 @@ impl ec::PublicKey for PublicKey {
         })
     }
 
-    fn to_point(&self) -> (Vec<u8>, Vec<u8>) {
-        (self.x.clone(), self.y.clone())
+    #[inline]
+    fn to_point(&self) -> (&[u8], &[u8]) {
+        (&self.x, &self.y)
     }
 
     fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<bool> {

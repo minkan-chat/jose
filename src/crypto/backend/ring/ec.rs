@@ -7,7 +7,7 @@ use ring::{
 use secrecy::{ExposeSecret as _, SecretSlice};
 
 use crate::{
-    crypto::{backend::interface::ec, Result},
+    crypto::{backend::interface::ec, ec::coordinate_size, Result},
     jwa::{self, EcDSA},
 };
 
@@ -22,18 +22,29 @@ fn make_public_key(x: &[u8], y: &[u8]) -> Vec<u8> {
     pubkey
 }
 
+/// Converts a public key to x and y coordinates.
+fn make_points(alg: jwa::EcDSA, key: &[u8]) -> (&[u8], &[u8]) {
+    let size = coordinate_size(alg);
+
+    // SAFETY:
+    // This can never panic, because the coordinates are always of exact length,
+    // and are not shortened or compressed.
+    let x = &key[1..size + 1];
+    let y = &key[size + 1..];
+
+    (x, y)
+}
+
 pub(crate) struct PrivateKeyData {
     key: EcdsaKeyPair,
     private_material: SecretSlice<u8>,
-
     pub_key: UnparsedPublicKey<Vec<u8>>,
-    x: Vec<u8>,
-    y: Vec<u8>,
 }
 
 /// A low level private EC key.
 pub(crate) struct PrivateKey {
     alg: &'static signature::EcdsaSigningAlgorithm,
+    jwa: jwa::EcDSA,
     data: Box<PrivateKeyData>,
 }
 
@@ -41,6 +52,7 @@ impl Clone for PrivateKey {
     fn clone(&self) -> Self {
         Self {
             alg: self.alg,
+            jwa: self.jwa,
             data: Box::new(PrivateKeyData {
                 key: EcdsaKeyPair::from_private_key_and_public_key(
                     self.alg,
@@ -51,8 +63,6 @@ impl Clone for PrivateKey {
                 .expect("this method was already successful with the exact same data"),
                 private_material: self.data.private_material.clone(),
                 pub_key: self.data.pub_key.clone(),
-                x: self.data.x.clone(),
-                y: self.data.y.clone(),
             }),
         }
     }
@@ -92,30 +102,29 @@ impl ec::PrivateKey for PrivateKey {
 
         Ok(Self {
             alg: sign_alg,
+            jwa: alg,
             data: Box::new(PrivateKeyData {
                 key: keypair,
                 private_material: d,
                 pub_key: UnparsedPublicKey::new(verify_alg, pubkey),
-                x,
-                y,
             }),
         })
     }
 
-    fn private_material(&self) -> SecretSlice<u8> {
-        self.data.private_material.clone()
+    #[inline]
+    fn private_material(&self) -> &[u8] {
+        self.data.private_material.expose_secret()
     }
 
     #[inline]
-    fn public_point(&self) -> (Vec<u8>, Vec<u8>) {
-        (self.data.x.clone(), self.data.y.clone())
+    fn public_point(&self) -> (&[u8], &[u8]) {
+        make_points(self.jwa, self.data.pub_key.as_ref())
     }
 
     fn to_public_key(&self) -> Self::PublicKey {
         PublicKey {
             inner: self.data.pub_key.clone(),
-            x: self.data.x.clone(),
-            y: self.data.y.clone(),
+            jwa: self.jwa,
         }
     }
 
@@ -133,8 +142,7 @@ impl ec::PrivateKey for PrivateKey {
 #[derive(Clone)]
 pub(crate) struct PublicKey {
     inner: UnparsedPublicKey<Vec<u8>>,
-    x: Vec<u8>,
-    y: Vec<u8>,
+    jwa: jwa::EcDSA,
 }
 
 impl ec::PublicKey for PublicKey {
@@ -148,14 +156,13 @@ impl ec::PublicKey for PublicKey {
 
         let pubkey = UnparsedPublicKey::new(verify_alg, make_public_key(&x, &y));
         Ok(Self {
+            jwa: alg,
             inner: pubkey,
-            x,
-            y,
         })
     }
 
-    fn to_point(&self) -> (Vec<u8>, Vec<u8>) {
-        (self.x.clone(), self.y.clone())
+    fn to_point(&self) -> (&[u8], &[u8]) {
+        make_points(self.jwa, self.inner.as_ref())
     }
 
     fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<bool> {

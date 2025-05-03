@@ -58,3 +58,19 @@ impl interface::Backend for Backend {
         openssl::sha::sha512(data)
     }
 }
+
+/// Wrapper around a [`BigNum`](openssl::bn::BigNum) that is cleared on drop.
+struct ZeroizingBigNum(openssl::bn::BigNum);
+
+impl ZeroizingBigNum {
+    fn from_slice(slice: &[u8]) -> Result<Self, BackendError> {
+        let bn = openssl::bn::BigNum::from_slice(slice)?;
+        Ok(Self(bn))
+    }
+}
+
+impl Drop for ZeroizingBigNum {
+    fn drop(&mut self) {
+        self.0.clear();
+    }
+}

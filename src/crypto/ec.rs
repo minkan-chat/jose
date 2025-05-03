@@ -10,6 +10,7 @@ use core::{fmt, marker::PhantomData};
 
 use secrecy::ExposeSecret;
 use serde::{de::Error as _, Deserialize, Serialize};
+use zeroize::Zeroizing;
 
 use super::backend::{interface, Backend};
 use crate::{
@@ -256,18 +257,17 @@ impl<C: Curve> Serialize for PublicKey<C> {
         struct Repr<'a> {
             crv: &'a str,
             kty: &'a str,
-            x: Base64UrlBytes,
-            y: Base64UrlBytes,
+            x: Base64UrlString,
+            y: Base64UrlString,
         }
 
         let (x, y) = self.inner.to_point();
 
-        #[expect(clippy::useless_conversion)]
         let repr = Repr {
             crv: C::NAME,
             kty: "EC",
-            x: Base64UrlBytes(Vec::<u8>::from(x)),
-            y: Base64UrlBytes(Vec::<u8>::from(y)),
+            x: Base64UrlString::encode(x),
+            y: Base64UrlString::encode(y),
         };
 
         repr.serialize(serializer)
@@ -394,21 +394,20 @@ impl<C: Curve> Serialize for PrivateKey<C> {
         struct Repr<'a> {
             crv: &'a str,
             kty: &'a str,
-            x: Base64UrlBytes,
-            y: Base64UrlBytes,
-            d: SecretBase64UrlBytes,
+            x: Base64UrlString,
+            y: Base64UrlString,
+            d: Zeroizing<Base64UrlString>,
         }
 
         let (x, y) = self.inner.public_point();
         let d = self.inner.private_material();
 
-        #[expect(clippy::useless_conversion)]
         let repr = Repr {
             crv: C::NAME,
             kty: "EC",
-            x: Base64UrlBytes(Vec::<u8>::from(x)),
-            y: Base64UrlBytes(Vec::<u8>::from(y)),
-            d: SecretBase64UrlBytes(d),
+            x: Base64UrlString::encode(x),
+            y: Base64UrlString::encode(y),
+            d: Zeroizing::new(Base64UrlString::encode(d)),
         };
 
         repr.serialize(serializer)

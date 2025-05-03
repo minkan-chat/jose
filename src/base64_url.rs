@@ -17,7 +17,7 @@ pub struct NoBase64UrlString;
 
 /// A wrapper around a [`String`] that guarantees that the inner string is a
 /// valid Base64Url string.
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Default)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Default, Zeroize)]
 #[repr(transparent)]
 #[serde(transparent)]
 pub struct Base64UrlString(String);
