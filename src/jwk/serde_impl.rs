@@ -1,4 +1,4 @@
-use alloc::vec::Vec;
+use alloc::{borrow::Cow, vec::Vec};
 use core::ops::Deref;
 
 use base64ct::{Base64, Base64UrlUnpadded, Encoding};
@@ -53,10 +53,10 @@ pub fn deserialize_ga<'de, D, const N: usize>(deserializer: D) -> Result<Option<
 where
     D: Deserializer<'de>,
 {
-    Ok(match Option::<&str>::deserialize(deserializer)? {
+    Ok(match Option::<Cow<'_, str>>::deserialize(deserializer)? {
         Some(val) => {
             let mut buf = [0u8; N];
-            Base64UrlUnpadded::decode(val, &mut buf).map_err(<D::Error as Error>::custom)?;
+            Base64UrlUnpadded::decode(&*val, &mut buf).map_err(<D::Error as Error>::custom)?;
             Some(buf)
         }
         None => None,

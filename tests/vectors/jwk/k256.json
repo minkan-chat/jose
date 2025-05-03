@@ -1,0 +1,9 @@
+{
+  "alg":"ES256K",
+  "crv":"secp256k1",
+  "d":"8WieVX5crsjLd1VZmsWa6fdip1apcxv7sasaBhXNxKU",
+  "key_ops":["sign","verify"],
+  "kty":"EC",
+  "x":"KBKyqszcuKAz2PovGR0vu46v8X9nVx43T4rLiMKmuyw",
+  "y":"jmE55gZG_Qe4tebTrZIwUfwkM7KXEdJHR_yqH87rSp8"
+}

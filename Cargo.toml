@@ -130,6 +130,10 @@ eyre = "0.6.12"
 clap = { version = "4.5.27", features = ["derive"] }
 clio = { version = "0.3.5", features = ["clap-parse"] }
 
+# For integration tests
+pretty_assertions = "1.4.1"
+rstest = "0.25.0"
+
 # For X.509 certificates of Json Web Keys
 # x509-cert = { git = "https://github.com/RustCrypto/formats.git" }
 
@@ -140,3 +144,6 @@ required-features = ["std"]
 [package.metadata.docs.rs]
 features = ["crypto-rustcrypto", "std", "deterministic-ecdsa"]
 rustdoc-args = ["--cfg", "docsrs"]
+
+[profile.dev.package.num-bigint-dig]
+opt-level = 3

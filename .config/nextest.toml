@@ -1,0 +1,3 @@
+# Profile to only run `tests/jwk.rs` tests.
+[profile.jwk]
+default-filter = "binary_id(jose::jwk)"
