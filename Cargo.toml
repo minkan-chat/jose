@@ -22,7 +22,7 @@ categories = [
 ]
 
 [features]
-default = ["crypto-openssl"]
+default = []
 std = [
   "thiserror/std",
   "fluent-uri/std",
