@@ -1,0 +1,21 @@
+{
+    "keys": [
+        {
+            "use": "sig",
+            "kid": "ec_key",
+            "kty": "EC",
+            "crv": "P-256",
+            "alg": "ES256",
+            "x": "-HGJKqKLCoB6z4zlNKef927CODDulLcHdxNi2iUTi5g",
+            "y": "GaVhYaBvIgSAaNLjXjVqOvtCGH56x5s4DnWMy9TXbTU",
+            "d": "C6AV5ZvCGQevYYMJT15frXWuKaqEDthnSMtuJKEKykI"
+        },
+        {
+            "use": "sig",
+            "kid": "hmac_key",
+            "kty": "oct",
+            "alg": "HS256",
+            "k": "QXk0V2FZSWYyMFR3RVNMZmt4SFVwU3Z4MkRtNlpINE4"
+        }
+    ]
+}

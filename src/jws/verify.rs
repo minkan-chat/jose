@@ -199,12 +199,38 @@ impl<T> ManyUnverified<T> {
     /// Verify this struct using the given verifies, returning a [`Verified`]
     /// representation of the inner type.
     ///
+    /// You can use this method to avoid some unnecessary mapping. For example,
+    /// if you have a `Vec<JwkVerifier>`, you can use
+    /// `verify_many_type(signers.iter_mut())` instead of having to map
+    /// `JwkVerifier` to `&mut dyn Verifier<S>` first.
+    ///
     /// # Errors
     ///
     /// Returns an error if the number of verifiers does not match the number of
     /// signatures, or if anything went wrong during a signature
     /// verification or if one of the signatures is just invalid.
-    // TODO: consider using a more specific error type to give the usermore
+    pub fn verify_many_type<'a, V: Verifier + 'a>(
+        self,
+        verifiers: impl IntoIterator<Item = &'a mut V>,
+    ) -> Result<Verified<T>, VerifyError> {
+        self.verify_many(verifiers.into_iter().map(|s| {
+            let s: &mut dyn Verifier = s;
+            s
+        }))
+    }
+
+    /// Verify this struct using the given verifies, returning a [`Verified`]
+    /// representation of the inner type.
+    ///
+    /// Note that currently, the order of the verifiers iterator and signatures
+    /// in the JWS must match exactly.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the number of verifiers does not match the number of
+    /// signatures, or if anything went wrong during a signature
+    /// verification or if one of the signatures is just invalid.
+    // TODO: consider using a more specific error type to give the user more
     // information about the error
     pub fn verify_many<'a>(
         self,

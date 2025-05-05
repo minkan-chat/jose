@@ -300,6 +300,34 @@ impl<F: Format, T: IntoPayload> JsonWebSignature<F, T> {
 impl<T: IntoPayload> JsonWebSignature<JsonGeneral, T> {
     /// Signs this JWS using multiple signers.
     ///
+    /// Instead of taking a trait object as a signer, this method takes a
+    /// generic type which can avoid the requirement for manual coercion to
+    /// a trait object.
+    ///
+    /// You can use this method to avoid some unnecessary mappings. For example,
+    /// if you have a `Vec<JwkSigner>`, you can use
+    /// `sign_many_type(signers.iter_mut())` instead of having to map
+    /// `JwkSigner` to `&mut dyn Signer<S>` first.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the length of the given iterator of signers does
+    /// not match the number of headers in this JWS.
+    /// Otherwise, this method may return the same errors as the normal sign
+    /// operation.
+    #[inline]
+    pub fn sign_many_type<'s, S: AsRef<[u8]> + 's, SIGNER: Signer<S> + 's>(
+        self,
+        signers: impl IntoIterator<Item = &'s mut SIGNER>,
+    ) -> Result<Signed<JsonGeneral>, SignError<T::Error>> {
+        self.sign_many(signers.into_iter().map(|s| {
+            let s: &mut dyn Signer<S> = s;
+            s
+        }))
+    }
+
+    /// Signs this JWS using multiple signers.
+    ///
     /// This is only supported when the JWS is in the [`JsonGeneral`] format.
     ///
     /// # Errors

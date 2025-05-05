@@ -30,6 +30,7 @@ pub mod policy;
 mod private;
 mod public;
 pub(crate) mod serde_impl;
+mod set;
 mod signer;
 pub(crate) mod thumbprint;
 mod verifier;
@@ -42,6 +43,7 @@ pub use self::{
     key_use::KeyUsage,
     private::{EcPrivate, OkpPrivate, Private},
     public::{EcPublic, OkpPublic, Public},
+    set::{CheckedJsonWebKeySet, JsonWebKeySet},
     signer::{FromJwkError, JwkSigner},
     symmetric::SymmetricJsonWebKey,
     thumbprint::Thumbprint,
