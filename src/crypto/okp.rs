@@ -8,7 +8,9 @@
 use alloc::{borrow::Cow, format, string::String, vec::Vec};
 use core::{fmt, marker::PhantomData};
 
+use secrecy::SecretSlice;
 use serde::{de::Error as _, Deserialize, Serialize};
+use zeroize::Zeroizing;
 
 use super::backend::{
     interface::{
@@ -17,11 +19,7 @@ use super::backend::{
     },
     Backend,
 };
-use crate::{
-    base64_url::{Base64UrlBytes, SecretBase64UrlBytes},
-    crypto::Result,
-    jwa, jwk, jws, Base64UrlString,
-};
+use crate::{crypto::Result, jwa, jwk, jws, Base64UrlString};
 
 const KTY: &str = "OKP";
 
@@ -101,14 +99,14 @@ pub struct PublicKey<C> {
 impl<C: Curve> Eq for PublicKey<C> {}
 impl<C: Curve> PartialEq for PublicKey<C> {
     fn eq(&self, other: &Self) -> bool {
-        interface::okp::PublicKey::to_bytes(&self.inner)
-            == interface::okp::PublicKey::to_bytes(&other.inner)
+        interface::okp::PublicKey::as_bytes(&self.inner)
+            == interface::okp::PublicKey::as_bytes(&other.inner)
     }
 }
 
 impl<C: Curve> fmt::Debug for PublicKey<C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let bytes = Base64UrlString::encode(interface::okp::PublicKey::to_bytes(&self.inner));
+        let bytes = Base64UrlString::encode(interface::okp::PublicKey::as_bytes(&self.inner));
         f.debug_struct("PublicKey")
             .field("curve", &C::NAME)
             .field("x", &bytes)
@@ -150,7 +148,7 @@ impl<C: Curve> jwk::Thumbprint for PublicKey<C> {
 struct PublicRepr<'a> {
     crv: Cow<'a, str>,
     kty: Cow<'a, str>,
-    x: Base64UrlBytes,
+    x: Base64UrlString,
 }
 
 impl<'de, C: Curve> Deserialize<'de> for PublicKey<C> {
@@ -175,8 +173,8 @@ impl<'de, C: Curve> Deserialize<'de> for PublicKey<C> {
             )));
         }
 
-        let key =
-            interface::okp::PublicKey::new(C::ALGORITHM, repr.x.0).map_err(D::Error::custom)?;
+        let x = repr.x.decode();
+        let key = interface::okp::PublicKey::new(C::ALGORITHM, x).map_err(D::Error::custom)?;
         Ok(Self {
             inner: key,
             _curve: PhantomData,
@@ -192,7 +190,7 @@ impl<C: Curve> Serialize for PublicKey<C> {
         let repr = PublicRepr {
             crv: C::NAME.into(),
             kty: KTY.into(),
-            x: Base64UrlBytes(interface::okp::PublicKey::to_bytes(&self.inner)),
+            x: Base64UrlString::encode(interface::okp::PublicKey::as_bytes(&self.inner)),
         };
 
         repr.serialize(serializer)
@@ -241,7 +239,7 @@ impl<C: Curve> PartialEq for PrivateKey<C> {
 impl<C: Curve> fmt::Debug for PrivateKey<C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let pub_key = interface::okp::PrivateKey::to_public_key(&self.inner);
-        let bytes = Base64UrlString::encode(interface::okp::PublicKey::to_bytes(&pub_key));
+        let bytes = Base64UrlString::encode(interface::okp::PublicKey::as_bytes(&pub_key));
 
         f.debug_struct("PrivateKey")
             .field("curve", &C::NAME)
@@ -285,7 +283,7 @@ impl<C: Curve> jwk::Thumbprint for PrivateKey<C> {
 struct PrivateRepr<'a> {
     #[serde(flatten)]
     public: PublicRepr<'a>,
-    d: SecretBase64UrlBytes,
+    d: Zeroizing<Base64UrlString>,
 }
 
 impl<'de, C: Curve> Deserialize<'de> for PrivateKey<C> {
@@ -295,8 +293,9 @@ impl<'de, C: Curve> Deserialize<'de> for PrivateKey<C> {
     {
         let repr = PrivateRepr::deserialize(deserializer)?;
 
-        let key = interface::okp::PrivateKey::new(C::ALGORITHM, repr.public.x.0, repr.d.0)
-            .map_err(D::Error::custom)?;
+        let x = repr.public.x.decode();
+        let d = SecretSlice::from(repr.d.decode());
+        let key = interface::okp::PrivateKey::new(C::ALGORITHM, x, d).map_err(D::Error::custom)?;
 
         Ok(Self {
             inner: key,
@@ -315,9 +314,11 @@ impl<C: Curve> Serialize for PrivateKey<C> {
             public: PublicRepr {
                 crv: C::NAME.into(),
                 kty: KTY.into(),
-                x: Base64UrlBytes(interface::okp::PublicKey::to_bytes(&pub_key)),
+                x: Base64UrlString::encode(interface::okp::PublicKey::as_bytes(&pub_key)),
             },
-            d: SecretBase64UrlBytes(interface::okp::PrivateKey::to_bytes(&self.inner)),
+            d: Zeroizing::new(Base64UrlString::encode(
+                interface::okp::PrivateKey::as_bytes(&self.inner),
+            )),
         };
 
         repr.serialize(serializer)

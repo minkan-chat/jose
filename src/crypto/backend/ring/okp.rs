@@ -55,8 +55,8 @@ impl okp::PrivateKey for PrivateKey {
         Ok(Self { inner: key, d })
     }
 
-    fn to_bytes(&self) -> SecretSlice<u8> {
-        self.d.clone()
+    fn as_bytes(&self) -> &[u8] {
+        self.d.expose_secret()
     }
 
     fn to_public_key(&self) -> Self::PublicKey {
@@ -90,8 +90,8 @@ impl okp::PublicKey for PublicKey {
         Ok(Self { inner: key })
     }
 
-    fn to_bytes(&self) -> Vec<u8> {
-        self.inner.as_ref().to_vec()
+    fn as_bytes(&self) -> &[u8] {
+        self.inner.as_ref()
     }
 
     fn verify(&mut self, msg: &[u8], signature: &[u8]) -> Result<bool> {

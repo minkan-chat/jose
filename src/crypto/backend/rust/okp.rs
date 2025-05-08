@@ -4,7 +4,6 @@ use ed25519_dalek::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH};
 use rand_core::OsRng;
 use secrecy::{ExposeSecret, SecretSlice};
 use signature::Signer as _;
-use zeroize::Zeroizing;
 
 use crate::crypto::{backend::interface::okp, Result};
 
@@ -70,9 +69,9 @@ impl okp::PublicKey for PublicKey {
         Ok(Self { inner: key })
     }
 
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> &[u8] {
         match self.inner {
-            ErasedPublicKey::Ed25519(ref key) => key.to_bytes().to_vec(),
+            ErasedPublicKey::Ed25519(ref key) => key.as_bytes(),
         }
     }
 
@@ -141,12 +140,9 @@ impl okp::PrivateKey for PrivateKey {
         Ok(Self { inner: key })
     }
 
-    fn to_bytes(&self) -> SecretSlice<u8> {
+    fn as_bytes(&self) -> &[u8] {
         match self.inner {
-            ErasedPrivateKey::Ed25519(ref key) => {
-                let material = Zeroizing::new(key.to_bytes());
-                SecretSlice::from(material.to_vec())
-            }
+            ErasedPrivateKey::Ed25519(ref key) => key.as_bytes(),
         }
     }
 

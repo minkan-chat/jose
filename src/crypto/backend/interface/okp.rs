@@ -12,7 +12,7 @@ pub(crate) trait PublicKey: Sized + Clone {
     fn new(alg: CurveAlgorithm, x: Vec<u8>) -> Result<Self>;
 
     /// Returns the encoded bytes for this public key.
-    fn to_bytes(&self) -> Vec<u8>;
+    fn as_bytes(&self) -> &[u8];
 
     /// Verifies if the message is valid for the given signature and algorithm.
     ///
@@ -38,7 +38,7 @@ pub(crate) trait PrivateKey: Sized + Clone {
     fn to_public_key(&self) -> Self::PublicKey;
 
     /// Returns the encoded bytes for this private key.
-    fn to_bytes(&self) -> SecretSlice<u8>;
+    fn as_bytes(&self) -> &[u8];
 
     /// Signs the given data using this key.
     ///
