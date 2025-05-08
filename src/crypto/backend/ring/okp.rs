@@ -1,6 +1,10 @@
 use alloc::vec::Vec;
 
-use ring::signature::{Ed25519KeyPair, KeyPair as _, UnparsedPublicKey};
+use pkcs8::{der::Decode as _, PrivateKeyInfo};
+use ring::{
+    rand::SystemRandom,
+    signature::{Ed25519KeyPair, KeyPair as _, UnparsedPublicKey},
+};
 use secrecy::{ExposeSecret, SecretSlice};
 
 use crate::crypto::{backend::interface::okp, Result};
@@ -29,7 +33,16 @@ impl okp::PrivateKey for PrivateKey {
     type Signature = Vec<u8>;
 
     fn generate(_alg: okp::CurveAlgorithm) -> Result<Self> {
-        Err(super::BackendError::Unsupported("Ed25519 key generation").into())
+        let rng = SystemRandom::new();
+        let pkcs8 = Ed25519KeyPair::generate_pkcs8(&rng)?;
+        let key = Ed25519KeyPair::from_pkcs8(pkcs8.as_ref())?;
+
+        let private_key_info = PrivateKeyInfo::from_der(pkcs8.as_ref())?;
+
+        Ok(Self {
+            inner: key,
+            d: SecretSlice::from(private_key_info.private_key.to_vec()),
+        })
     }
 
     fn new(alg: okp::CurveAlgorithm, x: Vec<u8>, d: SecretSlice<u8>) -> Result<Self> {

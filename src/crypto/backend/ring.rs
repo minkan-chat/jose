@@ -13,9 +13,6 @@ pub(crate) mod hmac;
 pub(crate) mod okp;
 pub(crate) mod rsa;
 
-// TODO: remove the `cfg_attr` once the RustCrypto crates implement
-// the core::error::Error trait.
-
 /// The errors that can be produced by the rust crypto backend.
 #[derive(Debug, Error)]
 pub(crate) enum BackendError {
@@ -34,6 +31,11 @@ pub(crate) enum BackendError {
     /// A specific feature is not supported
     #[error("ring does not support feature: {0}")]
     Unsupported(&'static str),
+
+    /// DER encoding or decoding failed.
+    #[cfg_attr(feature = "std", error("DER encoding or decoding failed"))]
+    #[cfg_attr(not(feature = "std"), error("DER encoding or decoding failed: {0}"))]
+    Der(#[cfg_attr(feature = "std", source)] pkcs8::der::Error),
 }
 
 impl From<ring::error::Unspecified> for BackendError {
@@ -45,6 +47,12 @@ impl From<ring::error::Unspecified> for BackendError {
 impl From<ring::error::KeyRejected> for BackendError {
     fn from(x: ring::error::KeyRejected) -> Self {
         Self::KeyRejected(x)
+    }
+}
+
+impl From<pkcs8::der::Error> for BackendError {
+    fn from(x: pkcs8::der::Error) -> Self {
+        Self::Der(x)
     }
 }
 

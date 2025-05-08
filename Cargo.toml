@@ -32,6 +32,8 @@ std = [
   "rsa?/std",
   "rand_core?/std",
   "ring?/std",
+  "pkcs8?/std",
+  "sec1?/std",
 ]
 crypto-rustcrypto = [
     "dep:rand_core",
@@ -51,7 +53,7 @@ crypto-rustcrypto = [
 crypto-openssl = ["std", "dep:openssl", "dep:openssl-sys"]
 crypto-openssl-vendored = ["crypto-openssl", "openssl/vendored"]
 crypto-aws-lc = ["std", "dep:openssl", "openssl/aws-lc"]
-crypto-ring = ["dep:ring"]
+crypto-ring = ["dep:ring", "dep:pkcs8", "dep:sec1"]
 
 # This feature enables the deterministic signature generation
 # using EcDSA according to RFC 6979
@@ -96,9 +98,6 @@ elliptic-curve = { optional = true, version = "0.13", default-features = false, 
   "arithmetic",
   "jwk",
   "serde",
-  "sec1",
-  "pkcs8",
-  "pem",
 ] }
 rsa = { optional = true, version = "0.9", default-features = false }
 digest = { optional = true, version = "0.10.7", default-features = false, features = ["mac"] }
@@ -121,8 +120,11 @@ signature = { optional = true, version = "2.1.0", default-features = false }
 # OpenSSL backend (is also used for aws-lc and libressl)
 openssl = { version = "0.10.72", optional = true }
 openssl-sys = { version = "0.9.107", optional = true }
+
 # Ring crypto backend
 ring = { version = "0.17.14", optional = true }
+pkcs8 = { version = "0.10.2", optional = true }
+sec1 = { version = "0.7.3", optional = true }
 
 [dev-dependencies]
 # For examples

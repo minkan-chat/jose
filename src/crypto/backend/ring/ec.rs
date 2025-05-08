@@ -1,9 +1,11 @@
 use alloc::{boxed::Box, vec::Vec};
 
+use pkcs8::{der::Decode as _, PrivateKeyInfo};
 use ring::{
     rand::SystemRandom,
-    signature::{self, EcdsaKeyPair, UnparsedPublicKey},
+    signature::{self, EcdsaKeyPair, KeyPair as _, UnparsedPublicKey},
 };
+use sec1::EcPrivateKey;
 use secrecy::{ExposeSecret as _, SecretSlice};
 
 use crate::{
@@ -33,6 +35,26 @@ fn make_points(alg: jwa::EcDSA, key: &[u8]) -> (&[u8], &[u8]) {
     let y = &key[size + 1..];
 
     (x, y)
+}
+
+fn algorithms(
+    alg: jwa::EcDSA,
+) -> Result<(
+    &'static signature::EcdsaSigningAlgorithm,
+    &'static signature::EcdsaVerificationAlgorithm,
+)> {
+    Ok(match alg {
+        EcDSA::Es256 => (
+            &signature::ECDSA_P256_SHA256_FIXED_SIGNING,
+            &signature::ECDSA_P256_SHA256_FIXED,
+        ),
+        EcDSA::Es384 => (
+            &signature::ECDSA_P384_SHA384_FIXED_SIGNING,
+            &signature::ECDSA_P384_SHA384_FIXED,
+        ),
+        EcDSA::Es512 => return Err(super::BackendError::UnsupportedCurve("P-521").into()),
+        EcDSA::Es256K => return Err(super::BackendError::UnsupportedCurve("secp256k1").into()),
+    })
 }
 
 pub(crate) struct PrivateKeyData {
@@ -72,23 +94,30 @@ impl ec::PrivateKey for PrivateKey {
     type PublicKey = PublicKey;
     type Signature = Vec<u8>;
 
-    fn generate(_alg: jwa::EcDSA) -> Result<Self> {
-        Err(super::BackendError::Unsupported("EcDSA key generation").into())
+    fn generate(alg: jwa::EcDSA) -> Result<Self> {
+        let (sign_alg, verify_alg) = algorithms(alg)?;
+
+        let rng = SystemRandom::new();
+        let pkcs8 = EcdsaKeyPair::generate_pkcs8(sign_alg, &rng)?;
+        let key = EcdsaKeyPair::from_pkcs8(sign_alg, pkcs8.as_ref(), &rng)?;
+        let pubkey = key.public_key().as_ref();
+
+        let private_key_info = PrivateKeyInfo::from_der(pkcs8.as_ref())?;
+        let ec_key = EcPrivateKey::from_der(private_key_info.private_key)?;
+
+        Ok(Self {
+            alg: sign_alg,
+            jwa: alg,
+            data: Box::new(PrivateKeyData {
+                private_material: SecretSlice::from(ec_key.private_key.to_vec()),
+                pub_key: UnparsedPublicKey::new(verify_alg, pubkey.to_vec()),
+                key,
+            }),
+        })
     }
 
     fn new(alg: EcDSA, x: Vec<u8>, y: Vec<u8>, d: SecretSlice<u8>) -> Result<Self> {
-        let (sign_alg, verify_alg) = match alg {
-            EcDSA::Es256 => (
-                &signature::ECDSA_P256_SHA256_FIXED_SIGNING,
-                &signature::ECDSA_P256_SHA256_FIXED,
-            ),
-            EcDSA::Es384 => (
-                &signature::ECDSA_P384_SHA384_FIXED_SIGNING,
-                &signature::ECDSA_P384_SHA384_FIXED,
-            ),
-            EcDSA::Es512 => return Err(super::BackendError::UnsupportedCurve("P-521").into()),
-            EcDSA::Es256K => return Err(super::BackendError::UnsupportedCurve("secp256k1").into()),
-        };
+        let (sign_alg, verify_alg) = algorithms(alg)?;
 
         let rng = SystemRandom::new();
         let pubkey = make_public_key(&x, &y);
@@ -147,14 +176,9 @@ pub(crate) struct PublicKey {
 
 impl ec::PublicKey for PublicKey {
     fn new(alg: EcDSA, x: Vec<u8>, y: Vec<u8>) -> Result<Self> {
-        let verify_alg = match alg {
-            EcDSA::Es256 => &signature::ECDSA_P256_SHA256_FIXED,
-            EcDSA::Es384 => &signature::ECDSA_P384_SHA384_FIXED,
-            EcDSA::Es512 => return Err(super::BackendError::UnsupportedCurve("P-521").into()),
-            EcDSA::Es256K => return Err(super::BackendError::UnsupportedCurve("secp256k1").into()),
-        };
-
+        let verify_alg = algorithms(alg)?.1;
         let pubkey = UnparsedPublicKey::new(verify_alg, make_public_key(&x, &y));
+
         Ok(Self {
             jwa: alg,
             inner: pubkey,
