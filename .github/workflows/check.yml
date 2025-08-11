@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     name: nightly / fmt
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: true
       - name: Install nightly
@@ -40,7 +40,7 @@ jobs:
       matrix:
         toolchain: [stable]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: true
       - name: rust cache
@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     name: nightly / doc
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: true
       - name: rust cache
@@ -84,7 +84,7 @@ jobs:
           - bans licenses sources
     continue-on-error: ${{ matrix.checks == 'advisories'}}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: true
       - name: cargo-deny
@@ -96,7 +96,7 @@ jobs:
     runs-on: ubuntu-latest
     name: ubuntu / stable / features
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: true
       - name: rust cache
@@ -127,7 +127,7 @@ jobs:
         msrv: ["1.84"]
     name: ubuntu / ${{ matrix.msrv }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: true
       - name: rust cache
