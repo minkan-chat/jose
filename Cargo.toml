@@ -68,7 +68,7 @@ hashbrown = { version = "0.15", features = ["serde"] }
 
 serde-value = { version = "0.7.0", default-features = false }
 # a replacement for the `mime` crate from hyper which seems to be no longer maintained
-mediatype = { version = "0.19.3", features = ["serde"] }
+mediatype = { version = "0.20.0", features = ["serde"] }
 fluent-uri = { version = "0.3.2", default-features = false }
 secrecy = { version = "0.10.3", default-features = false, features = ["serde"] }
 zeroize = { version = "1.8.1", default-features = false, features = ["derive", "serde"] }
